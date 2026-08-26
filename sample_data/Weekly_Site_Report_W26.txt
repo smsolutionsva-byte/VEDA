@@ -1,0 +1,65 @@
+TRANS-RIDGE PIPELINE - SECTION 4
+WEEKLY SITE PROGRESS REPORT
+Week 26 - Period ending 29 June 2025
+Prepared by: Site Construction Manager (R. Iyer)
+Contractor: Ridgeline Constructors / Apex Pipeline Services
+
+1. SUMMARY
+Overall physical progress at cut-off stands at approximately 34% against a
+planned 41%. The section is running behind plan, driven principally by the
+welding and radiography sequence on Spread A and by ground conditions at the
+HDD river crossing.
+
+2. PIPELINE - SPREAD A (CH 0+000 to 12+000)
+Stringing is complete over the full spread. Bending is progressing at about 70%.
+Mainline welding stands at roughly 35% and is currently the pacing activity.
+Welding output has been constrained by two factors: the porosity NCR raised at
+CH 5+400 (NCR-2025-011) which stopped one crew for three shifts, and a shortage
+of qualified welders following the demobilisation of two crew members mid-month.
+Radiography is lagging the welding front by more than ten working days, which is
+outside the procedural limit and has been raised as NCR-2025-014.
+
+Trenching on Spread A has run well ahead of the pipeline front. The survey
+carried out on 27 June measured 8,640 m of the 12,000 m spread trenched and
+accepted, which is 72% of the spread. The current schedule update still carries
+Trenching - Spread A at 55%, which understates the work actually in the ground.
+Site requests that the trenching progress figure be corrected at the next update.
+
+3. PIPELINE - SPREAD B (CH 12+000 to 24+000)
+ROW grading is at about 85%. Stringing commenced on 16 June and is at 40%.
+Bending has just started. Spread B is broadly in line with plan, though it is
+dependent on pipe deliveries continuing without interruption.
+
+4. SPECIAL CROSSINGS
+The HDD at the river crossing CH 8+400 experienced significant drilling fluid
+loss and a partial hole collapse during the second reaming pass (NCR-2025-015).
+Reaming has been suspended pending a geotechnical reassessment. The contractor
+has indicated that a revised drilling programme may extend this activity by
+three to four weeks. This crossing is a predecessor to the golden tie-in welds.
+
+5. STATION WORKS
+PS-1 civil foundations are at 60%. Cube test results for one foundation pour
+came back below the specified 28-day strength (NCR-2025-013) and core testing has
+been ordered. Mechanical erection has not started and remains dependent on the
+foundation acceptance.
+
+6. TESTING AND COMMISSIONING
+No testing activity this period. The hydrotest sequence remains dependent on
+completion of the tie-in welds, which in turn depend on both spreads reaching
+mechanical completion and on the HDD crossing being pulled through.
+
+7. LABOUR AND PLANT
+Average labour on site 214. Two welding crews demobilised partially. One
+additional radiography crew has been requested from the subcontractor but has
+not yet mobilised.
+
+8. WEATHER
+Six days of rain during the period, of which three resulted in lost production
+on trenching and coating activities.
+
+9. KEY CONCERNS RAISED BY SITE
+- Radiography backlog is now the single largest constraint on welding progress.
+- HDD crossing may become the controlling activity for the tie-in and hydrotest.
+- Welder availability has not recovered and no replacement mobilisation date has
+  been confirmed by the subcontractor.
+- PS-1 foundation acceptance is unresolved and blocks mechanical erection.

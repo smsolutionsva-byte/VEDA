@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VEDA - Construction Project Intelligence</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><b>VEDA</b><span>Project Intelligence</span></div>
+    <select class="projpick" id="projpick"></select>
+    <button class="btn sm" id="newproj">New project</button>
+    <div class="spacer"></div>
+    <div class="chip" id="chip-agent"><i class="dot"></i><span>agent</span></div>
+    <div class="chip" id="chip-mcp"><i class="dot"></i><span>horizun</span></div>
+    <div class="chip" id="chip-job"><i class="dot"></i><span>idle</span></div>
+    <button class="btn sm primary" id="analyze">Run analysis</button>
+  </div>
+  <nav class="rail" id="rail"></nav>
+  <main class="main" id="main"></main>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="/static/views.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

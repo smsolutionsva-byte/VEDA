@@ -1,0 +1,160 @@
+DPR_No,Date,Contractor,Crew,Discipline,Spread,Chainage_From,Chainage_To,Quantity,Unit,Progress_Pct,Remarks,Reported_By
+DPR-1001,2025-06-02,Delta Civil Co,CW-05,NDT,Spread B,20+500,20+700,29,joints,,Consumables shortage in morning shift,S. Menon
+DPR-1002,2025-06-02,Ridgeline Constructors,CW-02,Stringing,Spread A,4+400,4+500,7,m,,Awaiting NDT clearance,R. Iyer
+DPR-1003,2025-06-02,Delta Civil Co,CW-02,Civil,Spread A,5+800,5+200,14,m3,,Delayed 2h due to rain,S. Menon
+DPR-1004,2025-06-02,Ridgeline Constructors,CW-04,NDT,Spread B,22+600,22+900,4,joints,,Normal shift,A. Fernandes
+DPR-1005,2025-06-02,Apex Pipeline Services,CW-04,NDT,Spread B,21+800,21+600,17,joints,,Consumables shortage in morning shift,K. Bhatt
+DPR-1006,2025-06-02,Ridgeline Constructors,CW-03,Bending,Spread A,0+600,0+700,30,joints,,Consumables shortage in morning shift,S. Menon
+DPR-1111,2025-06-02,Apex Pipeline Services,CW-07,Welding,,,,8,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1128,2025-06-02,Apex Pipeline Services,CW-07,Welding,,,,17,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1133,2025-06-02,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1139,2025-06-02,Apex Pipeline Services,CW-07,Welding,,,,7,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1150,2025-06-02,Apex Pipeline Services,CW-07,Welding,,,,9,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1007,2025-06-03,Ridgeline Constructors,CW-01,Stringing,Spread A,5+800,5+000,12,m,,Awaiting NDT clearance,K. Bhatt
+DPR-1008,2025-06-03,Apex Pipeline Services,CW-02,Trenching,Spread A,3+900,3+500,12,m,,Delayed 2h due to rain,S. Menon
+DPR-1009,2025-06-03,Ridgeline Constructors,CW-01,Coating,Spread A,0+800,0+800,6,joints,,Awaiting NDT clearance,K. Bhatt
+DPR-1010,2025-06-03,Delta Civil Co,CW-02,Stringing,Spread A,5+300,5+300,19,m,,Consumables shortage in morning shift,R. Iyer
+DPR-1011,2025-06-03,Delta Civil Co,CW-05,Welding,Spread B,19+800,19+100,4,joints,,Delayed 2h due to rain,A. Fernandes
+DPR-1103,2025-06-03,Apex Pipeline Services,CW-07,Welding,,,,11,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1110,2025-06-03,Apex Pipeline Services,CW-07,Welding,,,,8,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1141,2025-06-03,Apex Pipeline Services,CW-07,Welding,,,,14,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1147,2025-06-03,Apex Pipeline Services,CW-07,Welding,,,,22,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1012,2025-06-04,Ridgeline Constructors,CW-02,Welding,Spread A,7+600,7+200,22,joints,,Awaiting NDT clearance,S. Menon
+DPR-1013,2025-06-04,Apex Pipeline Services,CW-04,NDT,Spread B,14+500,14+900,21,joints,,Progress as planned,K. Bhatt
+DPR-1014,2025-06-04,Delta Civil Co,CW-05,Trenching,Spread B,13+600,13+400,27,m,,Progress as planned,R. Iyer
+DPR-1015,2025-06-04,Apex Pipeline Services,CW-04,Bending,Spread B,15+400,15+600,17,joints,,Consumables shortage in morning shift,A. Fernandes
+DPR-1016,2025-06-04,Apex Pipeline Services,CW-05,Stringing,Spread B,15+800,15+600,12,m,,Normal shift,R. Iyer
+DPR-1117,2025-06-04,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1122,2025-06-04,Apex Pipeline Services,CW-07,Welding,,,,11,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1140,2025-06-04,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1159,2025-06-04,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1017,2025-06-05,Apex Pipeline Services,CW-01,Civil,Spread A,5+400,5+600,23,m3,,Normal shift,S. Menon
+DPR-1018,2025-06-05,Ridgeline Constructors,CW-03,Trenching,Spread A,8+300,8+000,27,m,,Progress as planned,S. Menon
+DPR-1019,2025-06-05,Apex Pipeline Services,CW-04,Welding,Spread B,21+000,21+300,5,joints,,Consumables shortage in morning shift,K. Bhatt
+DPR-1020,2025-06-05,Ridgeline Constructors,CW-03,Civil,Spread A,3+200,3+700,21,m3,,Normal shift,S. Menon
+DPR-1021,2025-06-05,Apex Pipeline Services,CW-03,Coating,Spread A,11+000,11+000,5,joints,,Normal shift,K. Bhatt
+DPR-1105,2025-06-05,Apex Pipeline Services,CW-07,Welding,,,,12,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1108,2025-06-05,Apex Pipeline Services,CW-07,Welding,,,,9,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1022,2025-06-06,Ridgeline Constructors,CW-05,Welding,Spread B,12+400,12+500,16,joints,,Consumables shortage in morning shift,A. Fernandes
+DPR-1023,2025-06-06,Apex Pipeline Services,CW-04,Bending,Spread B,17+600,17+900,22,joints,,Progress as planned,A. Fernandes
+DPR-1024,2025-06-06,Ridgeline Constructors,CW-01,Coating,Spread A,5+400,5+500,30,joints,,Awaiting NDT clearance,R. Iyer
+DPR-1025,2025-06-06,Delta Civil Co,CW-05,Welding,Spread B,18+500,18+000,15,joints,,Consumables shortage in morning shift,K. Bhatt
+DPR-1026,2025-06-06,Ridgeline Constructors,CW-01,Trenching,Spread A,10+200,10+700,7,m,,Awaiting NDT clearance,R. Iyer
+DPR-1113,2025-06-06,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1124,2025-06-06,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1134,2025-06-06,Apex Pipeline Services,CW-07,Welding,,,,8,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1136,2025-06-06,Apex Pipeline Services,CW-07,Welding,,,,16,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1142,2025-06-06,Apex Pipeline Services,CW-07,Welding,,,,10,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1027,2025-06-09,Ridgeline Constructors,CW-05,Civil,Spread B,14+800,14+800,18,m3,,Awaiting NDT clearance,K. Bhatt
+DPR-1028,2025-06-09,Apex Pipeline Services,CW-01,NDT,Spread A,6+700,6+900,21,joints,,Awaiting NDT clearance,R. Iyer
+DPR-1029,2025-06-09,Apex Pipeline Services,CW-04,Trenching,Spread B,21+000,21+900,21,m,,Normal shift,K. Bhatt
+DPR-1030,2025-06-09,Ridgeline Constructors,CW-05,Stringing,Spread B,22+000,22+600,27,m,,Awaiting NDT clearance,S. Menon
+DPR-1112,2025-06-09,Apex Pipeline Services,CW-07,Welding,,,,10,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1127,2025-06-09,Apex Pipeline Services,CW-07,Welding,,,,14,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1129,2025-06-09,Apex Pipeline Services,CW-07,Welding,,,,11,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1135,2025-06-09,Apex Pipeline Services,CW-07,Welding,,,,18,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1156,2025-06-09,Apex Pipeline Services,CW-07,Welding,,,,22,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1031,2025-06-10,Ridgeline Constructors,CW-01,Stringing,Spread A,8+700,8+500,23,m,,Consumables shortage in morning shift,R. Iyer
+DPR-1032,2025-06-10,Delta Civil Co,CW-02,NDT,Spread A,7+200,7+700,23,joints,,Awaiting NDT clearance,A. Fernandes
+DPR-1033,2025-06-10,Ridgeline Constructors,CW-05,Civil,Spread B,22+300,22+800,27,m3,,Delayed 2h due to rain,R. Iyer
+DPR-1034,2025-06-10,Ridgeline Constructors,CW-01,Welding,Spread A,2+500,2+900,8,joints,,Progress as planned,S. Menon
+DPR-1035,2025-06-10,Apex Pipeline Services,CW-01,Welding,Spread A,8+700,8+000,5,joints,,Awaiting NDT clearance,R. Iyer
+DPR-1118,2025-06-10,Apex Pipeline Services,CW-07,Welding,,,,7,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1146,2025-06-10,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1155,2025-06-10,Apex Pipeline Services,CW-07,Welding,,,,14,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1036,2025-06-11,Apex Pipeline Services,CW-04,Trenching,Spread B,12+400,12+300,6,m,,Delayed 2h due to rain,S. Menon
+DPR-1037,2025-06-11,Apex Pipeline Services,CW-03,Stringing,Spread A,4+300,4+500,20,m,,Delayed 2h due to rain,K. Bhatt
+DPR-1038,2025-06-11,Ridgeline Constructors,CW-04,Welding,Spread B,12+000,12+300,13,joints,,Consumables shortage in morning shift,K. Bhatt
+DPR-1039,2025-06-11,Delta Civil Co,CW-04,Coating,Spread B,16+300,16+200,25,joints,,Progress as planned,S. Menon
+DPR-1115,2025-06-11,Apex Pipeline Services,CW-07,Welding,,,,13,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1120,2025-06-11,Apex Pipeline Services,CW-07,Welding,,,,8,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1040,2025-06-12,Ridgeline Constructors,CW-04,Stringing,Spread B,23+600,23+500,17,m,,Progress as planned,A. Fernandes
+DPR-1041,2025-06-12,Apex Pipeline Services,CW-01,Civil,Spread A,8+200,8+400,6,m3,,Progress as planned,R. Iyer
+DPR-1042,2025-06-12,Delta Civil Co,CW-03,NDT,Spread A,2+100,2+700,15,joints,,Consumables shortage in morning shift,R. Iyer
+DPR-1043,2025-06-12,Delta Civil Co,CW-04,Welding,Spread B,17+700,17+400,8,joints,,Normal shift,A. Fernandes
+DPR-1044,2025-06-12,Delta Civil Co,CW-04,NDT,Spread B,23+700,23+400,27,joints,,Consumables shortage in morning shift,A. Fernandes
+DPR-1045,2025-06-12,Ridgeline Constructors,CW-01,Bending,Spread A,7+400,7+500,25,joints,,Delayed 2h due to rain,S. Menon
+DPR-1152,2025-06-12,Apex Pipeline Services,CW-07,Welding,,,,9,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1046,2025-06-13,Ridgeline Constructors,CW-04,Civil,Spread B,21+700,21+600,7,m3,,Consumables shortage in morning shift,R. Iyer
+DPR-1047,2025-06-13,Delta Civil Co,CW-04,Civil,Spread B,19+300,19+400,8,m3,,Progress as planned,K. Bhatt
+DPR-1048,2025-06-13,Apex Pipeline Services,CW-01,Trenching,Spread A,1+200,1+800,14,m,,Normal shift,R. Iyer
+DPR-1049,2025-06-13,Delta Civil Co,CW-02,Coating,Spread A,9+800,9+100,13,joints,,Delayed 2h due to rain,A. Fernandes
+DPR-1050,2025-06-13,Delta Civil Co,CW-04,NDT,Spread B,19+500,19+300,13,joints,,Normal shift,R. Iyer
+DPR-1104,2025-06-13,Apex Pipeline Services,CW-07,Welding,,,,14,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1123,2025-06-13,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1051,2025-06-16,Delta Civil Co,CW-04,Trenching,Spread B,12+700,12+400,20,m,,Consumables shortage in morning shift,S. Menon
+DPR-1052,2025-06-16,Apex Pipeline Services,CW-04,Trenching,Spread B,17+800,17+900,16,m,,Awaiting NDT clearance,R. Iyer
+DPR-1053,2025-06-16,Delta Civil Co,CW-04,Stringing,Spread B,21+400,21+600,20,m,,Progress as planned,R. Iyer
+DPR-1054,2025-06-16,Ridgeline Constructors,CW-05,Welding,Spread B,12+600,12+900,16,joints,,Consumables shortage in morning shift,R. Iyer
+DPR-1055,2025-06-16,Delta Civil Co,CW-05,Welding,Spread B,17+400,17+000,19,joints,,Delayed 2h due to rain,K. Bhatt
+DPR-1056,2025-06-16,Apex Pipeline Services,CW-05,Bending,Spread B,13+400,13+800,5,joints,,Normal shift,R. Iyer
+DPR-1102,2025-06-16,Apex Pipeline Services,CW-07,Welding,,,,16,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1143,2025-06-16,Apex Pipeline Services,CW-07,Welding,,,,13,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1154,2025-06-16,Apex Pipeline Services,CW-07,Welding,,,,20,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1158,2025-06-16,Apex Pipeline Services,CW-07,Welding,,,,17,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1057,2025-06-17,Delta Civil Co,CW-05,Civil,Spread B,17+300,17+300,11,m3,,Delayed 2h due to rain,K. Bhatt
+DPR-1058,2025-06-17,Delta Civil Co,CW-04,Bending,Spread B,22+000,22+300,12,joints,,Awaiting NDT clearance,S. Menon
+DPR-1059,2025-06-17,Ridgeline Constructors,CW-01,Welding,Spread A,5+700,5+900,27,joints,,Delayed 2h due to rain,A. Fernandes
+DPR-1060,2025-06-17,Apex Pipeline Services,CW-05,Civil,Spread B,22+500,22+700,27,m3,,Consumables shortage in morning shift,R. Iyer
+DPR-1061,2025-06-17,Delta Civil Co,CW-04,Welding,Spread B,23+300,23+100,16,joints,,Awaiting NDT clearance,S. Menon
+DPR-1106,2025-06-17,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1125,2025-06-17,Apex Pipeline Services,CW-07,Welding,,,,10,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1144,2025-06-17,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1151,2025-06-17,Apex Pipeline Services,CW-07,Welding,,,,17,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1157,2025-06-17,Apex Pipeline Services,CW-07,Welding,,,,18,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1062,2025-06-18,Apex Pipeline Services,CW-01,Bending,Spread A,5+900,5+700,14,joints,,Progress as planned,R. Iyer
+DPR-1063,2025-06-18,Ridgeline Constructors,CW-03,NDT,Spread A,2+500,2+700,17,joints,,Awaiting NDT clearance,R. Iyer
+DPR-1064,2025-06-18,Apex Pipeline Services,CW-04,Bending,Spread B,16+600,16+300,19,joints,,Delayed 2h due to rain,S. Menon
+DPR-1065,2025-06-18,Delta Civil Co,CW-01,Trenching,Spread A,10+700,10+300,26,m,,Delayed 2h due to rain,K. Bhatt
+DPR-1066,2025-06-18,Delta Civil Co,CW-01,NDT,Spread A,6+000,6+800,8,joints,,Normal shift,S. Menon
+DPR-1067,2025-06-18,Ridgeline Constructors,CW-01,Bending,Spread A,5+000,5+100,12,joints,,Normal shift,R. Iyer
+DPR-1068,2025-06-18,Ridgeline Constructors,CW-05,Welding,Spread B,13+400,13+100,27,joints,,Awaiting NDT clearance,K. Bhatt
+DPR-1138,2025-06-18,Apex Pipeline Services,CW-07,Welding,,,,16,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1069,2025-06-19,Ridgeline Constructors,CW-02,Stringing,Spread A,10+600,10+800,23,m,,Progress as planned,R. Iyer
+DPR-1070,2025-06-19,Delta Civil Co,CW-05,Trenching,Spread B,14+500,14+800,16,m,,Normal shift,S. Menon
+DPR-1071,2025-06-19,Apex Pipeline Services,CW-01,Stringing,Spread A,6+800,6+400,18,m,,Progress as planned,S. Menon
+DPR-1072,2025-06-19,Ridgeline Constructors,CW-01,Civil,Spread A,0+700,0+900,29,m3,,Progress as planned,K. Bhatt
+DPR-1132,2025-06-19,Apex Pipeline Services,CW-07,Welding,,,,10,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1148,2025-06-19,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1073,2025-06-20,Delta Civil Co,CW-04,Stringing,Spread B,18+700,18+800,7,m,,Consumables shortage in morning shift,A. Fernandes
+DPR-1074,2025-06-20,Delta Civil Co,CW-02,Trenching,Spread A,1+100,1+500,28,m,,Awaiting NDT clearance,R. Iyer
+DPR-1075,2025-06-20,Delta Civil Co,CW-05,Coating,Spread B,23+100,23+500,19,joints,,Delayed 2h due to rain,K. Bhatt
+DPR-1076,2025-06-20,Delta Civil Co,CW-02,Civil,Spread A,2+800,2+300,20,m3,,Delayed 2h due to rain,K. Bhatt
+DPR-1153,2025-06-20,Apex Pipeline Services,CW-07,Welding,,,,21,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1077,2025-06-23,Apex Pipeline Services,CW-03,Bending,Spread A,8+100,8+600,25,joints,,Consumables shortage in morning shift,A. Fernandes
+DPR-1078,2025-06-23,Apex Pipeline Services,CW-01,NDT,Spread A,6+500,6+700,13,joints,,Normal shift,R. Iyer
+DPR-1079,2025-06-23,Apex Pipeline Services,CW-02,Welding,Spread A,2+500,2+900,16,joints,,Awaiting NDT clearance,S. Menon
+DPR-1080,2025-06-23,Ridgeline Constructors,CW-02,Welding,Spread A,0+700,0+700,14,joints,,Delayed 2h due to rain,S. Menon
+DPR-1081,2025-06-23,Apex Pipeline Services,CW-05,Welding,Spread B,16+600,16+700,18,joints,,Awaiting NDT clearance,S. Menon
+DPR-1126,2025-06-23,Apex Pipeline Services,CW-07,Welding,,,,20,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1131,2025-06-23,Apex Pipeline Services,CW-07,Welding,,,,20,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1137,2025-06-23,Apex Pipeline Services,CW-07,Welding,,,,15,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1145,2025-06-23,Apex Pipeline Services,CW-07,Welding,,,,13,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1082,2025-06-24,Apex Pipeline Services,CW-03,Civil,Spread A,7+000,7+300,15,m3,,Progress as planned,A. Fernandes
+DPR-1083,2025-06-24,Ridgeline Constructors,CW-05,NDT,Spread B,14+200,14+500,20,joints,,Normal shift,S. Menon
+DPR-1084,2025-06-24,Delta Civil Co,CW-03,Welding,Spread A,8+200,8+600,20,joints,,Normal shift,R. Iyer
+DPR-1085,2025-06-24,Ridgeline Constructors,CW-03,Trenching,Spread A,0+200,0+500,29,m,,Normal shift,A. Fernandes
+DPR-1107,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,10,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1109,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,13,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1116,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,14,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1119,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1121,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1149,2025-06-24,Apex Pipeline Services,CW-07,Welding,,,,19,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1086,2025-06-25,Delta Civil Co,CW-05,Stringing,Spread B,13+200,13+800,29,m,,Consumables shortage in morning shift,R. Iyer
+DPR-1087,2025-06-25,Delta Civil Co,CW-01,Welding,Spread A,3+100,3+700,20,joints,,Awaiting NDT clearance,A. Fernandes
+DPR-1088,2025-06-25,Delta Civil Co,CW-01,Civil,Spread A,3+500,3+700,9,m3,,Awaiting NDT clearance,K. Bhatt
+DPR-1089,2025-06-25,Ridgeline Constructors,CW-05,Bending,Spread B,20+600,20+100,26,joints,,Consumables shortage in morning shift,K. Bhatt
+DPR-1090,2025-06-25,Delta Civil Co,CW-05,Civil,Spread B,14+400,14+400,6,m3,,Delayed 2h due to rain,S. Menon
+DPR-1091,2025-06-25,Delta Civil Co,CW-04,Stringing,Spread B,21+200,21+400,23,m,,Progress as planned,A. Fernandes
+DPR-1092,2025-06-25,Apex Pipeline Services,CW-03,Coating,Spread A,10+600,10+800,21,joints,,Awaiting NDT clearance,A. Fernandes
+DPR-1130,2025-06-25,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import
+DPR-1093,2025-06-26,Apex Pipeline Services,CW-03,Trenching,Spread A,1+700,1+300,4,m,,Awaiting NDT clearance,R. Iyer
+DPR-1094,2025-06-26,Apex Pipeline Services,CW-03,Coating,Spread A,8+600,8+600,11,joints,,Normal shift,A. Fernandes
+DPR-1095,2025-06-26,Ridgeline Constructors,CW-04,NDT,Spread B,16+300,16+800,23,joints,,Delayed 2h due to rain,A. Fernandes
+DPR-1096,2025-06-26,Apex Pipeline Services,CW-01,Trenching,Spread A,4+500,4+600,15,m,,Consumables shortage in morning shift,S. Menon
+DPR-1097,2025-06-26,Ridgeline Constructors,CW-03,Coating,Spread A,7+600,7+700,16,joints,,Consumables shortage in morning shift,A. Fernandes
+DPR-1098,2025-06-27,Apex Pipeline Services,CW-05,Welding,Spread B,16+500,16+500,4,joints,,Progress as planned,S. Menon
+DPR-1099,2025-06-27,Ridgeline Constructors,CW-02,Civil,Spread A,2+500,2+600,15,m3,,Consumables shortage in morning shift,S. Menon
+DPR-1100,2025-06-27,Apex Pipeline Services,CW-04,Stringing,Spread B,23+100,23+800,11,m,,Awaiting NDT clearance,R. Iyer
+DPR-1101,2025-06-27,Ridgeline Constructors,CW-01,Bending,Spread A,2+400,2+500,27,joints,,Normal shift,R. Iyer
+DPR-1114,2025-06-27,Apex Pipeline Services,CW-07,Welding,,,,6,joints,,Shift output - spread not recorded on ticket,Automated ticket import

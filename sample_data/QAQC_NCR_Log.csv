@@ -1,0 +1,7 @@
+NCR_No,Date,Discipline,Location,Chainage,Description,Status,Severity,Action
+NCR-2025-011,2025-06-09,Welding,Spread A,5+400,Root pass porosity exceeding API 1104 acceptance on 6 joints,Open,High,Repair procedure issued; re-radiography pending
+NCR-2025-012,2025-06-14,Coating,Spread A,3+200,Field joint coating holiday test failures at 11 joints,Open,Medium,Re-coating scheduled
+NCR-2025-013,2025-06-18,Civil,PS-1,-,Foundation concrete cube strength below 28-day specified value,Open,High,Core testing ordered; structural review in progress
+NCR-2025-014,2025-06-21,NDT,Spread A,7+100,Radiography backlog exceeding 10 working days against procedure limit,Open,High,Second RT crew requested from subcontractor
+NCR-2025-015,2025-06-24,HDD,CH 8+400,8+400,Drilling fluid loss and partial hole collapse during reaming pass,Open,Critical,Reaming suspended; geotechnical reassessment underway
+NCR-2025-016,2025-05-28,Trenching,Spread B,15+600,Trench depth below specified cover in rocky section,Closed,Low,Re-excavated and verified
