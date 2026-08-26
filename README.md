@@ -260,3 +260,12 @@ risks with their provenance, and the security outcome.
 No Ollama, Qdrant, Chroma, LangGraph, Kubernetes or distributed infrastructure.
 Retrieval-augmented search over the document corpus is a possible future
 addition, not a dependency.
+
+### Smooth workflow model
+
+VEDA's normal UI is project-state driven rather than queue driven. New uploads
+are coalesced into the current project update, authoritative schedule selection
+starts analysis automatically, and human clarification decisions update linked
+evidence/observed-progress state immediately. Use **Needs Attention** for the
+small set of decisions or governed schedule changes that actually require a
+person; internal worker jobs are not part of the normal operator workflow.

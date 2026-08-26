@@ -333,6 +333,7 @@ CREATE TABLE IF NOT EXISTS evidence_links (
   validator_result TEXT,
   validator_json TEXT,
   human_decision TEXT,
+  review_id TEXT,
   decided_by TEXT, decided_at REAL,
   is_candidate INTEGER DEFAULT 0,
   provenance TEXT DEFAULT 'AI_INFERENCE',
@@ -407,6 +408,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   status TEXT DEFAULT 'open',
   answer TEXT, answer_json TEXT,
   answered_by TEXT, answered_at REAL,
+  schedule_revision INTEGER, schedule_snapshot_id TEXT,
+  resolution_effect_json TEXT,
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_rev_project ON reviews(project_id, status);
@@ -575,6 +578,28 @@ def init_db() -> None:
     ):
         if name not in scols:
             conn.execute(ddl)
+
+    # Smooth-workflow review/link provenance. Human decisions are scoped to the
+    # schedule revision they were made against, and evidence links retain the
+    # originating review so a deliberate correction can be reversed safely.
+    rcols = {r[1] for r in conn.execute("PRAGMA table_info(reviews)").fetchall()}
+    for name, ddl in (
+        ("schedule_revision", "ALTER TABLE reviews ADD COLUMN schedule_revision INTEGER"),
+        ("schedule_snapshot_id", "ALTER TABLE reviews ADD COLUMN schedule_snapshot_id TEXT"),
+        ("resolution_effect_json", "ALTER TABLE reviews ADD COLUMN resolution_effect_json TEXT"),
+    ):
+        if name not in rcols:
+            conn.execute(ddl)
+    lcols = {r[1] for r in conn.execute("PRAGMA table_info(evidence_links)").fetchall()}
+    if "review_id" not in lcols:
+        conn.execute("ALTER TABLE evidence_links ADD COLUMN review_id TEXT")
+
+    # Legacy workflow migration: human attention is no longer a job status.
+    # Analysis that had already finished but was labelled awaiting_review is
+    # terminal work; the open review rows continue to represent the decision.
+    conn.execute("UPDATE jobs SET status='done', phase=CASE WHEN phase='awaiting_review' "
+                 "THEN 'done' ELSE phase END, finished_at=COALESCE(finished_at, ?) "
+                 "WHERE status='awaiting_review'", (now(),))
 
     # v0.1.2 proposals can represent task create/delete as well as field updates.
     pcols = {r[1] for r in conn.execute("PRAGMA table_info(proposals)").fetchall()}

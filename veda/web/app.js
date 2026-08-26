@@ -27,41 +27,24 @@ const post = (p, body) => api(p, {
    the machinery is doing. */
 const NAV = [
   ['Project', [
-    ['overview', 'Overview'],
-    ['eps', 'EPS'],
-    ['wbs', 'WBS'],
+    ['overview', 'Overview'], ['eps', 'EPS'], ['wbs', 'WBS'],
   ]],
   ['Schedule', [
-    ['activities', 'Activities', 'activities'],
-    ['milestones', 'Milestones', 'milestones'],
-    ['relationships', 'Relationships', 'relationships'],
-    ['critical', 'Critical Path', 'critical'],
-    ['quality', 'Schedule Quality', 'qa_failed'],
-    ['baselines', 'Baselines'],
-    ['resources', 'Resources', 'resources'],
-    ['assignments', 'Assignments', 'assignments'],
-    ['timephased', 'Timephased'],
-    ['ev', 'Earned Value'],
+    ['activities', 'Activities', 'activities'], ['milestones', 'Milestones', 'milestones'],
+    ['relationships', 'Relationships', 'relationships'], ['critical', 'Critical Path', 'critical'],
+    ['quality', 'Schedule QA', 'qa_failed'], ['baselines', 'Baselines'],
+    ['resources', 'Resources', 'resources'], ['assignments', 'Assignments', 'assignments'],
+    ['timephased', 'Timephased'], ['ev', 'Earned Value'],
   ]],
   ['Field', [
-    ['issues', 'Issues', 'issues'],
-    ['risks', 'Risks', 'risks'],
-    ['evidence', 'Field Evidence', 'evidence'],
-    ['review-evidence', 'Review Evidence', 'evidence_review'],
-    ['observed', 'Observed Progress'],
+    ['issues', 'Issues', 'issues'], ['risks', 'Risks', 'risks'],
+    ['evidence', 'Field Evidence', 'evidence'], ['observed', 'Observed Progress'],
   ]],
-  ['Decide', [
-    ['reviews', 'Human Review', 'pending_reviews'],
-    ['proposals', 'Proposed Changes', 'pending_proposals'],
-    ['ask', 'Ask VEDA'],
+  ['Act', [
+    ['attention', 'Needs Attention', 'attention'], ['ask', 'Ask VEDA'],
   ]],
-  ['System', [
-    ['agent', 'Agent Activity'],
-    ['jobs', 'Job Status'],
-    ['files', 'Files'],
-    ['outputs', 'Outputs'],
-    ['audit', 'Audit'],
-    ['system', 'System / MCP'],
+  ['Project Data', [
+    ['files', 'Files'], ['outputs', 'Outputs'], ['audit', 'Audit'], ['system', 'System / MCP'],
   ]],
 ];
 
@@ -80,8 +63,7 @@ function renderRail() {
     '<div class="grp">' + grp + '</div>' +
     items.map(([id, label, key]) => {
       const n = key ? c[key] : undefined;
-      const alert = (key === 'pending_reviews' || key === 'pending_proposals' ||
-                     key === 'evidence_review') && n > 0;
+      const alert = key === 'attention' && n > 0;
       return '<a data-v="' + id + '" class="' + (S.view === id ? 'on' : '') + '">' +
         '<span>' + label + '</span>' +
         (n !== undefined && n !== null
@@ -129,19 +111,14 @@ async function refreshCounts() {
     S.overview = o;
     S.counts = Object.assign({}, o.counts, {
       qa_failed: o.quality.failed,
-      evidence_review: 0,
+      attention: Number(o.counts.pending_reviews || 0) + Number(o.counts.pending_proposals || 0) + ((Number(o.counts.unresolved_evidence || 0) > 0 && Number(o.counts.pending_reviews || 0) === 0) ? 1 : 0),
     });
-    const ev = await api('/projects/' + S.project +
-                         '/evidence?state=needs_review&limit=1');
-    S.counts.evidence_review = ev.total;
     renderRail();
-    const j = o.latest_job;
+    const ps = o.project_state || { code: 'up_to_date', label: 'Up to date' };
     const chip = $('#chip-job');
-    const running = j && (j.status === 'running' || j.status === 'queued');
-    chip.className = 'chip ' + (running ? 'busy'
-      : (j && j.status === 'failed' ? 'bad' : (j ? 'ok' : '')));
-    chip.querySelector('span').textContent = j
-      ? (j.kind + ' · ' + j.status) : 'idle';
+    chip.className = 'chip ' + (ps.code === 'updating' ? 'busy'
+      : (ps.code === 'retry' ? 'bad' : (ps.code === 'needs_input' || ps.code === 'choose_schedule' ? '' : 'ok')));
+    chip.querySelector('span').textContent = ps.label;
   } catch (e) { /* header is best-effort */ }
 }
 window.refreshCounts = refreshCounts;
@@ -367,13 +344,12 @@ function connectStream() {
     if (streamProject !== S.project || es !== S.es) return;
     const j = S.overview && S.overview.latest_job;
     const terminalAnalysis = j && j.kind === 'analysis' &&
-      (j.status === 'done' || j.status === 'awaiting_review');
+      j.status === 'done';
     if (allowNavigate && terminalAnalysis && S.view === 'agent') {
       go('overview');
       return;
     }
-    if (['overview', 'agent', 'jobs', 'reviews', 'proposals', 'evidence',
-         'outputs', 'observed', 'quality', 'activities'].includes(S.view)) {
+    if (['overview', 'attention', 'ask', 'evidence', 'outputs', 'observed', 'quality', 'activities'].includes(S.view)) {
       render();
     }
   };

@@ -135,6 +135,13 @@ def candidates_for(ev: dict, activities: list, top: int = 4) -> list:
     return scored[:top]
 
 
+def _candidate_signature(cands: list) -> str:
+    """Order-independent candidate identity; prevents unsafe broad clustering."""
+    uids = sorted({str(c.get("activity", {}).get("uid")) for c in cands[:5]
+                   if c.get("activity", {}).get("uid") is not None})
+    return "|cands=" + (",".join(uids) if uids else "none")
+
+
 def cluster_key_for(ev: dict, cands: list) -> tuple:
     """Identify the *shared root cause* of ambiguity (spec 41).
 
@@ -150,26 +157,26 @@ def cluster_key_for(ev: dict, cands: list) -> tuple:
 
     if not has_loc and not has_ch and crew:
         # The classic case: a crew code with no spread and no chainage.
-        return ("crew_location:" + crew.lower(),
+        return ("crew_location:" + crew.lower() + _candidate_signature(cands),
                 "Records from crew " + crew + " carry no spread or chainage",
                 "Which part of the works does crew " + crew + " belong to?")
     if not has_loc and not has_ch and not crew:
-        return ("no_location:" + str(ev.get("source_file") or "unknown"),
+        return ("no_location:" + str(disc or "unknown") + _candidate_signature(cands),
                 "Records in " + str(ev.get("source_file")) +
                 " carry no location, chainage or crew",
                 "How should records from " + str(ev.get("source_file")) +
                 " be attributed?")
     if not disc:
-        return ("no_discipline:" + str(ev.get("source_file") or "unknown"),
+        return ("no_discipline:" + _candidate_signature(cands),
                 "Records in " + str(ev.get("source_file")) +
                 " do not state a discipline",
                 "Which discipline do these records describe?")
     if len(cands) >= 2 and abs(cands[0]["score"] - cands[1]["score"]) < 0.08:
-        return ("tie:" + str(disc),
+        return ("tie:" + str(disc) + _candidate_signature(cands),
                 str(disc).title() + " records match more than one activity equally",
                 "Which activity should " + str(disc) + " records attach to when the "
                 "signals tie?")
-    return ("weak:" + str(ev.get("source_file") or "unknown"),
+    return ("weak:" + str(disc or "unknown") + _candidate_signature(cands),
             "Records in " + str(ev.get("source_file")) +
             " match no activity strongly",
             "How should these records be attributed?")
@@ -325,8 +332,12 @@ def _add_cluster(clusters: dict, ev: dict, cands: list) -> None:
     # human as though the cluster agreed on it.
     for cand in cands[:3]:
         act = cand["activity"]
-        c["options"][act["name"]] = act["uid"]
-        v = c["votes"].setdefault(act["name"], {"n": 0, "score": 0.0})
+        ident = str(act.get("display_id") or act.get("uid"))
+        label = ident + " · " + str(act.get("name") or "Unnamed activity")
+        if act.get("wbs"):
+            label += " · " + str(act.get("wbs"))
+        c["options"][label] = act["uid"]
+        v = c["votes"].setdefault(label, {"n": 0, "score": 0.0})
         v["n"] += 1
         v["score"] += cand["score"]
     if len(c["samples"]) < 4:
@@ -340,85 +351,98 @@ def _add_cluster(clusters: dict, ev: dict, cands: list) -> None:
 
 def _raise_cluster_reviews(project_id: str, clusters: dict,
                            job_id: str | None) -> None:
+    sched = reviews.current_schedule_context(project_id)
+    revision = sched.get("revision")
     for key, c in clusters.items():
-        if reviews.answers_for_cluster(project_id, key):
-            continue  # already settled by a human
         votes = c.get("votes") or {}
-        ranked = sorted(votes.items(),
-                        key=lambda kv: (-kv[1]["score"], -kv[1]["n"]))
-        options = [name for name, _ in ranked[:5]] or \
-            list(c["options"].keys())[:5]
+        ranked = sorted(votes.items(), key=lambda kv: (-kv[1]["score"], -kv[1]["n"], kv[0]))
+        options = [name for name, _ in ranked[:5]] or list(c["options"].keys())[:5]
         options.append("Leave unassigned for now")
+
+        # A prior human mapping is reusable only for the same schedule revision
+        # and the same order-independent candidate set (encoded in cluster key).
+        prior = reviews.answers_for_cluster(project_id, key, revision)
+        if prior and prior.get("answer") != "Leave unassigned for now":
+            memory = dict(prior)
+            memory["affected_ids"] = list(c["ids"])
+            memory["context"] = {**(prior.get("context") or {}), "option_uids": c["options"]}
+            try:
+                effect = apply_cluster_answer(project_id, memory, job_id, from_memory=True)
+                reviews.record_effect(prior["id"], {**(prior.get("resolution_effect") or {}),
+                                                     "last_memory_application": effect})
+                continue
+            except ValueError:
+                # If the current schedule/candidates make the old answer invalid,
+                # ask again rather than forcing a stale mapping.
+                pass
+
         reviews.create(
-            project_id=project_id, kind="clarification",
-            title=c["title"],
-            question=(c["question"] + "\n\nAnswering once resolves all " +
-                      str(len(c["ids"])) + " affected records."),
-            detail=("VEDA grouped " + str(len(c["ids"])) + " records that are "
-                    "ambiguous for the same reason, so only this one question "
-                    "needs answering."),
-            options=options, cluster_key=key, affected_ids=c["ids"],
-            job_id=job_id, priority="high" if len(c["ids"]) > 20 else "normal",
-            extra={"samples": c["samples"],
-                   "option_uids": c["options"]})
+            project_id=project_id, kind="clarification", title=c["title"],
+            question=(c["question"] + "\n\nOne choice applies only to these " +
+                      str(len(c["ids"])) + " records with the same candidate set."),
+            detail=("VEDA grouped only records with the same ambiguity and the same "
+                    "candidate activities. The decision applies immediately."),
+            options=options, cluster_key=key, affected_ids=c["ids"], job_id=job_id,
+            priority="high" if len(c["ids"]) > 20 else "normal",
+            extra={"samples": c["samples"], "option_uids": c["options"]})
 
 
 def apply_cluster_answer(project_id: str, review: dict,
-                         job_id: str | None = None) -> dict:
-    """Re-process every record a single human answer unblocks (spec 42)."""
+                         job_id: str | None = None, *, from_memory: bool = False) -> dict:
+    """Apply a human mapping immediately; missing/stale answers never become no-ops."""
     ids = review.get("affected_ids") or []
     if not ids:
-        return {"reprocessed": 0}
+        return {"reprocessed": 0, "assigned": 0}
+    sched = reviews.current_schedule_context(project_id)
+    review_rev = review.get("schedule_revision")
+    if review_rev is not None and sched.get("revision") != review_rev:
+        raise ValueError("This decision belongs to an older schedule revision. Re-review it against the current schedule.")
+
     ctx = review.get("context") or {}
     option_uids = ctx.get("option_uids") or {}
     answer = (review.get("answer") or "").strip()
-    chosen_uid = option_uids.get(answer)
+    rows = db.q("SELECT * FROM evidence WHERE id IN (" + ",".join("?" for _ in ids) + ")", ids)
 
-    if chosen_uid is None:
-        for label, uid in option_uids.items():
-            if answer and (answer.lower() in label.lower()
-                           or label.lower() in answer.lower()):
-                chosen_uid = uid
-                break
-
-    rows = db.q("SELECT * FROM evidence WHERE id IN (" +
-                ",".join("?" for _ in ids) + ")", ids)
-
-    if chosen_uid is None:
-        # The human declined to assign. Record that and stop asking.
+    if answer == "Leave unassigned for now":
         for ev in rows:
-            db.update("evidence", ev["id"], {"state": "needs_review"})
-        return {"reprocessed": 0, "assigned": 0,
-                "note": "no activity chosen; records left for review"}
+            db.update("evidence", ev["id"], {"state": "deferred"})
+        rebuild_observed_progress(project_id)
+        return {"reprocessed": len(rows), "assigned": 0, "deferred": len(rows),
+                "note": "left unassigned for now"}
 
-    act = db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?",
-                [project_id, chosen_uid])
+    chosen_uid = option_uids.get(answer)
+    if chosen_uid is None:
+        raise ValueError("Choose one of the displayed activity options.")
+    act = db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?", [project_id, chosen_uid])
+    if not act:
+        raise ValueError("That activity is no longer present in the current schedule revision.")
+    if sched.get("id") and act.get("snapshot_id") and act.get("snapshot_id") != sched.get("id"):
+        raise ValueError("That activity belongs to an older schedule snapshot.")
+
     assigned = 0
     for ev in rows:
         vres = validators.validate_link(ev, act, project_id=project_id)
         db.ex("DELETE FROM evidence_links WHERE evidence_id=?", [ev["id"]])
         db.insert("evidence_links", {
             "project_id": project_id, "evidence_id": ev["id"],
-            "activity_uid": chosen_uid,
-            "activity_name": (act or {}).get("name"),
+            "activity_uid": chosen_uid, "activity_name": act.get("name"),
             "confidence": 0.95, "relation": "supporting",
-            "supporting_signals": db.jdumps(
-                ["assigned by human answer to review " + str(review.get("id"))]),
+            "supporting_signals": db.jdumps([
+                ("reused human mapping from review " if from_memory else "assigned by human answer to review ") +
+                str(review.get("id"))]),
             "conflicting_signals": db.jdumps(vres.get("failed") or []),
-            "validator_result": vres["result"],
-            "validator_json": db.jdumps(vres),
-            "human_decision": "accepted",
-            "decided_by": review.get("answered_by") or "human",
-            "decided_at": db.now(),
-            "is_candidate": 0,
-            "provenance": "HUMAN_INPUT",
+            "validator_result": vres["result"], "validator_json": db.jdumps(vres),
+            "human_decision": "accepted", "review_id": review.get("id"),
+            "decided_by": review.get("answered_by") or "human", "decided_at": db.now(),
+            "is_candidate": 0, "provenance": "HUMAN_INPUT",
         })
         db.update("evidence", ev["id"], {"state": "confirmed", "confidence": 0.95})
         assigned += 1
 
     rebuild_observed_progress(project_id)
     return {"reprocessed": len(rows), "assigned": assigned,
-            "activity_uid": chosen_uid}
+            "activity_uid": chosen_uid, "activity_display_id": act.get("display_id"),
+            "activity_name": act.get("name"), "from_memory": from_memory}
 
 
 def rebuild_observed_progress(project_id: str) -> None:

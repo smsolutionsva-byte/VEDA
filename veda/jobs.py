@@ -85,6 +85,43 @@ def _finish(job_id: str, project_id: str, status: str, error: str | None = None,
 
 
 # --------------------------------------------------------------- event wiring
+def _merge_analysis_payload(existing: dict, incoming: dict, event_id: str | None) -> dict:
+    out = dict(existing or {})
+    # Analysis reads durable project state, so payload is mainly provenance and
+    # schedule selection. Preserve the newest explicit schedule/file metadata.
+    for k, v in (incoming or {}).items():
+        if v not in (None, "", [], {}):
+            out[k] = v
+    evs = list(out.get("coalesced_event_ids") or [])
+    if event_id and event_id not in evs:
+        evs.append(event_id)
+    out["coalesced_event_ids"] = evs[-100:]
+    return out
+
+
+def _ensure_analysis_job(project_id: str, event_id: str | None, payload: dict) -> str:
+    """At most one running analysis plus one coalesced follow-up per project."""
+    if event_id:
+        existing = db.q1("SELECT id FROM jobs WHERE trigger_event_id=? LIMIT 1", [event_id])
+        if existing:
+            return existing["id"]
+    running = db.q1("SELECT id FROM jobs WHERE project_id=? AND kind='analysis' "
+                    "AND status='running' ORDER BY created_at DESC LIMIT 1", [project_id])
+    queued = db.q1("SELECT * FROM jobs WHERE project_id=? AND kind='analysis' "
+                   "AND status='queued' ORDER BY created_at DESC LIMIT 1", [project_id])
+    if queued:
+        stored = (db.jloads(queued.get("result_json"), {}) or {}).get("input", {})
+        merged = _merge_analysis_payload(stored, payload, event_id)
+        db.update("jobs", queued["id"], {"result_json": db.jdumps({"input": merged})})
+        events.notify_ui(project_id, "project_state_changed", {"state": "updating"})
+        return queued["id"]
+    # No queued job: create one. If another analysis is running this becomes the
+    # single follow-up; otherwise it is the active work waiting for the worker.
+    merged = _merge_analysis_payload({}, payload, event_id)
+    jid = create_job(project_id, "analysis", event_id, merged)
+    enqueue(jid)
+    return jid
+
 def ensure_event_job(ev: dict) -> str | None:
     """Create exactly one durable job for a wake event.
 
@@ -110,9 +147,11 @@ def ensure_event_job(ev: dict) -> str | None:
 
         if etype in (events.DATASET_UPLOADED, events.FILES_ADDED,
                      events.ANALYSIS_REQUESTED, events.REPROCESS_REQUESTED):
-            kind = "analysis"
-        elif etype in (events.REVIEW_ANSWERED, events.REVIEW_APPROVED,
-                       events.REVIEW_REJECTED):
+            return _ensure_analysis_job(project_id, event_id, payload)
+        if etype in (events.REVIEW_ANSWERED, events.REVIEW_APPROVED,
+                     events.REVIEW_REJECTED):
+            if not payload.get("requires_job"):
+                return None
             kind = "resume_review"
         elif etype == events.USER_QUESTION:
             kind = "question"
@@ -293,6 +332,11 @@ def _recover_startup_jobs() -> list[str]:
     for p in db.q("SELECT id FROM projects WHERE status='deleting'"):
         _purge_project(p["id"])
 
+    # Old builds used awaiting_review as a pseudo-running state. Work had
+    # already finished; keep the review row and retire the job state.
+    db.ex("UPDATE jobs SET status='done', phase='done', finished_at=COALESCE(finished_at, ?) "
+          "WHERE status='awaiting_review'", [db.now()])
+
     stale = db.q("SELECT id, project_id FROM jobs WHERE status='running' "
                  "ORDER BY created_at")
     for job in stale:
@@ -312,6 +356,55 @@ def _recover_startup_jobs() -> list[str]:
         events.notify_ui(job["project_id"], "jobs_changed",
                          {"job_id": jid, "status": "failed"})
 
+    # Retire legacy review-resume queue entries for decisions that now apply
+    # synchronously. This prevents old databases from resurfacing the queue UX
+    # after an upgrade. Proposal/other resume jobs remain available because they
+    # may perform a governed write.
+    legacy_resume = db.q("SELECT * FROM jobs WHERE kind='resume_review' AND status='queued' ORDER BY created_at")
+    for row in legacy_resume:
+        payload = (db.jloads(row.get("result_json"), {}) or {}).get("input", {})
+        review = reviews.get(payload.get("review_id")) if payload.get("review_id") else None
+        if not review or review.get("kind") not in ("clarification", "security_review", "failed_validation"):
+            continue
+        try:
+            if review.get("kind") == "clarification" and review.get("status") in ("answered", "deferred"):
+                effect = linking.apply_cluster_answer(row["project_id"], review)
+                reviews.record_effect(review["id"], effect)
+            elif review.get("kind") == "security_review" and review.get("status") != "open":
+                effect = apply_security_answer_now(row["project_id"], review)
+                reviews.record_effect(review["id"], effect)
+            elif review.get("kind") == "failed_validation" and review.get("status") != "open":
+                if review.get("answer") == "Retry analysis":
+                    ev = events.emit(events.ANALYSIS_REQUESTED, row["project_id"],
+                                     {"reason": "legacy_review_retry"}, source="migration")
+                    ensure_event_job(ev)
+                reviews.record_effect(review["id"], {"action": "legacy_review_migrated"})
+            db.update("jobs", row["id"], {"status": "done", "phase": "migrated_review_decision",
+                                           "finished_at": db.now(),
+                                           "error": "Legacy review-resume work migrated to immediate decision state"})
+        except Exception as exc:
+            db.update("jobs", row["id"], {"status": "failed", "phase": "migration_failed",
+                                           "finished_at": db.now(), "error": str(exc)[:1000]})
+
+    # Fold legacy duplicate queued analyses into one follow-up per project.
+    for pr in db.q("SELECT DISTINCT project_id FROM jobs WHERE kind='analysis' AND status='queued'"):
+        rows = db.q("SELECT * FROM jobs WHERE project_id=? AND kind='analysis' AND status='queued' ORDER BY created_at",
+                    [pr["project_id"]])
+        if len(rows) <= 1:
+            continue
+        keep = rows[-1]
+        merged = {}
+        event_ids = []
+        for row in rows:
+            inp = (db.jloads(row.get("result_json"), {}) or {}).get("input", {})
+            merged = _merge_analysis_payload(merged, inp, row.get("trigger_event_id"))
+            if row.get("trigger_event_id"):
+                event_ids.append(row["trigger_event_id"])
+        db.update("jobs", keep["id"], {"result_json": db.jdumps({"input": merged})})
+        for row in rows[:-1]:
+            db.update("jobs", row["id"], {"status": "cancelled", "phase": "coalesced",
+                                           "finished_at": db.now(),
+                                           "error": "Coalesced into " + keep["id"] + " during workflow upgrade"})
     return [r["id"] for r in db.q(
         "SELECT id FROM jobs WHERE status='queued' ORDER BY created_at")]
 
@@ -374,7 +467,7 @@ def current_job() -> str | None:
 # ------------------------------------------------------------------- the work
 def _run(job_id: str) -> None:
     job = db.q1("SELECT * FROM jobs WHERE id=?", [job_id])
-    if not job or job.get("status") in ("cancelled", "done", "awaiting_review"):
+    if not job or job.get("status") in ("cancelled", "done"):
         return
     project_id = job["project_id"]
     with _state_lock:
@@ -422,10 +515,8 @@ def _run(job_id: str) -> None:
         return
 
     _raise_if_cancelled(job_id)
-    open_reviews = db.q1("SELECT COUNT(*) c FROM reviews WHERE project_id=? "
-                         "AND status='open'", [project_id]) or {}
-    status = "awaiting_review" if open_reviews.get("c") else "done"
-    _finish(job_id, project_id, status, None, result)
+    # Human attention is project decision state, never a worker-job status.
+    _finish(job_id, project_id, "done", None, result)
     events.notify_ui(project_id, "refresh", {"job_id": job_id})
 
 
@@ -1015,6 +1106,11 @@ def _run_resume(job_id: str, project_id: str, payload: dict) -> dict:
                                  resume_external=(sess or {}).get("id"))
     out = apply_result(project_id, job_id, result, source=used)
     return {"reprocessed": applied, "provider": used, **out}
+
+
+def apply_security_answer_now(project_id: str, review: dict) -> dict:
+    """Apply a security decision synchronously; release may enqueue one reprocess."""
+    return _apply_security_answer("human:" + str(review.get("id") or "review"), project_id, review)
 
 
 def _apply_security_answer(job_id: str, project_id: str, review: dict) -> dict:

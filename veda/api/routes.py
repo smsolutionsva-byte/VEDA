@@ -164,6 +164,7 @@ def _field_evidence_context(pid: str) -> dict:
     reviewed_or_unresolved = int((db.q1(
         "SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN "
         "('needs_review','conflicting','new','processing')", [pid]) or {}).get("c", 0))
+    deferred = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state='deferred'", [pid]) or {}).get("c", 0))
     return {
         "record_count": total,
         "source_file_count": source_files,
@@ -173,6 +174,7 @@ def _field_evidence_context(pid: str) -> dict:
         "validated_activity_count": linked_activities,
         "numeric_observed_activity_count": numeric_observed_activities,
         "unresolved_record_count": reviewed_or_unresolved,
+        "deferred_record_count": deferred,
     }
 
 
@@ -223,6 +225,35 @@ def _overview_state_summary(snap: dict | None, quality: dict, counts: dict,
                  str(counts.get("open_risks", 0)) +
                  " open derived risk(s) are stored separately from the schedule-QA findings.")
     return " ".join(parts)
+
+
+def _project_state(pid: str) -> dict:
+    awaiting = db.q1("SELECT id FROM ingestion_batches WHERE project_id=? AND status='awaiting_schedule' "
+                     "ORDER BY created_at DESC LIMIT 1", [pid])
+    if awaiting:
+        return {"code": "choose_schedule", "label": "Choose schedule",
+                "detail": "Multiple schedule revisions were detected; choose the authoritative schedule to continue."}
+    active = db.q1("SELECT id, kind, status, phase FROM jobs WHERE project_id=? "
+                   "AND kind IN ('analysis','resnapshot') AND status IN ('queued','running') "
+                   "ORDER BY created_at DESC LIMIT 1", [pid])
+    if active:
+        return {"code": "updating", "label": "Updating project",
+                "detail": "New project inputs are being incorporated.", "job_id": active["id"]}
+    terminal = db.q1("SELECT id, status, error FROM jobs WHERE project_id=? "
+                     "AND kind IN ('analysis','resnapshot') AND status IN ('done','failed') "
+                     "ORDER BY COALESCE(finished_at,created_at) DESC LIMIT 1", [pid])
+    if terminal and terminal.get("status") == "failed":
+        return {"code": "retry", "label": "Project update needs retry",
+                "detail": (terminal.get("error") or "The latest project update failed.")[:220],
+                "job_id": terminal["id"]}
+    open_reviews = int((db.q1("SELECT COUNT(*) c FROM reviews WHERE project_id=? AND status='open'", [pid]) or {}).get("c", 0))
+    pending_changes = int((db.q1("SELECT COUNT(*) c FROM proposals WHERE project_id=? AND approval_state='pending'", [pid]) or {}).get("c", 0))
+    unresolved = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN ('needs_review','conflicting')", [pid]) or {}).get("c", 0))
+    if open_reviews or pending_changes or unresolved:
+        return {"code": "needs_input", "label": "Needs your input",
+                "detail": f"{open_reviews} decision(s), {pending_changes} change approval(s), {unresolved} unresolved evidence record(s)."}
+    return {"code": "up_to_date", "label": "Up to date",
+            "detail": "All stored project inputs have been incorporated; no decision is waiting on you."}
 
 
 @router.get("/projects/{pid}/overview")
@@ -295,7 +326,10 @@ def overview(pid: str):
             "pending_proposals": (db.q1("SELECT COUNT(*) c FROM proposals WHERE "
                                         "project_id=? AND approval_state='pending'",
                                         [pid]) or {}).get("c", 0),
+            "unresolved_evidence": field_context.get("unresolved_record_count", 0),
+            "deferred_evidence": field_context.get("deferred_record_count", 0),
         },
+        "project_state": _project_state(pid),
         "active_provider": registry.active_provider_name(),
         "provider_label": registry.LABELS.get(registry.active_provider_name()),
         "latest_job": job,
@@ -1058,14 +1092,95 @@ def list_reviews(pid: str, status: str = "open"):
 
 @router.post("/reviews/{rid}/answer")
 def answer_review(rid: str, body: dict = Body(...)):
+    r0 = reviews.get(rid)
+    if not r0:
+        raise HTTPException(404, "no such review")
+    answer = (body.get("answer") or "").strip()
+    by = body.get("by", "human")
     try:
-        r = reviews.answer(rid, answer_text=body.get("answer", ""),
-                           answered_by=body.get("by", "human"),
+        if r0.get("kind") == "clarification":
+            final_status = "deferred" if answer == "Leave unassigned for now" else "answered"
+            r = reviews.answer(rid, answer_text=answer, answered_by=by,
+                               payload=body.get("payload") or {}, status=final_status,
+                               wake=False)
+            effect = linking.apply_cluster_answer(r["project_id"], r)
+            reviews.record_effect(rid, effect)
+            events.notify_ui(r["project_id"], "project_state_changed", {"reason": "human_decision"})
+            return {"review": reviews.get(rid), "effect": effect,
+                    "project_state": _project_state(r["project_id"]),
+                    "note": "Decision applied immediately; no background review job was created."}
+
+        if r0.get("kind") == "security_review":
+            r = reviews.answer(rid, answer_text=answer, answered_by=by,
+                               payload=body.get("payload") or {}, wake=False)
+            effect = jobs.apply_security_answer_now(r["project_id"], r)
+            reviews.record_effect(rid, effect)
+            events.notify_ui(r["project_id"], "project_state_changed", {"reason": "security_decision"})
+            return {"review": reviews.get(rid), "effect": effect,
+                    "project_state": _project_state(r["project_id"]),
+                    "note": "Security decision applied immediately."}
+
+        if r0.get("kind") == "failed_validation":
+            r = reviews.answer(rid, answer_text=answer, answered_by=by,
+                               payload=body.get("payload") or {}, wake=False)
+            if answer == "Retry analysis":
+                ev = events.emit(events.ANALYSIS_REQUESTED, r["project_id"],
+                                 {"reason": "human_retry_after_provider_failure"}, source="human")
+                jid = jobs.ensure_event_job(ev)
+                effect = {"action": "analysis_retry_queued", "job_id": jid}
+            else:
+                effect = {"action": "deterministic_results_kept"}
+            reviews.record_effect(rid, effect)
+            return {"review": reviews.get(rid), "effect": effect,
+                    "project_state": _project_state(r["project_id"])}
+
+        # Rare decisions that truly require background execution (for example a
+        # legacy proposal review) may still wake one resume job.
+        r = reviews.answer(rid, answer_text=answer, answered_by=by,
                            payload=body.get("payload") or {},
-                           status=body.get("status", "answered"))
+                           status=body.get("status", "answered"), wake=True)
+        return {"review": r, "project_state": _project_state(r["project_id"]),
+                "note": "Decision saved; required background work was queued."}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.post("/reviews/{rid}/reopen")
+def reopen_review(rid: str, body: dict = Body(default={})):
+    try:
+        r = reviews.reopen(rid, by=body.get("by", "human"))
+        ids = r.get("affected_ids") or []
+        if ids:
+            rows = db.q("SELECT * FROM evidence WHERE id IN (" + ",".join("?" for _ in ids) + ")", ids)
+            linking.link_evidence(r["project_id"], evidence_rows=rows, raise_reviews=False)
+        return {"review": reviews.get(rid), "project_state": _project_state(r["project_id"]),
+                "note": "Decision reopened; affected evidence returned to review without creating an analysis job."}
     except KeyError:
         raise HTTPException(404, "no such review")
-    return {"review": r, "note": "the same job resumes automatically"}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.get("/projects/{pid}/attention")
+def attention(pid: str):
+    _project_or_404(pid)
+    open_reviews = reviews.open_for(pid)
+    for r in open_reviews:
+        ids = r.get("affected_ids") or []
+        if ids:
+            r["affected_sample"] = db.q(
+                "SELECT id, source_file, locator, date, crew, discipline, description "
+                "FROM evidence WHERE id IN (" + ",".join("?" for _ in ids[:6]) + ")", ids[:6])
+    props = [proposals.shape(p) for p in db.q(
+        "SELECT * FROM proposals WHERE project_id=? AND approval_state='pending' ORDER BY created_at DESC", [pid])]
+    deferred = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state='deferred'", [pid]) or {}).get("c", 0))
+    unresolved = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN ('needs_review','conflicting')", [pid]) or {}).get("c", 0))
+    recent = [r for r in reviews.all_for(pid, "all")
+              if r.get("kind") == "clarification" and r.get("status") in ("answered","deferred")][:12]
+    return {"state": _project_state(pid), "reviews": open_reviews,
+            "proposals": props, "recent_decisions": recent,
+            "deferred_evidence": deferred, "unresolved_evidence": unresolved,
+            "attention_count": len(open_reviews) + len(props) + (1 if unresolved and not open_reviews else 0)}
 
 
 @router.get("/projects/{pid}/proposals")

@@ -177,22 +177,24 @@ VIEWS.overview = async (pid) => {
         'no field/report evidence extracted yet')) +
     stat('Activities with validated evidence', int(f.validated_activity_count || 0),
       int(f.validated_link_record_count || 0) + ' validated supporting record(s); does not change official schedule progress') +
-    stat('Field records with reported progress', int(f.reported_progress_record_count || 0),
-      int(f.numeric_observed_activity_count || 0) + ' activity/activities currently have validated numeric observed progress') +
-    stat('Evidence awaiting resolution', int(f.unresolved_record_count || 0),
-      'unlinked, conflicting, or awaiting human/model resolution',
+    stat('Evidence rows stating a progress %', int(f.reported_progress_record_count || 0),
+      int(f.numeric_observed_activity_count || 0) + ' schedule activity/activities have a validated numeric field observation; this is not official schedule progress') +
+    stat('Evidence without a settled activity link', int(f.unresolved_record_count || 0),
+      'records with no validated activity link or a link conflict; deliberately deferred records are excluded',
       f.unresolved_record_count ? 'warm' : 'good') +
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Open human reviews', int(c.pending_reviews), 'explicit questions requiring a human decision',
-      c.pending_reviews ? 'warm' : 'good') +
-    stat('Open derived issues', int(c.open_issues || 0), 'existing problems inferred/derived from stored evidence; separate from QA failures',
+    stat('Decisions waiting on you', int(c.pending_reviews || 0) + int(c.pending_proposals || 0),
+      int(c.pending_reviews || 0) + ' evidence/security decision(s) · ' + int(c.pending_proposals || 0) + ' schedule-change approval(s)',
+      (c.pending_reviews || c.pending_proposals) ? 'warm' : 'good') +
+    stat('Open derived issues', int(c.open_issues || 0), 'stored issue records derived from rules/analysis; not a count of failed schedule-QA checks',
       c.open_issues ? 'warm' : 'good') +
-    stat('Open derived risks', int(c.open_risks || 0), 'possible future events inferred/derived from stored evidence; separate from QA failures',
+    stat('Open derived risks', int(c.open_risks || 0), 'stored possible-future-event records derived from rules/analysis; not a count of failed schedule-QA checks',
       c.open_risks ? 'warm' : 'good') +
-    stat('Unapproved schedule changes', int(c.pending_proposals), 'proposed changes awaiting governed approval; none are auto-applied',
-      c.pending_proposals ? 'warm' : 'good') +
+    stat('Evidence deliberately deferred', int(f.deferred_record_count || 0),
+      'records a human explicitly chose to leave unassigned for now; they are not silently unresolved',
+      f.deferred_record_count ? 'warm' : 'good') +
     '</div>' +
 
     (o.state_summary ? panel('Current state summary',
@@ -1260,10 +1262,7 @@ VIEWS.reviews = async (pid, params) => {
         ? '<div class="opts">' + (v.options || []).map(o =>
             '<button class="btn" data-ans="' + E(o) + '" data-rid="' + E(v.id) +
             '">' + E(o) + '</button>').join('') +
-          '<input class="inp" placeholder="Or type your own answer" ' +
-          'data-free="' + E(v.id) + '">' +
-          '<button class="btn primary" data-free-go="' + E(v.id) + '">Answer' +
-          '</button></div>'
+          ((v.kind === 'clarification' || (v.options || []).length) ? '</div>' : '<input class="inp" placeholder="Type answer" data-free="' + E(v.id) + '"><button class="btn primary" data-free-go="' + E(v.id) + '">Answer</button></div>')
         : '<div class="samples"><dl class="kv">' +
           row('Answer', '<b>' + E(v.answer || '') + '</b>') +
           row('Answered by', E(v.answered_by || '')) +
@@ -1279,8 +1278,7 @@ VIEWS.bind_reviews = (pid) => {
   const send = async (rid, answer) => {
     if (!answer) return;
     await P('/reviews/' + rid + '/answer', { answer: answer, by: 'site.engineer' });
-    window.toast('Answer saved. The same job resumes and reprocesses the ' +
-      'affected records.', 'good');
+    window.toast('Decision applied. Project state updated immediately.', 'good');
     window.render(); window.refreshCounts();
   };
   document.querySelectorAll('[data-ans]').forEach(b => b.onclick = () =>
@@ -1290,6 +1288,66 @@ VIEWS.bind_reviews = (pid) => {
     const inp = document.querySelector('[data-free="' + id + '"]');
     send(id, inp && inp.value);
   });
+};
+
+/* ================================================ Needs Attention */
+function attentionReviewCard(v) {
+  const options = v.options || [];
+  return '<div class="review"><div class="h"><h3>' + E(v.title) + '</h3>' +
+    '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">' +
+    '<span class="tag ' + (v.kind === 'security_review' ? 'red' : 'blue') + '">' +
+    E((v.kind || 'decision').replace(/_/g, ' ')) + '</span>' +
+    (v.affected_count > 1 ? '<span class="count-pill">' + int(v.affected_count) + ' records</span>' : '') +
+    '</div></div><div class="q">' + E(v.question) + '</div>' +
+    (v.detail ? '<div class="samples"><div class="note">' + E(v.detail) + '</div></div>' : '') +
+    (v.affected_sample && v.affected_sample.length ? '<div class="samples"><div class="eyebrow">Affected records</div>' +
+      table([{t:'Source'},{t:'Date'},{t:'Description'}], v.affected_sample, s =>
+        '<tr><td class="mono">' + E(s.source_file) + '</td><td class="mono">' + day(s.date) + '</td><td>' + E(s.description) + '</td></tr>') + '</div>' : '') +
+    '<div class="opts">' + options.map(o => '<button class="btn" data-attention-answer="' + E(o) + '" data-rid="' + E(v.id) + '">' + E(o) + '</button>').join('') +
+    (!options.length ? '<input class="inp" data-attention-free="' + E(v.id) + '" placeholder="Type your answer"><button class="btn primary" data-attention-free-go="' + E(v.id) + '">Apply</button>' : '') +
+    '</div></div>';
+}
+
+VIEWS.attention = async (pid) => {
+  const r = await A('/projects/' + pid + '/attention');
+  const ps = r.state || {};
+  const stateNote = '<div class="note ' + (ps.code === 'retry' ? 'danger' : ps.code === 'needs_input' || ps.code === 'choose_schedule' ? 'warn' : '') + '" style="margin-bottom:14px"><b>' + E(ps.label || 'Project state') + '</b><br>' + E(ps.detail || '') + '</div>';
+  const reviewHtml = r.reviews.length ? r.reviews.map(attentionReviewCard).join('') : '';
+  const proposalHtml = r.proposals.length ? '<div class="eyebrow" style="margin:18px 0 8px">Schedule changes awaiting approval</div>' + r.proposals.map(proposalCard).join('') : '';
+  const deferred = r.deferred_evidence ? '<div class="note" style="margin-top:12px"><b>' + int(r.deferred_evidence) + ' evidence record(s) deliberately left unassigned.</b><br>These are deferred by a human choice, not unresolved by the system.</div>' : '';
+  const recent = (r.recent_decisions || []).length ? '<div class="eyebrow" style="margin:18px 0 8px">Recent evidence decisions</div>' + (r.recent_decisions || []).map(v =>
+    '<div class="review"><div class="h"><h3>' + E(v.title) + '</h3><span class="tag green">' + E(v.status) + '</span></div>' +
+    '<div class="q"><b>' + E(v.answer || '') + '</b></div><div class="opts"><button class="btn" data-change-decision="' + E(v.id) + '">Change decision</button></div></div>').join('') : '';
+  return head('Needs Attention', 'Only decisions that require you — no worker queue') + stateNote +
+    (reviewHtml || proposalHtml ? reviewHtml + proposalHtml + deferred + recent :
+      panel('Nothing waiting on you', empty('Up to date', 'New uploads and completed decisions flow into the project automatically.')) + recent + deferred);
+};
+
+VIEWS.bind_attention = (pid) => {
+  const send = async (rid, answer) => {
+    if (!answer) return;
+    try {
+      const r = await P('/reviews/' + rid + '/answer', {answer, by:'site.engineer'});
+      const e = r.effect || {};
+      let msg = 'Decision applied immediately.';
+      if (e.assigned) msg = e.assigned + ' record(s) linked to ' + (e.activity_display_id || e.activity_name || 'the selected activity') + '.';
+      else if (e.deferred) msg = e.deferred + ' record(s) left unassigned for now.';
+      window.toast(msg, 'good');
+      await window.refreshCounts(); window.render();
+    } catch (err) { window.toast(err.message, 'bad'); }
+  };
+  document.querySelectorAll('[data-attention-answer]').forEach(b => b.onclick = () => send(b.dataset.rid, b.dataset.attentionAnswer));
+  document.querySelectorAll('[data-attention-free-go]').forEach(b => b.onclick = () => {
+    const rid=b.dataset.attentionFreeGo; const i=document.querySelector('[data-attention-free="'+rid+'"]'); send(rid, i && i.value);
+  });
+  document.querySelectorAll('[data-change-decision]').forEach(b => b.onclick = async () => {
+    try {
+      await P('/reviews/' + b.dataset.changeDecision + '/reopen', {by:'site.engineer'});
+      window.toast('Decision reopened. Choose the correct activity below.', 'good');
+      await window.refreshCounts(); window.render();
+    } catch (err) { window.toast(err.message, 'bad'); }
+  });
+  if (VIEWS.bind_proposals) VIEWS.bind_proposals(pid);
 };
 
 /* ================================================= 19. Proposals */
@@ -1444,9 +1502,10 @@ VIEWS.bind_ask = (pid) => {
     const t = document.getElementById('qbox');
     if (!t.value.trim()) return;
     await P('/projects/' + pid + '/ask', { question: t.value.trim() });
-    window.toast('Question queued. Watch Agent activity while it investigates.',
-      'good');
-    go('agent');
+    window.toast('Question accepted. The answer will appear here when ready.', 'good');
+    t.value = '';
+    await window.refreshCounts();
+    window.render();
   };
 };
 
@@ -1639,7 +1698,7 @@ VIEWS.files = async (pid) => {
           .map(f => '<div class="note danger" style="margin-bottom:9px">' +
             '<b>' + E(f.filename) + '</b><br>' + E(f.security_notes || '') +
             '<br><span style="color:var(--ink-3)">Its content is withheld from ' +
-            'the agent. Resolve it under Human review.</span></div>').join('') +
+            'the agent. Resolve it under Needs Attention.</span></div>').join('') +
         '</div>') : '');
 };
 VIEWS.choose_schedule_candidate = (pid, batchId, candidates) => new Promise((resolve) => {
@@ -1668,15 +1727,15 @@ VIEWS.choose_schedule_candidate = (pid, batchId, candidates) => new Promise((res
   scrim.querySelector('#schedule-choice-cancel').onclick = () => { scrim.remove(); resolve(false); };
   scrim.onclick = (e) => { if (e.target === scrim) { scrim.remove(); resolve(false); } };
   scrim.querySelector('#schedule-choice-go').onclick = async () => {
-    const go = scrim.querySelector('#schedule-choice-go'); go.disabled = true; go.textContent = 'Starting analysis…';
+    const goBtn = scrim.querySelector('#schedule-choice-go'); goBtn.disabled = true; goBtn.textContent = 'Starting analysis…';
     try {
       const r = await P('/projects/' + pid + '/ingest/' + batchId + '/select-schedule', { file_id: selected });
       const chosen = candidates.find(c => c.id === selected);
       scrim.remove();
       window.toast('Authoritative schedule selected. Analysis started automatically.', 'good');
-      if (r && r.job_id) go('agent'); else window.render();
+      if (r && r.job_id) go('overview'); else window.render();
       resolve(true);
-    } catch (e) { go.disabled = false; go.textContent = 'Use selected schedule'; window.toast(e.message, 'bad'); }
+    } catch (e) { goBtn.disabled = false; goBtn.textContent = 'Use selected schedule'; window.toast(e.message, 'bad'); }
   };
 });
 
