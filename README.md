@@ -269,3 +269,15 @@ starts analysis automatically, and human clarification decisions update linked
 evidence/observed-progress state immediately. Use **Needs Attention** for the
 small set of decisions or governed schedule changes that actually require a
 person; internal worker jobs are not part of the normal operator workflow.
+
+---
+
+## v0.2 hybrid retrieval package note
+
+This package also includes the experimental hybrid schedule entity-resolution layer in
+`veda/retrieval/` and its design notes in `RETRIEVAL_ARCHITECTURE.md`.
+
+If you hand this repository to a local coding agent, have it read
+`LOCAL_AGENT_BOOTSTRAP_PROMPT.md` **before executing the project**. The prompt uses an
+isolated data directory, the offline-safe hash retrieval backend first, and keeps BGE
+model downloads and external tooling opt-in.

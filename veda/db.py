@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS activities (
   uid INTEGER,
   display_id TEXT,
   name TEXT,
-  wbs TEXT, wbs_name TEXT, outline_level INTEGER,
+  wbs TEXT, wbs_name TEXT, wbs_path TEXT, outline_level INTEGER,
   parent_uid INTEGER,
   is_summary INTEGER DEFAULT 0,
   is_milestone INTEGER DEFAULT 0,
@@ -180,6 +180,8 @@ CREATE TABLE IF NOT EXISTS activities (
   cost REAL, work_hours REAL,
   resource_names TEXT,
   custom_json TEXT,
+  asset_tags_json TEXT,
+  location_tags_json TEXT,
   notes TEXT,
   provenance TEXT DEFAULT 'MCP_FACT',
   created_at REAL
@@ -308,6 +310,8 @@ CREATE TABLE IF NOT EXISTS evidence (
   source_file TEXT, locator TEXT,
   date TEXT, author TEXT, contractor TEXT, crew TEXT,
   discipline TEXT, location TEXT, chainage TEXT,
+  event_type TEXT,
+  asset_tags_json TEXT, location_tags_json TEXT,
   quantity REAL, unit TEXT,
   description TEXT,
   observed_progress REAL,
@@ -327,6 +331,9 @@ CREATE TABLE IF NOT EXISTS evidence_links (
   activity_uid INTEGER,
   activity_name TEXT,
   confidence REAL,
+  retrieval_score REAL,
+  calibration_mode TEXT,
+  feature_json TEXT,
   relation TEXT DEFAULT 'supporting',
   supporting_signals TEXT,
   conflicting_signals TEXT,
@@ -341,6 +348,24 @@ CREATE TABLE IF NOT EXISTS evidence_links (
 );
 CREATE INDEX IF NOT EXISTS ix_evl_ev ON evidence_links(evidence_id);
 CREATE INDEX IF NOT EXISTS ix_evl_act ON evidence_links(project_id, activity_uid);
+
+CREATE TABLE IF NOT EXISTS retrieval_documents (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  activity_uid INTEGER NOT NULL,
+  fingerprint TEXT,
+  search_text TEXT,
+  embedding_model TEXT,
+  embedding_dim INTEGER,
+  embedding_blob BLOB,
+  metadata_json TEXT,
+  updated_at REAL,
+  created_at REAL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_retrieval_doc_activity
+  ON retrieval_documents(project_id, activity_uid);
+CREATE INDEX IF NOT EXISTS ix_retrieval_doc_project
+  ON retrieval_documents(project_id);
 
 CREATE TABLE IF NOT EXISTS observed_progress (
   id TEXT PRIMARY KEY,
@@ -590,9 +615,35 @@ def init_db() -> None:
     ):
         if name not in rcols:
             conn.execute(ddl)
+    # Hybrid retrieval/entity-resolution fields (v0.2).
+    acols = {r[1] for r in conn.execute("PRAGMA table_info(activities)").fetchall()}
+    for name, ddl in (
+        ("wbs_path", "ALTER TABLE activities ADD COLUMN wbs_path TEXT"),
+        ("asset_tags_json", "ALTER TABLE activities ADD COLUMN asset_tags_json TEXT"),
+        ("location_tags_json", "ALTER TABLE activities ADD COLUMN location_tags_json TEXT"),
+    ):
+        if name not in acols:
+            conn.execute(ddl)
+
+    ecols = {r[1] for r in conn.execute("PRAGMA table_info(evidence)").fetchall()}
+    for name, ddl in (
+        ("event_type", "ALTER TABLE evidence ADD COLUMN event_type TEXT"),
+        ("asset_tags_json", "ALTER TABLE evidence ADD COLUMN asset_tags_json TEXT"),
+        ("location_tags_json", "ALTER TABLE evidence ADD COLUMN location_tags_json TEXT"),
+    ):
+        if name not in ecols:
+            conn.execute(ddl)
+
     lcols = {r[1] for r in conn.execute("PRAGMA table_info(evidence_links)").fetchall()}
     if "review_id" not in lcols:
         conn.execute("ALTER TABLE evidence_links ADD COLUMN review_id TEXT")
+    for name, ddl in (
+        ("retrieval_score", "ALTER TABLE evidence_links ADD COLUMN retrieval_score REAL"),
+        ("calibration_mode", "ALTER TABLE evidence_links ADD COLUMN calibration_mode TEXT"),
+        ("feature_json", "ALTER TABLE evidence_links ADD COLUMN feature_json TEXT"),
+    ):
+        if name not in lcols:
+            conn.execute(ddl)
 
     # Legacy workflow migration: human attention is no longer a job status.
     # Analysis that had already finished but was labelled awaiting_review is
