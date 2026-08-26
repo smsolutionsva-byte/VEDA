@@ -43,13 +43,16 @@ HORIZUN_TIMEOUT = int(os.environ.get("VEDA_HORIZUN_TIMEOUT", "180"))
 # Provider-neutral. "claude_code", "antigravity" and "local_antigravity" all
 # implement AgentProvider.
 def _default_provider() -> str:
-    """Pick the best provider based on what's available."""
+    """Pick a provider that can actually complete work autonomously.
+
+    Merely launching VEDA from an Antigravity terminal exposes IDE environment
+    variables, but that does *not* mean an agent is polling VEDA's custom inbox.
+    Auto-selecting the local bridge on that signal caused jobs to wait forever.
+    The bridge is therefore explicit opt-in via VEDA_AGENT_PROVIDER.
+    """
     explicit = os.environ.get("VEDA_AGENT_PROVIDER")
     if explicit:
         return explicit
-    # Running inside Antigravity IDE → use the local agent bridge
-    if os.environ.get("ANTIGRAVITY_AGENTAPI_EXE"):
-        return "local_antigravity"
     if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
         return "antigravity"
     return "claude_code"
@@ -58,6 +61,9 @@ AGENT_PROVIDER = _default_provider()
 CLAUDE_CMD = os.environ.get("VEDA_CLAUDE_CMD") or shutil.which("claude") or "claude"
 CLAUDE_MODEL = os.environ.get("VEDA_CLAUDE_MODEL", "sonnet")
 AGENT_TIMEOUT = int(os.environ.get("VEDA_AGENT_TIMEOUT", "900"))
+# Local Antigravity is an inbox bridge. If no IDE agent claims a job quickly,
+# do not hold VEDA's single worker for the full reasoning timeout.
+AGENT_CLAIM_TIMEOUT = int(os.environ.get("VEDA_AGENT_CLAIM_TIMEOUT", "30"))
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
 GEMINI_MODEL = os.environ.get("VEDA_GEMINI_MODEL", "gemini-2.0-flash")

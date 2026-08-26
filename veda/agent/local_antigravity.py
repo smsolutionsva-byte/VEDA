@@ -18,8 +18,12 @@ from typing import AsyncIterator
 from .. import config, db
 from .base import AgentEvent, AgentProvider, AgentSession
 
-# How long to wait for the agent to post a result (seconds)
+# How long to wait once the IDE agent has claimed a job (seconds).
 INBOX_TIMEOUT = int(config.AGENT_TIMEOUT)
+# How long an unclaimed inbox item may block the single VEDA worker.  The IDE
+# bridge is useful only when something is actively polling /api/agent/inbox;
+# without this guard one missing watcher stalls every project for 15 minutes.
+CLAIM_TIMEOUT = max(1, min(INBOX_TIMEOUT, int(config.AGENT_CLAIM_TIMEOUT)))
 # How often to poll the outbox for a result (seconds)
 POLL_INTERVAL = 2.0
 
@@ -46,8 +50,9 @@ class LocalAntigravityProvider(AgentProvider):
             "ok": True,
             "provider": self.name,
             "model": "Antigravity IDE (local agent)",
-            "note": "The reasoning agent is the Antigravity IDE itself. "
-                    "No API key required.",
+            "note": "Local Antigravity inbox bridge is enabled. An IDE agent "
+                    "must claim pending inbox work; otherwise VEDA falls back "
+                    "without blocking the global queue.",
         }
 
     async def start_session(self, *, project_id: str, job_id: str, prompt: str,
@@ -120,14 +125,18 @@ class LocalAntigravityProvider(AgentProvider):
                          data={"session_id": session.session_id,
                                "inbox_id": inbox_id,
                                "model": "local_antigravity"}))
-        deadline = time.time() + INBOX_TIMEOUT
+        started = time.time()
+        claim_deadline = started + CLAIM_TIMEOUT
+        result_deadline = started + INBOX_TIMEOUT
+        claimed = False
+        processing_announced = False
         try:
-            while time.time() < deadline:
+            while time.time() < result_deadline:
                 if self._cancel.get(session.session_id):
                     q.put(AgentEvent("error", label="cancelled"))
                     break
 
-                # Check if the agent has posted a result
+                # Check first: a very fast agent can claim and post between polls.
                 outbox = db.q1(
                     "SELECT * FROM agent_outbox WHERE inbox_id=? "
                     "ORDER BY created_at DESC LIMIT 1", [inbox_id])
@@ -136,7 +145,7 @@ class LocalAntigravityProvider(AgentProvider):
                     if error:
                         q.put(AgentEvent("error", label=error[:400]))
                     else:
-                        result_text = outbox.get("result_json", "")
+                        result_text = outbox.get("result_json") or ""
                         # Replay any events the agent recorded
                         events_raw = db.jloads(outbox.get("events_json"), [])
                         for ev_dict in (events_raw or []):
@@ -157,20 +166,40 @@ class LocalAntigravityProvider(AgentProvider):
                         "status": "done", "finished_at": db.now()})
                     break
 
-                # Also check if the inbox item was claimed (to show progress)
                 inbox = db.q1("SELECT status FROM agent_inbox WHERE id=?",
                               [inbox_id])
-                if inbox and inbox.get("status") == "claimed":
-                    q.put(AgentEvent("status", step="agent_processing",
-                                     label="Agent is processing..."))
+                state = (inbox or {}).get("status")
+                if state == "claimed":
+                    claimed = True
+                    if not processing_announced:
+                        q.put(AgentEvent("status", step="agent_processing",
+                                         label="Agent is processing..."))
+                        processing_announced = True
+                elif state in ("cancelled", "timeout"):
+                    q.put(AgentEvent("error",
+                                     label="Antigravity inbox was " + str(state)))
+                    break
+
+                # The important guard: an IDE being open is not proof that an
+                # agent is actually consuming VEDA's inbox. Fail fast so the
+                # deterministic fallback can finish this job and release the
+                # next queued project.
+                if not claimed and time.time() >= claim_deadline:
+                    q.put(AgentEvent(
+                        "error",
+                        label=("Antigravity IDE agent did not claim this job within "
+                               + str(CLAIM_TIMEOUT) +
+                               "s; releasing the VEDA worker.")))
+                    db.update("agent_inbox", inbox_id, {
+                        "status": "timeout", "finished_at": db.now()})
+                    break
 
                 time.sleep(POLL_INTERVAL)
             else:
-                q.put(AgentEvent("error",
-                                 label="Timeout: Antigravity agent did not "
-                                       "respond within " +
-                                       str(INBOX_TIMEOUT) + "s. "
-                                       "Is the agent watcher running?"))
+                q.put(AgentEvent(
+                    "error",
+                    label=("Timeout: Antigravity agent did not respond within " +
+                           str(INBOX_TIMEOUT) + "s after the job was queued.")))
                 db.update("agent_inbox", inbox_id, {
                     "status": "timeout", "finished_at": db.now()})
         except Exception as exc:  # noqa: BLE001

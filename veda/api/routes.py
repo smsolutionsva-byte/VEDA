@@ -893,8 +893,12 @@ def project_events(pid: str, limit: int = 100):
 @router.get("/agent/inbox")
 def agent_inbox():
     """The Antigravity agent polls this to find pending work."""
-    item = db.q1("SELECT * FROM agent_inbox WHERE status='pending' "
-                 "ORDER BY created_at ASC LIMIT 1")
+    # Never hand the IDE stale inbox work from a job that already failed,
+    # timed out, or belonged to a previous server process.
+    item = db.q1(
+        "SELECT i.* FROM agent_inbox i JOIN jobs j ON j.id=i.job_id "
+        "WHERE i.status='pending' AND j.status='running' "
+        "ORDER BY i.created_at ASC LIMIT 1")
     if not item:
         return {"item": None}
     db.update("agent_inbox", item["id"], {
@@ -961,7 +965,7 @@ def agent_result(body: dict = Body(...)):
         "inbox_id": inbox_id,
         "project_id": inbox["project_id"],
         "job_id": inbox["job_id"],
-        "result_json": db.jdumps(result) if result else None,
+        "result_json": db.jdumps(result) if result is not None else None,
         "error": error,
         "events_json": db.jdumps(agent_events) if agent_events else None,
     })

@@ -94,14 +94,47 @@ def enqueue(job_id: str) -> None:
     _queue.put(job_id)
 
 
+def _recover_startup_jobs() -> list[str]:
+    """Repair durable job state after a server/process restart.
+
+    The in-memory worker queue cannot survive a restart. Any row still marked
+    ``running`` is therefore stale at startup, while persisted ``queued`` rows
+    need to be put back into the new process queue.
+    """
+    stale = db.q("SELECT id, project_id FROM jobs WHERE status='running' "
+                 "ORDER BY created_at")
+    for job in stale:
+        jid = job["id"]
+        # Do not leave old local-agent inbox work claimable after its worker is
+        # gone; a late IDE response would otherwise be attached to a dead job.
+        db.ex("UPDATE agent_inbox SET status='cancelled', finished_at=? "
+              "WHERE job_id=? AND status IN ('pending','claimed')",
+              [db.now(), jid])
+        db.update("jobs", jid, {
+            "status": "failed",
+            "phase": "interrupted",
+            "finished_at": db.now(),
+            "error": ("VEDA restarted before this job finished. The stale "
+                      "running state was cleared; retry this job if needed."),
+        })
+        events.notify_ui(job["project_id"], "jobs_changed",
+                         {"job_id": jid, "status": "failed"})
+
+    return [r["id"] for r in db.q(
+        "SELECT id FROM jobs WHERE status='queued' ORDER BY created_at")]
+
+
 def start_worker() -> None:
     global _worker, _started
     if _started:
         return
     _started = True
     events.on_event(handle_event)
+    pending = _recover_startup_jobs()
     _worker = threading.Thread(target=_loop, daemon=True, name="veda-jobs")
     _worker.start()
+    for job_id in pending:
+        enqueue(job_id)
 
 
 def _loop() -> None:

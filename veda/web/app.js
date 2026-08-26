@@ -3,7 +3,7 @@
 
 const S = {
   project: null, projects: [], view: 'overview', params: {},
-  counts: {}, health: null, es: null,
+  counts: {}, health: null, es: null, streamProject: null, overview: null,
 };
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -173,8 +173,11 @@ async function loadProjects(selectId) {
     ? r.projects.map(p => '<option value="' + p.id + '">' + esc(p.name) +
         '</option>').join('')
     : '<option value="">No projects yet</option>';
-  S.project = selectId || (r.projects[0] && r.projects[0].id) || null;
+  const nextProject = selectId || (r.projects[0] && r.projects[0].id) || null;
+  const changed = nextProject !== S.project;
+  S.project = nextProject;
   if (S.project) sel.value = S.project;
+  if (changed) connectStream();
   await refreshCounts();
   render();
 }
@@ -196,23 +199,41 @@ function bindNoProject() {
 /* --------------------------------------------------------- live stream */
 function connectStream() {
   if (S.es) S.es.close();
+  const streamProject = S.project;
+  S.streamProject = streamProject;
   const es = new EventSource('/api/stream' +
-    (S.project ? '?project_id=' + S.project : ''));
+    (streamProject ? '?project_id=' + encodeURIComponent(streamProject) : ''));
   S.es = es;
   let pending = null;
+
+  const syncFromServer = async (allowNavigate) => {
+    // A stream can reconnect after an event was emitted. Always re-read durable
+    // state so UI correctness never depends on catching one transient SSE hint.
+    if (streamProject !== S.project || es !== S.es) return;
+    await refreshCounts();
+    if (streamProject !== S.project || es !== S.es) return;
+    const j = S.overview && S.overview.latest_job;
+    const terminalAnalysis = j && j.kind === 'analysis' &&
+      (j.status === 'done' || j.status === 'awaiting_review');
+    if (allowNavigate && terminalAnalysis && S.view === 'agent') {
+      go('overview');
+      return;
+    }
+    if (['overview', 'agent', 'jobs', 'reviews', 'proposals', 'evidence',
+         'outputs', 'observed', 'quality', 'activities'].includes(S.view)) {
+      render();
+    }
+  };
+
+  es.onopen = () => { syncFromServer(true); };
   es.onmessage = (m) => {
     let d; try { d = JSON.parse(m.data); } catch (e) { return; }
-    if (!d.type) return;
-    if (d.type === 'ui:activity' && S.view === 'agent') { render(); }
+    if (!d.type || (d.project_id && d.project_id !== S.project)) return;
     // Coalesce bursts: the agent emits many steps in quick succession.
     clearTimeout(pending);
-    pending = setTimeout(() => {
-      refreshCounts();
-      if (['overview', 'agent', 'jobs', 'reviews', 'proposals',
-           'evidence'].includes(S.view)) render();
-    }, 700);
+    pending = setTimeout(() => syncFromServer(true), 350);
   };
-  es.onerror = () => { /* EventSource retries on its own */ };
+  es.onerror = () => { /* EventSource retries; onopen performs state catch-up. */ };
 }
 
 /* ---------------------------------------------------------------- init */
@@ -225,9 +246,11 @@ window.esc = esc;
 window.api = api; window.post = post; window.toast = toast;
 
 async function init() {
-  $('#projpick').onchange = (e) => {
+  $('#projpick').onchange = async (e) => {
     S.project = e.target.value || null;
-    connectStream(); refreshCounts(); render();
+    connectStream();
+    await refreshCounts();
+    render();
   };
   $('#newproj').onclick = newProject;
   $('#analyze').onclick = async () => {
@@ -245,9 +268,12 @@ async function init() {
   if (v) { S.view = v; S.params = id ? { id: id } : {}; }
   renderRail();
   await loadProjects();
-  connectStream();
+  // loadProjects owns project selection and therefore the project-scoped stream.
   refreshHealth();
   setInterval(refreshHealth, 30000);
+  window.addEventListener('focus', () => {
+    if (S.project) { refreshCounts().then(() => render()); }
+  });
 }
 init();
 window.S = S;

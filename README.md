@@ -202,11 +202,12 @@ Data lives in `data/`: `veda.db`, plus `projects/<id>/files`, `/revisions`,
 | Variable | Default | Purpose |
 |---|---|---|
 | `VEDA_HOST` / `VEDA_PORT` | `127.0.0.1` / `8770` | bind address |
-| `VEDA_AGENT_PROVIDER` | `claude_code` | `claude_code` or `antigravity` |
+| `VEDA_AGENT_PROVIDER` | auto | `claude_code`, `antigravity`, or explicit `local_antigravity` bridge |
 | `VEDA_CLAUDE_MODEL` | `sonnet` | Claude Code model |
 | `GEMINI_API_KEY` | — | enables Antigravity/Gemini |
 | `VEDA_HORIZUN_CMD` | auto-detected | Horizun executable |
 | `VEDA_ALLOW_FALLBACK` | `1` | rule-based analysis when no provider |
+| `VEDA_AGENT_CLAIM_TIMEOUT` | `30` | seconds an unclaimed local-Antigravity inbox job may block the worker |
 | `VEDA_DATA_DIR` | `./data` | storage root |
 
 ---
