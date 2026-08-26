@@ -47,15 +47,34 @@ if errorlevel 1 (
     echo.
 )
 
-where claude >nul 2>&1
-if errorlevel 1 (
-    if "%GEMINI_API_KEY%"=="" (
-        echo  [warn] No reasoning provider found.
-        echo         Install Claude Code:  npm install -g @anthropic-ai/claude-code
-        echo         or set GEMINI_API_KEY to use Antigravity/Gemini.
-        echo         VEDA will still run its rule-based analyser.
-        echo.
+set "VEDA_HAVE_AGENT=0"
+where agy >nul 2>&1
+if not errorlevel 1 (
+    set "VEDA_HAVE_AGENT=1"
+    echo  [agent] Antigravity CLI found - first priority.
+) else (
+    if exist "%LOCALAPPDATA%\agy\bin\agy.exe" (
+        set "VEDA_HAVE_AGENT=1"
+        set "VEDA_ANTIGRAVITY_CMD=%LOCALAPPDATA%\agy\bin\agy.exe"
+        echo  [agent] Antigravity CLI found in LocalAppData - first priority.
     )
+)
+where claude >nul 2>&1
+if not errorlevel 1 (
+    set "VEDA_HAVE_AGENT=1"
+    echo  [agent] Claude Code found - second priority fallback.
+)
+where codex >nul 2>&1
+if not errorlevel 1 (
+    set "VEDA_HAVE_AGENT=1"
+    echo  [agent] Codex found - third priority fallback.
+)
+if "%VEDA_HAVE_AGENT%"=="0" (
+    echo  [warn] No headless reasoning CLI found.
+    echo         VEDA auto order is: Antigravity ^> Claude Code ^> Codex.
+    echo         Antigravity CLI uses your existing Antigravity sign-in.
+    echo         VEDA will still run its rule-based analyser.
+    echo.
 )
 
 if not exist "data" mkdir data

@@ -1,5 +1,5 @@
 from .base import AgentEvent, AgentProvider, AgentRunResult, AgentSession
-from .registry import active_provider_name, get_provider, health_all
+from .registry import active_provider_name, candidate_names, get_provider, health_all
 
 __all__ = ["AgentEvent", "AgentProvider", "AgentRunResult", "AgentSession",
-           "get_provider", "active_provider_name", "health_all"]
+           "get_provider", "active_provider_name", "candidate_names", "health_all"]

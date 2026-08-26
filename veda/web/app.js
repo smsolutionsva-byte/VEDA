@@ -153,8 +153,9 @@ async function refreshHealth() {
     const a = h.providers[h.active_provider] || {};
     const ca = $('#chip-agent');
     ca.className = 'chip ' + (a.ok ? 'ok' : 'bad');
-    ca.querySelector('span').textContent = (a.label || h.active_provider) +
-      (a.ok ? '' : ' offline');
+    const agentName = h.active_provider === 'auto' && a.selected_label
+      ? 'Auto → ' + a.selected_label : (a.label || h.active_provider);
+    ca.querySelector('span').textContent = agentName + (a.ok ? '' : ' offline');
     const cm = $('#chip-mcp');
     cm.className = 'chip ' + (h.horizun.ok ? 'ok' : 'bad');
     cm.querySelector('span').textContent = 'Horizun' +

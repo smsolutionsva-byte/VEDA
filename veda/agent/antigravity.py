@@ -106,7 +106,7 @@ def _dispatch(name: str, args: dict, project_id: str, job_id: str) -> Any:
 
 
 class AntigravityProvider(AgentProvider):
-    name = "antigravity"
+    name = "gemini_api"
 
     def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key if api_key is not None else config.GEMINI_API_KEY

@@ -330,102 +330,152 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
 
 def _invoke_agent(job_id: str, project_id: str, prompt: str,
                   resume_external: str | None = None) -> tuple:
-    """Run the configured provider; fall back to rules if it cannot run."""
-    provider_name = registry.active_provider_name()
-    provider = registry.get_provider(provider_name)
-    step(job_id, project_id, "agent_invoked",
-         "Waking " + registry.LABELS.get(provider_name, provider_name))
+    """Run reasoning with runtime fallback: Antigravity -> Claude -> Codex.
 
-    health = _await(provider.health())
-    if not health.get("ok"):
-        step(job_id, project_id, "agent_unavailable",
-             registry.LABELS.get(provider_name, provider_name) + " unavailable",
-             "failed", str(health.get("error"))[:300])
-        if not config.ALLOW_DETERMINISTIC_FALLBACK:
-            raise RuntimeError("reasoning provider unavailable: " +
-                               str(health.get("error")))
-        step(job_id, project_id, "fallback_analysis",
-             "Running VEDA's rule-based analyser instead")
-        return deterministic.analyse(project_id), "deterministic"
+    In auto mode, an unavailable, unauthenticated, timed-out, or otherwise
+    failed provider never owns the global worker indefinitely. VEDA records the
+    failure, moves to the next provider, and only uses deterministic analysis
+    after the whole chain is exhausted.
+    """
+    candidates = registry.candidate_names()
+    failures: list[str] = []
+    rejected_outputs: list[str] = []
 
     sess_row = None
-    resume_session = None
     if resume_external:
-        from .agent.base import AgentSession
         sess_row = db.q1("SELECT * FROM agent_sessions WHERE id=?",
                          [resume_external])
-        if sess_row:
+        # When continuing a prior conversation in auto mode, give its original
+        # provider the first chance to preserve context, then return to the
+        # normal fallback order without duplicates.
+        if sess_row and registry.active_provider_name() == "auto":
+            prior = sess_row.get("provider")
+            if prior == "antigravity":
+                prior = "gemini_api"
+            if prior in registry.PROVIDERS:
+                candidates = [prior] + [n for n in candidates if n != prior]
+
+    for attempt_no, provider_name in enumerate(candidates, 1):
+        label = registry.LABELS.get(provider_name, provider_name)
+        try:
+            provider = registry.get_provider(provider_name)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(label + ": " + str(exc))
+            continue
+
+        step(job_id, project_id, "agent_invoked",
+             "Trying " + label + (" (fallback)" if attempt_no > 1 else ""))
+
+        try:
+            health = _await(provider.health())
+        except Exception as exc:  # noqa: BLE001
+            health = {"ok": False, "error": str(exc)}
+        if not health.get("ok"):
+            reason = str(health.get("error") or "unavailable")[:400]
+            step(job_id, project_id, "agent_unavailable",
+                 label + " unavailable; trying next provider", "failed", reason)
+            failures.append(label + ": " + reason)
+            continue
+
+        resume_session = None
+        if sess_row and sess_row.get("provider") in (provider_name,
+                                                      "antigravity" if provider_name == "gemini_api" else ""):
+            from .agent.base import AgentSession
             resume_session = AgentSession(
                 session_id=sess_row["id"], external_id=sess_row.get("external_id"),
-                provider=sess_row["provider"], model=sess_row.get("model"),
+                provider=provider_name, model=sess_row.get("model"),
                 meta={"project_id": project_id, "job_id": job_id})
 
-    def on_event(ev) -> None:
-        if ev.kind == "tool_call":
-            step(job_id, project_id, "tool_call", ev.label, "success")
-        elif ev.kind == "error":
-            step(job_id, project_id, "agent_error", ev.label[:200], "failed")
-        elif ev.kind == "status":
-            step(job_id, project_id, ev.step or "agent_status", ev.label)
+        def on_event(ev) -> None:
+            if ev.kind == "tool_call":
+                step(job_id, project_id, "tool_call", ev.label, "success")
+            elif ev.kind == "error":
+                step(job_id, project_id, "agent_error", ev.label[:200], "failed")
+            elif ev.kind == "status":
+                step(job_id, project_id, ev.step or "agent_status", ev.label)
 
-    run = _await(provider.run(
-        project_id=project_id, job_id=job_id, prompt=prompt, system=SYSTEM,
-        schema=schemas.json_schema(), workspace=str(config.DATA_DIR),
-        resume=resume_session, on_event=on_event))
+        try:
+            run = _await(provider.run(
+                project_id=project_id, job_id=job_id, prompt=prompt, system=SYSTEM,
+                schema=schemas.json_schema(), workspace=str(config.DATA_DIR),
+                resume=resume_session, on_event=on_event))
+        except Exception as exc:  # noqa: BLE001
+            reason = type(exc).__name__ + ": " + str(exc)
+            step(job_id, project_id, "agent_failed",
+                 label + " failed; trying next provider", "failed", reason[:500])
+            failures.append(label + ": " + reason[:500])
+            continue
 
-    sid = run.external_id or db.new_id("sess_")
-    if sess_row:
-        db.update("agent_sessions", sess_row["id"], {
-            "turns": (sess_row.get("turns") or 0) + run.turns,
-            "cost_usd": (sess_row.get("cost_usd") or 0) + run.cost_usd,
-            "updated_at": db.now(),
-            "external_id": run.external_id or sess_row.get("external_id")})
-        session_id = sess_row["id"]
-    else:
-        session_id = db.insert("agent_sessions", {
-            "project_id": project_id, "job_id": job_id, "provider": provider_name,
-            "external_id": sid, "model": run.events and None or None,
-            "turns": run.turns, "cost_usd": run.cost_usd,
-            "status": "active", "updated_at": db.now()})
-    db.update("jobs", job_id, {"agent_session_id": session_id})
+        # Persist each attempted session for auditability. If this was a true
+        # resume on the same provider, update that row instead of forking it.
+        sid = run.external_id or db.new_id("sess_")
+        if sess_row and resume_session is not None:
+            db.update("agent_sessions", sess_row["id"], {
+                "turns": (sess_row.get("turns") or 0) + run.turns,
+                "cost_usd": (sess_row.get("cost_usd") or 0) + run.cost_usd,
+                "updated_at": db.now(),
+                "external_id": run.external_id or sess_row.get("external_id")})
+            session_id = sess_row["id"]
+        else:
+            session_id = db.insert("agent_sessions", {
+                "project_id": project_id, "job_id": job_id,
+                "provider": provider_name, "external_id": sid,
+                "model": getattr(provider, "model", None),
+                "turns": run.turns, "cost_usd": run.cost_usd,
+                "status": "active" if run.ok else "failed", "updated_at": db.now()})
+        db.update("jobs", job_id, {"agent_session_id": session_id})
 
-    if not run.ok and not run.text:
-        step(job_id, project_id, "agent_failed", "Agent produced no result",
-             "failed", (run.error or "")[:400])
-        if not config.ALLOW_DETERMINISTIC_FALLBACK:
-            raise RuntimeError("agent failed: " + str(run.error))
-        return deterministic.analyse(project_id), "deterministic"
+        if not run.ok or (not run.text and run.structured is None):
+            reason = str(run.error or "provider produced no result")[:500]
+            step(job_id, project_id, "agent_failed",
+                 label + " produced no usable result; trying next provider",
+                 "failed", reason)
+            failures.append(label + ": " + reason)
+            continue
 
-    outcome = schemas.parse_agent_result(run.structured or run.text)
-    if not outcome.ok:
-        # spec 43: reject malformed output safely and keep the evidence of it.
-        step(job_id, project_id, "structured_output_rejected",
-             "Agent output did not validate", "failed", str(outcome.error)[:400])
-        db.insert("artifacts", {
-            "project_id": project_id, "job_id": job_id, "kind": "rejected_output",
-            "title": "Rejected agent output", "format": "text",
-            "description": str(outcome.error)[:2000],
-            "provenance": "AI_INFERENCE"})
+        outcome = schemas.parse_agent_result(run.structured or run.text)
+        if not outcome.ok:
+            reason = str(outcome.error)[:500]
+            step(job_id, project_id, "structured_output_rejected",
+                 label + " output did not validate; trying next provider",
+                 "failed", reason)
+            db.insert("artifacts", {
+                "project_id": project_id, "job_id": job_id,
+                "kind": "rejected_output", "title": "Rejected " + label + " output",
+                "format": "text", "description": reason[:2000],
+                "provenance": "AI_INFERENCE"})
+            rejected_outputs.append(label + ": " + reason)
+            continue
+
+        if outcome.dropped:
+            step(job_id, project_id, "structured_output_partial",
+                 str(outcome.dropped) + " malformed row(s) dropped from " + label,
+                 "failed", "; ".join(outcome.drop_reasons)[:1000])
+        step(job_id, project_id, "provider_selected", "Using " + label)
+        step(job_id, project_id, "output_ready", "Structured result received")
+        db.update("jobs", job_id, {"provider": provider_name})
+        return outcome.result, provider_name
+
+    # Nothing in the preferred chain worked. A malformed result is worth a
+    # review card, but only after we have actually tried every configured CLI.
+    if rejected_outputs:
         reviews.create(
             project_id=project_id, kind="failed_validation", job_id=job_id,
-            title="Agent returned output VEDA could not read",
-            question=("The reasoning provider returned a result that did not match "
-                      "VEDA's structured schema, so nothing from it was applied. "
-                      "Retry the analysis, or continue with what is already "
-                      "stored?"),
-            detail=str(outcome.error)[:1000],
+            title="Reasoning providers returned unreadable output",
+            question=("VEDA tried the configured provider chain, but the returned "
+                      "structured output did not validate. Retry analysis, or "
+                      "continue with deterministic results?"),
+            detail=" | ".join(rejected_outputs)[:1600],
             options=["Retry analysis", "Continue without it"], priority="high")
-        if not config.ALLOW_DETERMINISTIC_FALLBACK:
-            raise RuntimeError("structured output rejected")
-        return deterministic.analyse(project_id), "deterministic"
 
-    if outcome.dropped:
-        step(job_id, project_id, "structured_output_partial",
-             str(outcome.dropped) + " malformed row(s) dropped from agent output",
-             "failed", "; ".join(outcome.drop_reasons)[:1000])
-    step(job_id, project_id, "output_ready", "Structured result received")
-    return outcome.result, provider_name
-
+    if not config.ALLOW_DETERMINISTIC_FALLBACK:
+        raise RuntimeError("all reasoning providers unavailable: " +
+                           " | ".join(failures + rejected_outputs))
+    step(job_id, project_id, "fallback_analysis",
+         "Antigravity, Claude Code and Codex unavailable; using VEDA rules",
+         "failed", " | ".join(failures + rejected_outputs)[:1200])
+    db.update("jobs", job_id, {"provider": "deterministic"})
+    return deterministic.analyse(project_id), "deterministic"
 
 def _await(coro):
     """Run a coroutine from the worker thread."""

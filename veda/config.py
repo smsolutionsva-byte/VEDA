@@ -40,26 +40,42 @@ def _find_horizun() -> str:
 HORIZUN_CMD = _find_horizun()
 HORIZUN_TIMEOUT = int(os.environ.get("VEDA_HORIZUN_TIMEOUT", "180"))
 
-# Provider-neutral. "claude_code", "antigravity" and "local_antigravity" all
-# implement AgentProvider.
+# Provider-neutral reasoning.  Auto mode is deliberately ordered by operator
+# preference: Antigravity first, Claude Code second, Codex third.  Availability
+# is checked at runtime for every job, and a provider that is installed but not
+# authenticated / temporarily offline is skipped without blocking the queue.
 def _default_provider() -> str:
-    """Pick a provider that can actually complete work autonomously.
-
-    Merely launching VEDA from an Antigravity terminal exposes IDE environment
-    variables, but that does *not* mean an agent is polling VEDA's custom inbox.
-    Auto-selecting the local bridge on that signal caused jobs to wait forever.
-    The bridge is therefore explicit opt-in via VEDA_AGENT_PROVIDER.
-    """
-    explicit = os.environ.get("VEDA_AGENT_PROVIDER")
-    if explicit:
-        return explicit
-    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
-        return "antigravity"
-    return "claude_code"
+    return os.environ.get("VEDA_AGENT_PROVIDER", "auto").strip() or "auto"
 
 AGENT_PROVIDER = _default_provider()
+
+def _find_antigravity_cli() -> str:
+    explicit = os.environ.get("VEDA_ANTIGRAVITY_CMD")
+    if explicit:
+        return explicit
+    found = shutil.which("agy")
+    if found:
+        return found
+    # Official installers use these locations when PATH has not refreshed yet.
+    local = os.environ.get("LOCALAPPDATA")
+    candidates = []
+    if local:
+        candidates.append(Path(local) / "agy" / "bin" / "agy.exe")
+    candidates.extend([Path.home() / ".local" / "bin" / "agy",
+                       Path.home() / ".local" / "bin" / "agy.exe"])
+    for cand in candidates:
+        if cand.exists():
+            return str(cand)
+    return "agy"
+
+ANTIGRAVITY_CMD = _find_antigravity_cli()
+# Empty means use the model selected in the operator's Antigravity settings.
+ANTIGRAVITY_MODEL = os.environ.get("VEDA_ANTIGRAVITY_MODEL", "").strip() or None
 CLAUDE_CMD = os.environ.get("VEDA_CLAUDE_CMD") or shutil.which("claude") or "claude"
 CLAUDE_MODEL = os.environ.get("VEDA_CLAUDE_MODEL", "sonnet")
+CODEX_CMD = os.environ.get("VEDA_CODEX_CMD") or shutil.which("codex") or "codex"
+# Empty means use the Codex CLI's configured/default model.
+CODEX_MODEL = os.environ.get("VEDA_CODEX_MODEL", "").strip() or None
 AGENT_TIMEOUT = int(os.environ.get("VEDA_AGENT_TIMEOUT", "900"))
 # Local Antigravity is an inbox bridge. If no IDE agent claims a job quickly,
 # do not hold VEDA's single worker for the full reasoning timeout.

@@ -7,7 +7,7 @@ server, construction schedules, field evidence, human review, validation,
 schedule simulation, safe updates and audit history.
 
 ```
-User → VEDA Website → VEDA Backend → Agent Bridge → Gemini OR Claude
+User → VEDA Website → VEDA Backend → Agent Bridge → Antigravity → Claude Code → Codex
                                           ↓
                             Horizun MCP + VEDA tools
                                           ↓
@@ -20,7 +20,7 @@ User → VEDA Website → VEDA Backend → Agent Bridge → Gemini OR Claude
 
 | Component        | Owns                                              |
 |------------------|---------------------------------------------------|
-| Gemini / Claude  | reasoning                                         |
+| Antigravity / Claude / Codex | reasoning with automatic fallback          |
 | Horizun MCP      | schedule machinery (CPM, DCMA, EV, dry-run)       |
 | VEDA Backend     | persistence, workflow, validation                 |
 | VEDA Website     | the human control plane                           |
@@ -71,10 +71,12 @@ and opens <http://127.0.0.1:8770>.
 |---|---|---|
 | Python 3.10+ | python.org | everything |
 | Horizun MCP | `dotnet tool install -g HorizunMsProjectMcp` | schedule analysis |
-| Claude Code | `npm install -g @anthropic-ai/claude-code` | reasoning (default) |
+| Antigravity CLI | `agy` | reasoning (first priority; reuses Antigravity sign-in) |
+| Claude Code | `claude` | reasoning fallback #2 |
+| Codex CLI | `codex` | reasoning fallback #3 |
 | Gemini key | set `GEMINI_API_KEY` | reasoning (alternative) |
 
-Both providers are optional. Without either, VEDA still runs its rule-based
+All reasoning CLIs are optional. Without them, VEDA still runs its rule-based
 analyser and every finding is stamped `DETERMINISTIC_CALCULATION` rather than
 being passed off as inference.
 
@@ -109,7 +111,7 @@ Backend events: `dataset_uploaded`, `files_added`, `analysis_requested`,
 `review_answered`, `review_approved`, `review_rejected`, `schedule_changed`,
 `reprocess_requested`, `user_question`.
 
-You never open Claude Code or Antigravity yourself.
+In auto mode VEDA invokes the installed headless CLI itself. Priority is Antigravity, then Claude Code, then Codex; the operator does not manually switch providers per job.
 
 ### Provenance is the product
 
@@ -193,8 +195,10 @@ veda/
   audit.py             append-only audit trail
   agent/
     base.py            AgentProvider interface (provider-neutral)
-    claude_code.py     ClaudeCodeProvider  (headless Claude Code CLI)
-    antigravity.py     AntigravityProvider (Gemini function-calling loop)
+    antigravity_cli.py AntigravityCLIProvider (official agy headless CLI)
+    claude_code.py     ClaudeCodeProvider      (headless Claude Code CLI)
+    codex_cli.py       CodexCLIProvider        (headless Codex exec)
+    antigravity.py     AntigravityProvider     (manual Gemini API compatibility)
     schemas.py         strict structured output + provenance
     prompts.py         shared, provider-neutral prompts
     registry.py        provider selection and health
@@ -227,8 +231,12 @@ Data lives in `data/`: `veda.db`, plus `projects/<id>/files`, `/revisions`,
 | Variable | Default | Purpose |
 |---|---|---|
 | `VEDA_HOST` / `VEDA_PORT` | `127.0.0.1` / `8770` | bind address |
-| `VEDA_AGENT_PROVIDER` | auto | `claude_code`, `antigravity`, or explicit `local_antigravity` bridge |
+| `VEDA_AGENT_PROVIDER` | `auto` | `auto` = Antigravity → Claude Code → Codex; manual choices: `antigravity_cli`, `claude_code`, `codex`, `gemini_api`, `local_antigravity` |
+| `VEDA_ANTIGRAVITY_CMD` | `agy` | Antigravity CLI executable |
+| `VEDA_ANTIGRAVITY_MODEL` | CLI default | optional Antigravity model override |
 | `VEDA_CLAUDE_MODEL` | `sonnet` | Claude Code model |
+| `VEDA_CODEX_CMD` | `codex` | Codex CLI executable |
+| `VEDA_CODEX_MODEL` | CLI default | optional Codex model override |
 | `GEMINI_API_KEY` | — | enables Antigravity/Gemini |
 | `VEDA_HORIZUN_CMD` | auto-detected | Horizun executable |
 | `VEDA_ALLOW_FALLBACK` | `1` | rule-based analysis when no provider |

@@ -1666,7 +1666,9 @@ VIEWS.system = async (pid) => {
     '<div class="grid g3" style="margin-bottom:14px">' +
     stat('Horizun', hz.ok ? 'online' : 'offline',
       E(hz.backend || hz.error || ''), hz.ok ? 'good' : 'hot') +
-    stat('Active provider', E(h.active_provider),
+    stat('Active provider', E(h.active_provider === 'auto' &&
+      (h.providers.auto || {}).selected_label
+        ? 'auto → ' + h.providers.auto.selected_label : h.active_provider),
       (h.providers[h.active_provider] || {}).ok ? 'reachable' : 'unavailable',
       (h.providers[h.active_provider] || {}).ok ? 'good' : 'hot') +
     stat('Worker', h.worker.current_job ? 'busy' : 'idle',
