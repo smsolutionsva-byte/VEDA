@@ -145,6 +145,86 @@ def delete_project(pid: str):
     return jobs.delete_project(pid)
 
 
+def _field_evidence_context(pid: str) -> dict:
+    total = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=?", [pid]) or {}).get("c", 0))
+    source_files = int((db.q1("SELECT COUNT(DISTINCT file_id) c FROM evidence WHERE project_id=? AND file_id IS NOT NULL", [pid]) or {}).get("c", 0))
+    progress_records = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observed_progress IS NOT NULL", [pid]) or {}).get("c", 0))
+    latest = (db.q1("SELECT MAX(date) d FROM evidence WHERE project_id=? AND date IS NOT NULL AND TRIM(date)!=''", [pid]) or {}).get("d")
+    linked_records = int((db.q1(
+        "SELECT COUNT(DISTINCT e.id) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
+        "WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 "
+        "AND l.relation='supporting' AND e.state IN ('linked','confirmed')", [pid, pid]) or {}).get("c", 0))
+    linked_activities = int((db.q1(
+        "SELECT COUNT(DISTINCT l.activity_uid) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
+        "WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 "
+        "AND l.relation='supporting' AND e.state IN ('linked','confirmed') "
+        "AND l.activity_uid IS NOT NULL", [pid, pid]) or {}).get("c", 0))
+    numeric_observed_activities = int((db.q1(
+        "SELECT COUNT(*) c FROM observed_progress WHERE project_id=? AND observed_percent IS NOT NULL", [pid]) or {}).get("c", 0))
+    reviewed_or_unresolved = int((db.q1(
+        "SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN "
+        "('needs_review','conflicting','new','processing')", [pid]) or {}).get("c", 0))
+    return {
+        "record_count": total,
+        "source_file_count": source_files,
+        "latest_date": latest,
+        "reported_progress_record_count": progress_records,
+        "validated_link_record_count": linked_records,
+        "validated_activity_count": linked_activities,
+        "numeric_observed_activity_count": numeric_observed_activities,
+        "unresolved_record_count": reviewed_or_unresolved,
+    }
+
+
+def _overview_state_summary(snap: dict | None, quality: dict, counts: dict,
+                            field: dict, reference_context: dict) -> str:
+    if not snap:
+        return ("No authoritative schedule snapshot has been analysed yet. "
+                + str(field.get("record_count", 0)) +
+                " field-evidence record(s) are stored separately.")
+    parts = [
+        "Schedule '" + str(snap.get("project_name") or "") + "' contains " +
+        str(snap.get("task_count") or 0) + " source activities across " +
+        str(snap.get("wbs_count") or 0) + " active WBS node(s)."
+    ]
+    if snap.get("data_date"):
+        parts.append("The supplied data/status date is " + str(snap.get("data_date")) + ".")
+    else:
+        parts.append("The source does not supply a data/status date.")
+    if snap.get("baseline_finish"):
+        parts.append("The stored baseline/reference finish is " + str(snap.get("baseline_finish")) + ".")
+    if snap.get("forecast_finish"):
+        parts.append("The current forecast finish is " + str(snap.get("forecast_finish")) + ".")
+    else:
+        parts.append("A current forecast finish is not established by the source.")
+    if int(snap.get("criticality_available") or 0) == 1:
+        parts.append(str(snap.get("critical_count") or 0) +
+                     " activities are critical under " +
+                     str(snap.get("criticality_basis") or "the stored criticality method") + ".")
+    else:
+        parts.append("Criticality is not evaluable from the supplied source; missing criticality is not treated as zero.")
+    evaluated = int(quality.get("passed", 0)) + int(quality.get("failed", 0))
+    parts.append("Source-evaluable schedule QA: " + str(quality.get("passed", 0)) +
+                 " passed, " + str(quality.get("failed", 0)) + " failed, " +
+                 str(quality.get("not_evaluated", 0)) + " not evaluated" +
+                 ((" (" + str(snap.get("health_score")) + "% of " + str(evaluated) +
+                   " evaluable checks passed).") if evaluated and snap.get("health_score") is not None else "."))
+    if field.get("record_count"):
+        parts.append(str(field.get("record_count")) + " field-evidence record(s) from " +
+                     str(field.get("source_file_count")) + " source file(s) are stored; " +
+                     str(field.get("reported_progress_record_count")) +
+                     " record(s) contain a reported progress percentage, and " +
+                     str(field.get("validated_activity_count")) +
+                     " schedule activity/activities currently have validated supporting evidence. " +
+                     "Field-observed values remain separate from official schedule progress.")
+    else:
+        parts.append("No field/report evidence records are stored yet; project-control reference tables are tracked separately.")
+    parts.append(str(counts.get("open_issues", 0)) + " open derived issue(s) and " +
+                 str(counts.get("open_risks", 0)) +
+                 " open derived risk(s) are stored separately from the schedule-QA findings.")
+    return " ".join(parts)
+
+
 @router.get("/projects/{pid}/overview")
 def overview(pid: str):
     """spec 16. Missing data stays missing - nothing is fabricated."""
@@ -155,6 +235,8 @@ def overview(pid: str):
     qa = db.q("SELECT status, COUNT(*) c FROM qa_findings WHERE project_id=? "
               "GROUP BY status", [pid])
     qa_map = {r["status"]: r["c"] for r in qa}
+    quality = {"passed": qa_map.get("pass", 0), "failed": qa_map.get("fail", 0),
+               "not_evaluated": qa_map.get("not_evaluated", 0)}
     job = db.q1("SELECT * FROM jobs WHERE project_id=? ORDER BY created_at DESC "
                 "LIMIT 1", [pid])
     snap_info = db.jloads((snap or {}).get("info_json"), {}) or {}
@@ -169,13 +251,22 @@ def overview(pid: str):
     if snap and int(snap.get("completed_late_evaluable") or 0) == 1:
         completed_late_count = int(snap.get("completed_late_count") or 0)
 
+    field_context = _field_evidence_context(pid)
+    open_issues = int((db.q1("SELECT COUNT(*) c FROM issues WHERE project_id=? AND status='open'", [pid]) or {}).get("c", 0))
+    open_risks = int((db.q1("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status='open'", [pid]) or {}).get("c", 0))
+    count_view = {
+        "open_issues": open_issues,
+        "open_risks": open_risks,
+    }
+    state_summary = _overview_state_summary(snap, quality, count_view, field_context, reference_context)
+
     return {
         "project": p,
         "schedule": snap,
         "earned_value": ev,
         "reference_context": reference_context,
-        "quality": {"passed": qa_map.get("pass", 0), "failed": qa_map.get("fail", 0),
-                    "not_evaluated": qa_map.get("not_evaluated", 0)},
+        "quality": quality,
+        "field_context": field_context,
         "counts": {
             "activities": int((snap or {}).get("task_count") or _count("activities", pid)),
             "wbs": int((snap or {}).get("wbs_count") or _count("wbs_nodes", pid)),
@@ -188,6 +279,8 @@ def overview(pid: str):
             "evidence": _count("evidence", pid),
             "issues": _count("issues", pid),
             "risks": _count("risks", pid),
+            "open_issues": open_issues,
+            "open_risks": open_risks,
             "files": _count("files", pid),
             "artifacts": _count("artifacts", pid),
             "critical": critical_count,
@@ -206,6 +299,7 @@ def overview(pid: str):
         "active_provider": registry.active_provider_name(),
         "provider_label": registry.LABELS.get(registry.active_provider_name()),
         "latest_job": job,
+        "state_summary": state_summary,
         "summary": (db.q1("SELECT description FROM artifacts WHERE project_id=? "
                           "AND kind='summary' ORDER BY created_at DESC LIMIT 1",
                           [pid]) or {}).get("description"),
@@ -259,6 +353,7 @@ async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
         })
 
         ev = None
+        job_id = None
         selection_required = len(schedules) > 1
         if selection_required:
             db.update("ingestion_batches", batch_id, {
@@ -278,6 +373,9 @@ async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
                       "schedule_file_id": selected,
                       "schedule_count": len(schedules),
                       "evidence_count": len(evidence)}, source="website")
+            job_id = jobs.ensure_event_job(ev)
+        else:
+            job_id = None
 
         return {"batch_id": batch_id, "files": results,
                 "stored_count": len(unique), "duplicate_count": len(duplicates),
@@ -288,7 +386,7 @@ async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
                     "relative_path": r.get("relative_path") or r["filename"],
                     "alternate_hint": bool((r.get("schedule_candidate") or {}).get("alternate_hint")),
                 } for r in schedules],
-                "event": (ev or {}).get("id"),
+                "event": (ev or {}).get("id"), "job_id": job_id,
                 "note": ("choose the authoritative schedule before analysis" if selection_required else
                          ("analysis job created; the agent wakes automatically"
                           if ev else "all submitted sources were already present"))}
@@ -326,7 +424,11 @@ def select_batch_schedule(pid: str, batch_id: str, body: dict = Body(...)):
         "schedule_file_id": fid, "schedule_count": len(candidates),
         "evidence_count": sum(1 for f in batch_files if f.get("kind") == "evidence"),
     }, source="website")
+    job_id = jobs.ensure_event_job(ev)
+    if not job_id:
+        raise HTTPException(500, "authoritative schedule was saved but analysis could not be queued")
     return {"ok": True, "schedule_file_id": fid, "event": ev.get("id"),
+            "job_id": job_id, "analysis_started": True,
             "selected": chosen.get("relative_path") or chosen.get("filename")}
 
 

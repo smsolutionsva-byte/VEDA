@@ -93,11 +93,12 @@ VIEWS.noproject = () =>
 VIEWS.overview = async (pid) => {
   const o = await A('/projects/' + pid + '/overview');
   const s = o.schedule, ev = o.earned_value, c = o.counts;
+  const f = o.field_context || {};
   if (!s) {
     return '<div class="head"><h1>' + E(o.project.name) + '</h1></div>' +
       panel('Project overview', '<div class="body">' +
-        '<div class="note warn">No schedule has been analysed yet. Upload a ' +
-        'schedule file and VEDA will open it through Horizun automatically.' +
+        '<div class="note warn">No authoritative schedule snapshot has been analysed yet. ' +
+        'Upload a schedule source; if multiple schedule revisions are detected, choose one and VEDA will start analysis automatically.' +
         '</div><p><button class="btn primary" onclick="go(\'files\')">' +
         'Go to files</button></p></div>');
   }
@@ -105,108 +106,134 @@ VIEWS.overview = async (pid) => {
     day(s.forecast_finish) > day(s.baseline_finish);
   const forecastValue = s.forecast_finish ? day(s.forecast_finish) : 'N/E';
   const forecastDetail = s.forecast_finish
-    ? (s.baseline_finish ? 'baseline ' + day(s.baseline_finish) : E(s.forecast_basis || 'current schedule'))
-    : 'current forecast unavailable in source';
+    ? (s.forecast_basis || 'source-supported current forecast')
+    : 'source does not establish a current forecast finish';
   const baselineFallback = String(s.baseline_basis || '').toLowerCase().includes('fallback');
   const criticalAvailable = Number(s.criticality_available || 0) === 1;
   const overdueEvaluable = Number(s.overdue_evaluable || 0) === 1;
   const completedLateEvaluable = Number(s.completed_late_evaluable || 0) === 1;
   const progressAvailable = Number(s.progress_available || 0) === 1;
   const criticalDetail = criticalAvailable
-    ? ((s.criticality_basis || 'source/engine criticality method') +
+    ? ((s.criticality_basis || 'stored criticality method') +
       (s.criticality_threshold_days !== null && s.criticality_threshold_days !== undefined
         ? ' · threshold ' + num(s.criticality_threshold_days, 2) + 'd' : ''))
-    : 'criticality not available in source';
+    : 'source does not provide enough information to evaluate criticality';
   const statusCounts = (() => {
     try { return JSON.parse(s.info_json || '{}').source?.status_counts || {}; }
     catch (_) { return {}; }
   })();
-  const progressDetail = ev && ev.spi
-    ? 'SPI ' + num(ev.spi, 3) + (baselineFallback ? ' · fallback baseline' : '')
-    : (s.progress_basis || (progressAvailable ? 'recorded schedule progress' : 'progress unavailable'));
+  let progressDetail = s.progress_basis || (progressAvailable ? 'source-supported schedule progress' : 'not available from source');
+  if (progressAvailable && Number(statusCounts.not_started || 0) === Number(s.task_count || 0) && Number(s.task_count || 0) > 0) {
+    progressDetail = int(s.task_count) + '/' + int(s.task_count) + ' source activities are Not Started';
+  } else if (ev && ev.spi !== null && ev.spi !== undefined) {
+    progressDetail += ' · SPI ' + num(ev.spi, 3) + (baselineFallback ? ' against fallback reference' : '');
+  }
   const ref = o.reference_context || {};
-  const refCount = ref.reference_record_count !== undefined ? ref.reference_record_count : c.evidence;
+  const evaluatedQa = Number(o.quality.passed || 0) + Number(o.quality.failed || 0);
+  const qaValue = evaluatedQa ? num(s.health_score, 1) + '%' : 'N/E';
+  const qaDetail = evaluatedQa
+    ? (o.quality.passed + ' passed · ' + o.quality.failed + ' failed · ' +
+      o.quality.not_evaluated + ' not evaluated')
+    : (o.quality.not_evaluated + ' checks not evaluated');
+  const latestFieldDate = f.latest_date ? day(f.latest_date) : 'none';
 
   return '<div class="head"><div><div class="eyebrow">Project overview</div>' +
     '<h1>' + E(o.project.name) + '</h1>' +
-    '<div class="sub">' + E(s.project_name || '') +
+    '<div class="sub">Authoritative schedule: ' + E(s.project_name || '') +
     (o.project.location ? ' · ' + E(o.project.location) : '') +
-    ' · data date ' + day(s.data_date) + ' · revision ' + E(s.revision) +
+    ' · data/status date ' + (s.data_date ? day(s.data_date) : 'N/E') +
+    ' · schedule revision ' + E(s.revision) +
     '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Forecast finish', forecastValue, forecastDetail,
+    stat('Current forecast finish', forecastValue, E(forecastDetail),
       lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
-    stat('Recorded progress', progressAvailable ? num(s.percent_complete, 1) + '%' : 'N/E',
+    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : 'N/E',
       E(progressDetail)) +
-    stat('Critical', criticalAvailable ? int(c.critical) : 'N/E',
-      criticalAvailable ? ('of ' + int(c.activities) + ' activities · ' + E(criticalDetail))
+    stat('Critical activities', criticalAvailable ? int(c.critical) : 'N/E',
+      criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
         : E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
-    stat('Schedule health', num(s.health_score, 1) + '%',
-      o.quality.failed + ' of ' + (o.quality.passed + o.quality.failed) +
-        ' evaluated checks failed' + (o.quality.not_evaluated
-          ? ' · ' + o.quality.not_evaluated + ' n/e' : ''),
-      s.health_score < 60 ? 'hot' : 'good') +
+    stat('Source-evaluable schedule QA', qaValue, qaDetail,
+      evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Currently overdue', overdueEvaluable ? int(c.overdue) : 'N/E',
-      overdueEvaluable ? 'unfinished past planned/reference finish' : 'data/status date unavailable',
+    stat('Overdue vs reference plan', overdueEvaluable ? int(c.overdue) : 'N/E',
+      overdueEvaluable ? 'unfinished activities whose reference finish is before the supplied data/status date' :
+        'not evaluable because the source does not supply a data/status date',
       overdueEvaluable && c.overdue ? 'warm' : '') +
-    stat('Completed after baseline', completedLateEvaluable ? int(c.completed_late) : 'N/A',
-      completedLateEvaluable ? 'actual finish after embedded baseline/reference finish'
-        : 'no completed activities with actual finish available for comparison',
+    stat('Completed after reference finish', completedLateEvaluable ? int(c.completed_late) : 'N/A',
+      completedLateEvaluable ? 'completed activities whose actual finish is later than the stored baseline/reference finish' :
+        'not applicable/evaluable: no completed activity with an actual finish is available for comparison',
       completedLateEvaluable && c.completed_late ? 'warm' : '') +
-    stat(ref.reference_record_count !== undefined ? 'Reference records' : 'Evidence', int(refCount),
-      ref.reference_record_count !== undefined ? 'project-control records held separately' : 'field records held') +
-    stat('WBS structure', int(c.wbs), 'nodes · not counted as activities') +
+    stat('Project-control reference rows', int(ref.reference_record_count || 0),
+      'supporting dictionaries/registers; not field-progress evidence') +
+    stat('Active WBS nodes', int(c.wbs), 'schedule hierarchy nodes; not activities') +
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Pending reviews', int(c.pending_reviews), 'need a human answer',
+    stat('Field-evidence records', int(f.record_count || 0),
+      (f.record_count ? int(f.source_file_count || 0) + ' source file(s) · latest dated evidence ' + latestFieldDate :
+        'no field/report evidence extracted yet')) +
+    stat('Activities with validated evidence', int(f.validated_activity_count || 0),
+      int(f.validated_link_record_count || 0) + ' validated supporting record(s); does not change official schedule progress') +
+    stat('Field records with reported progress', int(f.reported_progress_record_count || 0),
+      int(f.numeric_observed_activity_count || 0) + ' activity/activities currently have validated numeric observed progress') +
+    stat('Evidence awaiting resolution', int(f.unresolved_record_count || 0),
+      'unlinked, conflicting, or awaiting human/model resolution',
+      f.unresolved_record_count ? 'warm' : 'good') +
+    '</div>' +
+
+    '<div class="grid g4" style="margin-bottom:14px">' +
+    stat('Open human reviews', int(c.pending_reviews), 'explicit questions requiring a human decision',
       c.pending_reviews ? 'warm' : 'good') +
-    stat('Pending changes', int(c.pending_proposals), 'awaiting approval',
+    stat('Open derived issues', int(c.open_issues || 0), 'existing problems inferred/derived from stored evidence; separate from QA failures',
+      c.open_issues ? 'warm' : 'good') +
+    stat('Open derived risks', int(c.open_risks || 0), 'possible future events inferred/derived from stored evidence; separate from QA failures',
+      c.open_risks ? 'warm' : 'good') +
+    stat('Unapproved schedule changes', int(c.pending_proposals), 'proposed changes awaiting governed approval; none are auto-applied',
       c.pending_proposals ? 'warm' : 'good') +
     '</div>' +
 
-    (o.summary ? panel('Latest analysis summary',
-      '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;' +
-      'line-height:1.6">' + E(o.summary) + '</div>' +
+    (o.state_summary ? panel('Current state summary',
+      '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' +
+      E(o.state_summary) + '</div><div style="margin-top:10px">' + prov('DERIVED') +
+      ' <span style="color:var(--ink-3);font-size:12px">Deterministically assembled from persisted schedule, QA, and evidence state. QA findings, issues, risks, and field-observed progress remain separate concepts.</span></div></div>') : '') +
+
+    (o.summary ? panel('Latest agent interpretation',
+      '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' + E(o.summary) + '</div>' +
       '<div style="margin-top:10px">' + prov('AI_INFERENCE') +
-      ' <span style="color:var(--ink-3);font-size:12px">Written by ' +
-      E(o.provider_label || o.active_provider) + ' from the stored schedule ' +
-      'facts and field evidence.</span></div></div>') : '') +
+      ' <span style="color:var(--ink-3);font-size:12px">Interpretive analysis from ' +
+      E(o.provider_label || o.active_provider) + '; it does not override the deterministic current-state summary above.</span></div></div>') : '') +
 
     '<div class="grid g2">' +
-    panel('Schedule', '<div class="body"><dl class="kv">' +
-      row('Schedule name', E(s.project_name)) +
-      row('Data date', day(s.data_date)) +
-      row('Planned start', day(s.planned_start)) +
+    panel('Authoritative schedule facts', '<div class="body"><dl class="kv">' +
+      row('Schedule source', E(s.project_name)) +
+      row('Data/status date', s.data_date ? day(s.data_date) : '<span style="color:var(--ink-3)">N/E — not supplied by source</span>') +
+      row('Earliest planned activity start', day(s.planned_start)) +
       row('Latest planned activity finish', day(s.planned_finish)) +
-      (s.must_finish_by ? row('Must finish by', day(s.must_finish_by)) : '') +
-      row('Forecast finish', s.forecast_finish ? day(s.forecast_finish)
-        : '<span style="color:var(--ink-3)">N/E — current forecast unavailable</span>') +
+      (s.must_finish_by ? row('Project Must Finish By', day(s.must_finish_by)) : '') +
+      row('Current forecast finish', s.forecast_finish ? day(s.forecast_finish)
+        : '<span style="color:var(--ink-3)">N/E — source does not establish a current forecast</span>') +
       (s.forecast_basis ? row('Forecast basis', E(s.forecast_basis)) : '') +
-      row('Baseline / reference start', s.baseline_start ? day(s.baseline_start)
-        : '<span style="color:var(--ink-3)">none stored</span>') +
-      row('Baseline / reference finish', s.baseline_finish ? day(s.baseline_finish)
-        : '<span style="color:var(--ink-3)">none stored</span>') +
-      (s.baseline_basis ? row('Baseline basis', E(s.baseline_basis)) : '') +
-      (s.baseline_present ? row('Baselined activities', int(s.baseline_coverage_count) + ' / ' + int(s.task_count)) : '') +
-      row('Activities', int(s.task_count)) +
-      row('WBS nodes', int(s.wbs_count)) +
-      row('WBS Summary activities', int(s.summary_activity_count || 0)) +
-      row('Milestone activities', int(s.milestone_count || c.milestones || 0)) +
-      (s.loe_count ? row('Level of Effort activities', int(s.loe_count)) : '') +
-      row('Relationships', int(s.relationship_count)) +
-      row('Resource labels', int(s.resource_count)) +
-      row('Resource assignments', int(s.resource_assignment_count !== null && s.resource_assignment_count !== undefined ? s.resource_assignment_count : c.assignments)) +
-      (s.resource_basis ? row('Resource basis', E(s.resource_basis)) : '') +
+      row('Baseline/reference start', s.baseline_start ? day(s.baseline_start)
+        : '<span style="color:var(--ink-3)">N/E — no usable baseline/reference start stored</span>') +
+      row('Baseline/reference finish', s.baseline_finish ? day(s.baseline_finish)
+        : '<span style="color:var(--ink-3)">N/E — no usable baseline/reference finish stored</span>') +
+      (s.baseline_basis ? row('Baseline/reference basis', E(s.baseline_basis)) : '') +
+      (s.baseline_present ? row('Activities with baseline/reference dates', int(s.baseline_coverage_count) + ' / ' + int(s.task_count)) : '') +
+      row('Source activities', int(s.task_count)) +
+      row('Active WBS nodes', int(s.wbs_count)) +
+      row('Source WBS Summary activities', int(s.summary_activity_count || 0)) +
+      row('Source milestone activities', int(s.milestone_count || c.milestones || 0)) +
+      (s.loe_count ? row('Source Level of Effort activities', int(s.loe_count)) : '') +
+      row('Predecessor/relationship links', int(s.relationship_count)) +
+      row('Unique schedule resource labels', int(s.resource_count)) +
+      row('Activity-resource assignments', int(s.resource_assignment_count !== null && s.resource_assignment_count !== undefined ? s.resource_assignment_count : c.assignments)) +
+      (s.resource_basis ? row('Resource-count basis', E(s.resource_basis)) : '') +
       '</dl><div style="margin-top:10px">' + prov('MCP_FACT') +
-      ' <span style="color:var(--ink-3);font-size:12px">Horizun performs schedule ' +
-      'analysis; VEDA source semantics keep WBS, planned, forecast and baseline ' +
-      'concepts separate.</span></div></div>') +
-    panel('Earned value', ev
+      ' <span style="color:var(--ink-3);font-size:12px">Horizun performs supported schedule calculations; VEDA preserves source capability boundaries so transport defaults cannot become source facts.</span></div></div>') +
+    panel('Earned-value status', ev
       ? '<div class="body"><dl class="kv">' +
         row('PV / BCWS', num(ev.pv, 2)) + row('EV / BCWP', num(ev.ev, 2)) +
         row('AC / ACWP', num(ev.ac, 2)) + row('BAC', num(ev.bac, 2)) +
@@ -215,29 +242,28 @@ VIEWS.overview = async (pid) => {
         row('CPI', num(ev.cpi, 3)) + row('EAC', num(ev.eac, 2)) +
         row('TCPI', num(ev.tcpi, 3)) +
         '</dl><div class="note ' + (baselineFallback ? 'warn' : 'mcp') +
-        '" style="margin-top:10px">Basis: ' + E(ev.basis || '') +
-        (baselineFallback ? '<br>Source note: P6 is using the current project as ' +
-          'the fallback baseline; this is not an independently frozen/assigned baseline.' : '') +
+        '" style="margin-top:10px">Calculation basis: ' + E(ev.basis || '') +
+        (baselineFallback ? '<br>Baseline note: P6 is using the current project as a fallback reference; this is not an independently frozen/assigned baseline.' : '') +
         '</div></div>'
       : '<div class="body"><div class="note warn">' +
         (s.baseline_present
-          ? 'Baseline/reference dates are available, but earned value is N/E because the source does not establish the status/progress/cost inputs required for a current EV calculation.'
-          : 'Earned value requires a usable baseline/reference. If the source cannot establish one, VEDA leaves the metrics unavailable rather than inventing them.') +
+          ? 'N/E — baseline/reference dates are available, but the source does not establish all current status/progress/cost inputs required for earned-value metrics.'
+          : 'N/E — the source does not establish a usable baseline/reference plus the current status/progress/cost inputs required for earned-value metrics.') +
         '</div></div>') +
     '</div>' +
-    (ref.reference_record_count !== undefined ? panel('Source integrity',
+    (ref.reference_record_count !== undefined ? panel('Project-control source integrity',
       '<div class="body"><dl class="kv">' +
-      row('Reference records', int(ref.reference_record_count)) +
-      row('Activity-code rows', int(ref.activity_code_count)) +
-      row('Calendar definitions', int(ref.calendar_definition_count)) +
+      row('Reference-table rows', int(ref.reference_record_count)) +
+      row('Activity-code dictionary rows', int(ref.activity_code_count)) +
+      row('Calendar-definition rows', int(ref.calendar_definition_count)) +
       row('Milestone-register rows', int(ref.milestone_register_count)) +
       row('Resource-master rows', int(ref.resource_master_count)) +
-      row('WBS dictionary rows', int(ref.wbs_dictionary_count)) +
-      row('Schedule resource labels', int(ref.resource_schedule_label_count)) +
-      row('Exact resource-master matches', int(ref.resource_exact_match_count)) +
-      row('Unresolved resource labels', int(ref.resource_unresolved_count)) +
-      row('Unresolved calendar labels', int(ref.calendar_unresolved_count)) +
-      row('Unresolved milestone links', int(ref.milestone_links_unresolved_count)) +
+      row('WBS-dictionary rows', int(ref.wbs_dictionary_count)) +
+      row('Unique resource labels used by schedule', int(ref.resource_schedule_label_count)) +
+      row('Exact schedule-label → resource-master matches', int(ref.resource_exact_match_count)) +
+      row('Schedule resource labels needing mapping/review', int(ref.resource_unresolved_count)) +
+      row('Schedule calendar labels needing mapping/review', int(ref.calendar_unresolved_count)) +
+      row('Milestone-register activity links unresolved against selected schedule', int(ref.milestone_links_unresolved_count)) +
       '</dl>' +
       ((ref.warnings || []).length ? '<div class="note warn" style="margin-top:10px">' +
         (ref.warnings || []).map(w => '<div style="margin-bottom:6px"><b>' + E(w.code || 'SOURCE_WARNING') +
@@ -275,8 +301,8 @@ VIEWS.wbs = async (pid) => {
   return head('WBS', 'Work breakdown structure') +
     panel('Branches <small>' + r.nodes.length + '</small>',
       table([{ t: 'Code' }, { t: 'Name' }, { t: 'Start' }, { t: 'Finish' },
-        { t: 'Progress' }, { t: 'Activities', r: true }, { t: 'Critical', r: true },
-        { t: 'Late', r: true }, { t: 'Issues', r: true }, { t: 'Risks', r: true },
+        { t: 'Recorded schedule %' }, { t: 'Activities', r: true }, { t: 'Critical', r: true },
+        { t: 'Overdue*', r: true }, { t: 'Issues', r: true }, { t: 'Risks', r: true },
         { t: 'Evidence', r: true }],
       r.nodes, n =>
         '<tr class="click" onclick="go(\'activities\',{wbs:\'' + E(n.code) +
@@ -308,7 +334,7 @@ VIEWS.activities = async (pid, params) => {
     { t: 'UID', sort: 'uid', r: true }, { t: 'ID' }, { t: 'Activity', sort: 'name' },
     { t: 'WBS', sort: 'wbs' }, { t: 'Status' },
     { t: 'Start', sort: 'start' }, { t: 'Finish', sort: 'finish' },
-    { t: 'Dur', sort: 'duration', r: true }, { t: 'Prog', sort: 'progress' },
+    { t: 'Dur', sort: 'duration', r: true }, { t: 'Sched %', sort: 'progress' },
     { t: 'Float', sort: 'float', r: true }, { t: 'Var', sort: 'variance', r: true },
     { t: 'Ev', r: true }, { t: 'Is', r: true }, { t: 'Rk', r: true }],
     r.activities, a =>
@@ -353,7 +379,7 @@ VIEWS.activities = async (pid, params) => {
     '>' + (r.criticality_available ? 'Critical only' : 'Critical N/E') + '</button>' +
     '<button class="btn sm' + (params.late ? ' primary' : '') +
     '" id="fl" ' + (r.completed_late_evaluable ? '' : 'disabled title="No completed actual finishes available for baseline comparison"') +
-    '>' + (r.completed_late_evaluable ? 'Completed late' : 'Completed late N/A') + '</button>' +
+    '>' + (r.completed_late_evaluable ? 'Completed after reference finish' : 'Completed-after-reference N/A') + '</button>' +
     '<button class="btn sm' + (params.milestone ? ' primary' : '') +
     '" id="fm">Milestones</button>' +
     (params.wbs ? '<span class="tag blue">WBS ' + E(params.wbs) + '</span>' : '') +
@@ -471,7 +497,7 @@ VIEWS.activity = async (pid, params) => {
       row('Constraint', E(a.constraint_type || '—') +
         (a.constraint_date ? ' ' + day(a.constraint_date) : '')) +
       row('Deadline', day(a.deadline)) +
-      row('Resources', E(a.resource_names || '—')) +
+      row('Schedule resource labels', E(a.resource_names || '—')) +
       '</dl></div>') +
     panel('Baseline <small>variance</small>',
       '<div class="body"><dl class="kv">' +
@@ -621,7 +647,7 @@ VIEWS.critical = async (pid) => {
         '</span>')).join('') + '</dl></div>') +
     panel('Critical activities <small>' + r.critical.length + '</small>',
       table([{ t: 'UID' }, { t: 'Activity' }, { t: 'WBS' }, { t: 'Start' },
-        { t: 'Finish' }, { t: 'Float', r: true }, { t: 'Progress', r: true }],
+        { t: 'Finish' }, { t: 'Float', r: true }, { t: 'Recorded schedule %', r: true }],
       r.critical, a =>
         '<tr class="click crit" onclick="go(\'activity\',{id:' + a.uid + '})">' +
         '<td class="mono">' + E(a.uid) + '</td><td class="trunc">' + E(a.name) +
@@ -646,10 +672,10 @@ VIEWS.quality = async (pid) => {
   const r = await A('/projects/' + pid + '/quality');
   const s = r.summary || {};
   const g = s.semanticGuard || {};
-  return head('Schedule quality', 'DCMA 14-point and Horizun rules',
+  return head('Schedule QA', 'Source-evaluable DCMA/Horizun checks',
     prov('MCP_FACT') + ' ' + prov('DETERMINISTIC_CALCULATION')) +
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Health', num(r.health_score, 1) + '%', 'evaluated checks passed',
+    stat('Evaluable-check pass rate', num(r.health_score, 1) + '%', 'passed / evaluated checks only; not-evaluated checks are excluded',
       r.health_score < 60 ? 'hot' : 'good') +
     stat('Passed', int(s.passed), '', 'good') +
     stat('Failed', int(s.failed), '', s.failed ? 'hot' : '') +
@@ -1563,7 +1589,7 @@ VIEWS.files = async (pid) => {
       'adaptive local OCR. Normal PDFs use embedded text first and OCR only on ' +
       'text-poor pages. Exact duplicate sources are skipped by SHA-256.</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-top:13px">' +
-      '<button class="btn primary" id="up">Ingest batch & analyse</button>' +
+      '<button class="btn primary" id="up">Ingest & analyse automatically</button>' +
       '<span id="ingestsummary" style="color:var(--ink-3);font-size:12px">' +
       staged.length + ' file(s) staged' + (st.text ? ' + pasted text' : '') +
       '</span></div></div>') +
@@ -1644,10 +1670,12 @@ VIEWS.choose_schedule_candidate = (pid, batchId, candidates) => new Promise((res
   scrim.querySelector('#schedule-choice-go').onclick = async () => {
     const go = scrim.querySelector('#schedule-choice-go'); go.disabled = true; go.textContent = 'Starting analysis…';
     try {
-      await P('/projects/' + pid + '/ingest/' + batchId + '/select-schedule', { file_id: selected });
+      const r = await P('/projects/' + pid + '/ingest/' + batchId + '/select-schedule', { file_id: selected });
       const chosen = candidates.find(c => c.id === selected);
-      scrim.remove(); window.toast('Using ' + ((chosen && (chosen.relative_path || chosen.filename)) || 'selected schedule'), 'good');
-      window.render(); resolve(true);
+      scrim.remove();
+      window.toast('Authoritative schedule selected. Analysis started automatically.', 'good');
+      if (r && r.job_id) go('agent'); else window.render();
+      resolve(true);
     } catch (e) { go.disabled = false; go.textContent = 'Use selected schedule'; window.toast(e.message, 'bad'); }
   };
 });
@@ -1776,18 +1804,18 @@ VIEWS.bind_files = (pid) => {
       const j = await r.json();
       VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' };
       if (j.schedule_selection_required) {
-        b.disabled = false; b.textContent = 'Ingest batch & analyse';
+        b.disabled = false; b.textContent = 'Ingest & analyse automatically';
         await VIEWS.choose_schedule_candidate(pid, j.batch_id, j.schedule_candidates || []);
         return;
       }
       let msg = j.stored_count + ' new source(s) stored';
       if (j.duplicate_count) msg += ', ' + j.duplicate_count + ' duplicate(s) skipped';
       if (j.schedule_count) msg += ', ' + j.schedule_count + ' schedule revision(s)';
-      window.toast(msg + '.', 'good');
-      if (j.event) go('agent'); else window.render();
+      window.toast(msg + (j.job_id ? '. Analysis started automatically.' : '.'), 'good');
+      if (j.job_id || j.event) go('agent'); else window.render();
     } catch (e) {
       window.toast('Ingestion failed: ' + e.message, 'bad');
-      b.disabled = false; b.textContent = 'Ingest batch & analyse';
+      b.disabled = false; b.textContent = 'Ingest & analyse automatically';
     }
   };
 };

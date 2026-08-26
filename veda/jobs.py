@@ -85,24 +85,50 @@ def _finish(job_id: str, project_id: str, status: str, error: str | None = None,
 
 
 # --------------------------------------------------------------- event wiring
-def handle_event(ev: dict) -> None:
-    """Wake the platform on a backend event. Never polls (spec 5)."""
+def ensure_event_job(ev: dict) -> str | None:
+    """Create exactly one durable job for a wake event.
+
+    API endpoints call this after emitting critical ingestion events as a
+    fail-safe.  The normal event handler calls the same function, so the
+    workflow remains event-driven but cannot silently lose analysis if an
+    in-process handler was not registered or raised unexpectedly.
+    """
     etype = ev.get("type")
     project_id = ev.get("project_id")
     if not project_id or etype not in events.WAKE_EVENTS:
-        return
+        return None
     payload = ev.get("payload") or {}
+    event_id = ev.get("id")
 
-    if etype in (events.DATASET_UPLOADED, events.FILES_ADDED,
-                 events.ANALYSIS_REQUESTED, events.REPROCESS_REQUESTED):
-        enqueue(create_job(project_id, "analysis", ev.get("id"), payload))
-    elif etype in (events.REVIEW_ANSWERED, events.REVIEW_APPROVED,
-                   events.REVIEW_REJECTED):
-        enqueue(create_job(project_id, "resume_review", ev.get("id"), payload))
-    elif etype == events.USER_QUESTION:
-        enqueue(create_job(project_id, "question", ev.get("id"), payload))
-    elif etype == events.SCHEDULE_CHANGED:
-        enqueue(create_job(project_id, "resnapshot", ev.get("id"), payload))
+    with _state_lock:
+        if event_id:
+            existing = db.q1(
+                "SELECT id FROM jobs WHERE trigger_event_id=? ORDER BY created_at DESC LIMIT 1",
+                [event_id])
+            if existing:
+                return existing["id"]
+
+        if etype in (events.DATASET_UPLOADED, events.FILES_ADDED,
+                     events.ANALYSIS_REQUESTED, events.REPROCESS_REQUESTED):
+            kind = "analysis"
+        elif etype in (events.REVIEW_ANSWERED, events.REVIEW_APPROVED,
+                       events.REVIEW_REJECTED):
+            kind = "resume_review"
+        elif etype == events.USER_QUESTION:
+            kind = "question"
+        elif etype == events.SCHEDULE_CHANGED:
+            kind = "resnapshot"
+        else:
+            return None
+
+        jid = create_job(project_id, kind, event_id, payload)
+        enqueue(jid)
+        return jid
+
+
+def handle_event(ev: dict) -> None:
+    """Wake the platform on a backend event. Never polls (spec 5)."""
+    ensure_event_job(ev)
 
 
 def enqueue(job_id: str, *, priority: bool = False) -> None:
@@ -543,8 +569,19 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
     answers = db.q("SELECT title, answer FROM reviews WHERE project_id=? "
                    "AND status IN ('answered','approved') ORDER BY answered_at DESC "
                    "LIMIT 20", [project_id])
+    field_context = {
+        "record_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=?", [project_id]) or {}).get("c", 0)),
+        "source_file_count": int((db.q1("SELECT COUNT(DISTINCT file_id) c FROM evidence WHERE project_id=? AND file_id IS NOT NULL", [project_id]) or {}).get("c", 0)),
+        "latest_date": (db.q1("SELECT MAX(date) d FROM evidence WHERE project_id=? AND date IS NOT NULL AND TRIM(date)!=''", [project_id]) or {}).get("d"),
+        "reported_progress_record_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observed_progress IS NOT NULL", [project_id]) or {}).get("c", 0)),
+        "validated_link_record_count": int((db.q1("SELECT COUNT(DISTINCT e.id) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 AND l.relation='supporting' AND e.state IN ('linked','confirmed')", [project_id, project_id]) or {}).get("c", 0)),
+        "validated_activity_count": int((db.q1("SELECT COUNT(DISTINCT l.activity_uid) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 AND l.relation='supporting' AND e.state IN ('linked','confirmed') AND l.activity_uid IS NOT NULL", [project_id, project_id]) or {}).get("c", 0)),
+        "numeric_observed_activity_count": int((db.q1("SELECT COUNT(*) c FROM observed_progress WHERE project_id=? AND observed_percent IS NOT NULL", [project_id]) or {}).get("c", 0)),
+        "unresolved_record_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN ('needs_review','conflicting','new','processing')", [project_id]) or {}).get("c", 0)),
+    }
     prompt = analysis_prompt(project, snap, files, ev_sample,
-                             reviews.open_for(project_id), answers)
+                             reviews.open_for(project_id), answers,
+                             field_context=field_context)
 
     result, used = _invoke_agent(job_id, project_id, prompt)
 

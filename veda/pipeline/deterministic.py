@@ -215,41 +215,58 @@ def _ref_of(e: dict) -> str | None:
 
 def _summary(snap, issues, risks, findings, ev) -> str:
     if not snap:
-        return ("No schedule snapshot is available yet. " + str(len(issues)) +
-                " issue(s) were derived from the uploaded documents.")
+        return ("No authoritative schedule snapshot is available. Field evidence, derived issues, "
+                "and derived risks remain separate from schedule QA until a schedule is selected and analysed.")
+
+    project_id = snap.get("project_id")
+    qa = db.q("SELECT status, COUNT(*) c FROM qa_findings WHERE project_id=? GROUP BY status", [project_id]) if project_id else []
+    qmap = {r["status"]: int(r["c"]) for r in qa}
+    field_count = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=?", [project_id]) or {}).get("c", 0)) if project_id else 0
+    progress_records = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observed_progress IS NOT NULL", [project_id]) or {}).get("c", 0)) if project_id else 0
+    validated_activities = int((db.q1(
+        "SELECT COUNT(DISTINCT l.activity_uid) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
+        "WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 AND l.relation='supporting' "
+        "AND e.state IN ('linked','confirmed') AND l.activity_uid IS NOT NULL",
+        [project_id, project_id]) or {}).get("c", 0)) if project_id else 0
+
     bits = [
-        "Schedule '" + str(snap.get("project_name")) + "' holds " +
-        str(snap.get("task_count")) + " activities" +
-        ((" across " + str(snap.get("wbs_count")) + " WBS nodes")
-         if snap.get("wbs_count") is not None else "") +
-        " with data date " + str(snap.get("data_date")) + ".",
+        "Schedule '" + str(snap.get("project_name")) + "' contains " +
+        str(snap.get("task_count")) + " source activities" +
+        ((" across " + str(snap.get("wbs_count")) + " active WBS nodes")
+         if snap.get("wbs_count") is not None else "") + ".",
     ]
+    if snap.get("data_date"):
+        bits.append("The supplied data/status date is " + str(snap.get("data_date")) + ".")
+    else:
+        bits.append("The source does not supply a data/status date.")
+    if snap.get("baseline_finish"):
+        bits.append("The stored baseline/reference finish is " + str(snap.get("baseline_finish")) + ".")
     if snap.get("forecast_finish"):
-        bits.append("Current forecast finish is " + str(snap.get("forecast_finish")) +
-                    (" against a baseline/reference finish of " +
-                     str(snap.get("baseline_finish")) if snap.get("baseline_finish") else "") + ".")
+        bits.append("The current forecast finish is " + str(snap.get("forecast_finish")) + ".")
     else:
-        bits.append("A current forecast finish is not available from the supplied source.")
-    if snap.get("must_finish_by"):
-        bits.append("The project Must Finish By date is " + str(snap.get("must_finish_by")) + ".")
+        bits.append("A current forecast finish is not established by the supplied source.")
     if int(snap.get("criticality_available") or 0) == 1:
-        bits.append(str(snap.get("critical_count") or 0) + " activities are marked critical " +
-                    "using " + str(snap.get("criticality_basis") or "the source/engine method") + ".")
+        bits.append(str(snap.get("critical_count") or 0) + " activities are critical under " +
+                    str(snap.get("criticality_basis") or "the stored criticality method") + ".")
     else:
-        bits.append("Criticality is not evaluable from the supplied source; VEDA does not turn a missing critical flag into zero critical activities.")
+        bits.append("Criticality is N/E because the source does not provide enough information to evaluate it; missing criticality is not treated as zero.")
     if int(snap.get("overdue_evaluable") or 0) == 1:
-        bits.append(str(snap.get("overdue_count") or 0) + " unfinished activities are past their planned/reference finish.")
+        bits.append(str(snap.get("overdue_count") or 0) + " unfinished activities are overdue against the reference plan at the supplied data/status date.")
     else:
-        bits.append("Currently-overdue activity count is not evaluated because the source does not establish a data/status date.")
+        bits.append("Overdue-vs-reference-plan count is N/E because the source does not supply the required data/status date.")
     if int(snap.get("completed_late_evaluable") or 0) == 1:
-        bits.append(str(snap.get("completed_late_count") or 0) + " completed activities finished after baseline/reference finish.")
+        bits.append(str(snap.get("completed_late_count") or 0) + " completed activities finished after their stored baseline/reference finish.")
     else:
-        bits.append("Completed-late comparison is not applicable/evaluable because no completed activities with actual finish are available for baseline comparison.")
+        bits.append("Completed-after-reference-finish is N/A/N/E because no completed activity with an actual finish is available for comparison.")
     if ev and ev.get("spi") is not None:
-        bits.append("SPI is " + str(round(float(ev["spi"]), 3)) + ".")
-    if snap.get("health_score") is not None:
-        bits.append("Schedule quality score is " + str(snap["health_score"]) +
-                    "% of checks passed.")
-    bits.append(str(len(issues)) + " issue(s) and " + str(len(risks)) +
-                " risk(s) were derived by rule from the persisted data.")
+        bits.append("SPI is " + str(round(float(ev["spi"]), 3)) + " on the stated earned-value basis; it is not field-observed progress.")
+    bits.append("Source-evaluable schedule QA: " + str(qmap.get("pass", 0)) + " passed, " +
+                str(qmap.get("fail", 0)) + " failed, " + str(qmap.get("not_evaluated", 0)) + " not evaluated.")
+    bits.append(str(field_count) + " field-evidence record(s) are stored; " +
+                str(progress_records) + " contain a reported progress percentage and " +
+                str(validated_activities) + " schedule activity/activities have validated supporting evidence. " +
+                "These field-observed values do not replace recorded schedule progress.")
+    bits.append(str(len(issues)) + " derived issue(s) and " + str(len(risks)) +
+                " derived risk(s) are reported separately from schedule-QA failures.")
     return " ".join(bits)
+

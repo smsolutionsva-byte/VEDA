@@ -54,6 +54,19 @@ EVIDENCE DISCIPLINE
   progress. Never present one as the other.
 - Contradictions are reported, never smoothed over.
 
+TERMINOLOGY MUST BE PRECISE
+- Say "recorded schedule progress" for percent complete stored in the schedule.
+  Never shorten that to "project progress" when field-observed progress also exists.
+- Say "field-observed/reported progress" only for uploaded evidence. It never
+  replaces recorded schedule progress without an approved schedule change.
+- Use N/E for a metric whose required source capability is unavailable. Use
+  N/A when the comparison has no applicable population (for example no
+  completed activities with actual finishes). Never turn missing data into 0.
+- Schedule-QA failures, derived issues, and derived risks are separate counts.
+  Never describe an issue/risk count as though it were the number of QA failures.
+- A resource-label count is not an assignment count; a WBS-node count is not an
+  activity count; a project-control reference-row count is not field evidence.
+
 ASK FEW, GOOD QUESTIONS
 When many records are ambiguous for the SAME underlying reason, raise ONE
 review question whose cluster_key identifies that shared cause, and list every
@@ -73,7 +86,8 @@ an empty list."""
 
 def analysis_prompt(project: dict, snapshot: dict | None, files: list,
                     evidence_sample: list, open_reviews: list,
-                    human_answers: list | None = None) -> str:
+                    human_answers: list | None = None,
+                    field_context: dict | None = None) -> str:
     """The main analysis turn (spec 6, 59)."""
     lines = []
     lines.append("Analyse this construction project and return the structured "
@@ -119,6 +133,20 @@ def analysis_prompt(project: dict, snapshot: dict | None, files: list,
                          ("health_score", "schedule health score")):
             if snapshot.get(k) is not None:
                 lines.append("  " + label + ": " + str(snapshot[k]))
+        lines.append("")
+
+    if field_context:
+        lines.append("FIELD EVIDENCE STATE (persisted; separate from schedule progress)")
+        for k, label in (("record_count", "field-evidence records"),
+                         ("source_file_count", "field/report source files"),
+                         ("latest_date", "latest dated field evidence"),
+                         ("reported_progress_record_count", "records with a reported progress percentage"),
+                         ("validated_link_record_count", "validated supporting evidence records"),
+                         ("validated_activity_count", "activities with validated supporting evidence"),
+                         ("numeric_observed_activity_count", "activities with validated numeric observed progress"),
+                         ("unresolved_record_count", "field-evidence records awaiting resolution")):
+            if field_context.get(k) is not None:
+                lines.append("  " + label + ": " + str(field_context[k]))
         lines.append("")
 
     lines.append("PROJECT SOURCES")
