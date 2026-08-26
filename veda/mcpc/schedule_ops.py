@@ -18,6 +18,7 @@ from .. import config, db
 from .client import McpError, horizun
 from .source_semantics import inspect_source, raw_task_id, parse_dt
 from . import tabular_schedule
+from .reference_semantics import inspect_project_references
 
 _handles: dict = {}
 _hlock = threading.RLock()
@@ -55,6 +56,11 @@ def _rows(res: Any) -> list:
             return v
     return []
 
+
+
+def _count_assignments_local(project_id: str) -> int:
+    row = db.q1("SELECT COUNT(*) AS c FROM assignments WHERE project_id=?", [project_id])
+    return int((row or {}).get("c") or 0)
 
 def _dur_days(v: Any) -> float | None:
     """'12d' / '8h' / '2w' -> days. Horizun also emits plain numbers."""
@@ -222,126 +228,220 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     db.ex("DELETE FROM activities WHERE project_id=?", [project_id])
     act_rows = []
     by_uid = {}
+    source_guarded = bool((source or {}).get("source_guarded"))
+    is_tabular_source = bool(tabular_source and source_guarded)
+    source_task_by_id = (source or {}).get("task_by_id") or {}
+    source_criticality_available = bool((source or {}).get("criticality_available"))
+
     for t in tasks:
         uid = t.get("uid")
         if uid is None:
             continue
         by_uid[uid] = t
-        pct = _num(t.get("percentComplete")) or 0.0
-        actual_finish = t.get("actualFinish")
-        if actual_finish:
-            status = "complete"
-        elif t.get("actualStart") or pct > 0:
-            status = "in_progress"
-        else:
-            status = "not_started"
-        bstart, bfin = t.get("baselineStart"), t.get("baselineFinish")
-        raw = ((source or {}).get("task_by_id") or {}).get(raw_task_id(t), {})
+        raw = source_task_by_id.get(raw_task_id(t), {})
         tab = ((tabular_source or {}).get("by_uid") or {}).get(str(uid), {})
-        raw_type = str(raw.get("task_type") or "")
-        source_summary = raw_type in ("TT_WBS", "WBS Summary")
-        source_milestone = raw_type in ("TT_Mile", "TT_FinMile",
-                                        "Start Milestone", "Finish Milestone")
+
+        # For adapted tabular schedules the original row is authoritative. MSPDI
+        # values are transport-only and may contain defaults inserted for compatibility.
+        if is_tabular_source:
+            pct = raw.get("percent_complete")
+            if pct is None and raw.get("status") == "not_started": pct = 0.0
+            if pct is None and raw.get("status") == "complete": pct = 100.0
+            status = raw.get("status")
+            actual_finish = raw.get("actual_finish_date") or None
+            bstart, bfin = raw.get("baseline_start_date"), raw.get("baseline_end_date")
+            raw_type = str(raw.get("activity_type") or raw.get("task_type") or "")
+            source_summary = bool(raw.get("is_summary"))
+            source_milestone = bool(raw.get("is_milestone"))
+            is_summary = source_summary
+            is_milestone = source_milestone
+            start_v = raw.get("target_start_date") or None
+            finish_v = raw.get("target_end_date") or None
+            actual_start_v = raw.get("actual_start_date") or None
+            duration_v = raw.get("duration_days")
+            total_float_v = raw.get("total_float_days") if (source or {}).get("float_values_available") else None
+            free_float_v = raw.get("free_float_days") if (source or {}).get("float_values_available") else None
+            critical_v = 1 if source_criticality_available and raw.get("critical") is True else 0
+            calendar_v = raw.get("calendar") or None
+            constraint_type_v = raw.get("constraint_type")
+            constraint_date_v = raw.get("constraint_date")
+            resource_names_v = "; ".join(raw.get("resource_names") or []) or None
+            provenance_v = "SOURCE_FILE"
+        else:
+            pct = _num(t.get("percentComplete"))
+            if pct is None: pct = 0.0
+            actual_finish = t.get("actualFinish")
+            if actual_finish:
+                status = "complete"
+            elif t.get("actualStart") or pct > 0:
+                status = "in_progress"
+            else:
+                status = "not_started"
+            bstart, bfin = t.get("baselineStart"), t.get("baselineFinish")
+            raw_type = str(raw.get("task_type") or "")
+            source_summary = raw_type in ("TT_WBS", "WBS Summary")
+            source_milestone = raw_type in ("TT_Mile", "TT_FinMile", "Start Milestone", "Finish Milestone")
+            is_summary = bool(t.get("summary") or source_summary)
+            is_milestone = bool(t.get("milestone") or source_milestone)
+            start_v, finish_v = t.get("start"), t.get("finish")
+            actual_start_v = t.get("actualStart")
+            duration_v = _dur_days(t.get("duration"))
+            total_float_v = _num(t.get("totalFloatDays"))
+            free_float_v = _num(t.get("freeFloatDays"))
+            critical_v = 1 if t.get("critical") else 0
+            calendar_v = t.get("calendar")
+            constraint_type_v = t.get("constraintType")
+            constraint_date_v = _dt(t.get("constraintDate"))
+            resource_names_v = t.get("resourceNames") or t.get("resources")
+            provenance_v = "MCP_FACT"
+
+        if not status:
+            if actual_finish: status = "complete"
+            elif actual_start_v or (pct is not None and pct > 0): status = "in_progress"
+            else: status = "not_started"
+
         act_rows.append({
             "id": db.new_id("act_"), "project_id": project_id,
             "snapshot_id": snapshot_id,
-            "uid": uid, "display_id": str(tab.get("source_id") or t.get("id") or uid),
-            "name": tab.get("name") or t.get("name"),
-            "wbs": tab.get("wbs") or t.get("wbs"),
+            "uid": uid, "display_id": str(tab.get("source_id") or raw.get("source_id") or t.get("id") or uid),
+            "name": tab.get("name") or raw.get("name") or t.get("name"),
+            "wbs": tab.get("wbs") or raw.get("wbs") or t.get("wbs"),
             "outline_level": tab.get("outline_level") or t.get("outlineLevel"),
-            "parent_uid": t.get("parentUid"),
-            "is_summary": 1 if (t.get("summary") or source_summary) else 0,
-            "is_milestone": 1 if (t.get("milestone") or source_milestone) else 0,
+            "parent_uid": None if is_tabular_source else t.get("parentUid"),
+            "is_summary": 1 if is_summary else 0,
+            "is_milestone": 1 if is_milestone else 0,
             "status": status,
-            "start": _dt(t.get("start")), "finish": _dt(t.get("finish")),
-            "actual_start": _dt(t.get("actualStart")),
+            "start": _dt(start_v), "finish": _dt(finish_v),
+            "actual_start": _dt(actual_start_v),
             "actual_finish": _dt(actual_finish),
-            "early_start": _dt(t.get("earlyStart")),
-            "early_finish": _dt(t.get("earlyFinish")),
-            "late_start": _dt(t.get("lateStart")),
-            "late_finish": _dt(t.get("lateFinish")),
-            "duration_days": _dur_days(t.get("duration")),
-            "remaining_days": _dur_days(t.get("remainingDuration")),
+            "early_start": None if is_tabular_source else _dt(t.get("earlyStart")),
+            "early_finish": None if is_tabular_source else _dt(t.get("earlyFinish")),
+            "late_start": None if is_tabular_source else _dt(t.get("lateStart")),
+            "late_finish": None if is_tabular_source else _dt(t.get("lateFinish")),
+            "duration_days": duration_v,
+            "remaining_days": None if is_tabular_source else _dur_days(t.get("remainingDuration")),
             "percent_complete": pct,
-            "total_float_days": _num(t.get("totalFloatDays")),
-            "free_float_days": _num(t.get("freeFloatDays")),
-            "critical": 1 if t.get("critical") else 0,
-            "calendar": t.get("calendar"),
-            "constraint_type": t.get("constraintType"),
-            "constraint_date": _dt(t.get("constraintDate")),
-            "deadline": _dt(t.get("deadline")),
+            "total_float_days": total_float_v,
+            "free_float_days": free_float_v,
+            "critical": critical_v,
+            "calendar": calendar_v,
+            "constraint_type": constraint_type_v,
+            "constraint_date": _dt(constraint_date_v),
+            "deadline": None if is_tabular_source else _dt(t.get("deadline")),
             "baseline_start": _dt(bstart), "baseline_finish": _dt(bfin),
-            "baseline_duration_days": _dur_days(t.get("baselineDuration")),
-            "cost": _num(t.get("cost")), "work_hours": _num(t.get("workHours")),
-            "resource_names": t.get("resourceNames") or t.get("resources"),
+            "baseline_duration_days": raw.get("duration_days") if is_tabular_source and bstart and bfin else _dur_days(t.get("baselineDuration")),
+            "cost": None if is_tabular_source else _num(t.get("cost")),
+            "work_hours": None if is_tabular_source else _num(t.get("workHours")),
+            "resource_names": resource_names_v,
             "custom_json": db.jdumps(t.get("custom")) if t.get("custom") else None,
             "notes": t.get("notes"),
-            "provenance": "MCP_FACT",
+            "provenance": provenance_v,
         })
 
     for r in act_rows:
         bf, fin = r.get("baseline_finish"), r.get("finish")
         r["finish_variance_days"] = _daydiff(fin, bf)
         r["start_variance_days"] = _daydiff(r.get("start"), r.get("baseline_start"))
-        if r.get("duration_days") is not None and \
-           r.get("baseline_duration_days") is not None:
-            r["duration_variance_days"] = round(
-                r["duration_days"] - r["baseline_duration_days"], 2)
+        if r.get("duration_days") is not None and r.get("baseline_duration_days") is not None:
+            r["duration_variance_days"] = round(r["duration_days"] - r["baseline_duration_days"], 2)
     for r in act_rows:
         db.insert("activities", r)
 
     # ---- relationships -------------------------------------------------
-    links = page_all("links_query", {"handle": handle, "direction": "both"},
-                     project_id=project_id, job_id=job_id)
+    engine_links = page_all("links_query", {"handle": handle, "direction": "both"},
+                            project_id=project_id, job_id=job_id)
     db.ex("DELETE FROM relationships WHERE project_id=?", [project_id])
     seen = set()
-    for l in links:
-        a, b = l.get("fromUid"), l.get("toUid")
-        if a is None or b is None or (a, b, l.get("type")) in seen:
-            continue
-        seen.add((a, b, l.get("type")))
-        db.insert("relationships", {
-            "project_id": project_id, "snapshot_id": snapshot_id,
-            "pred_uid": a, "succ_uid": b,
-            "pred_name": l.get("fromName"), "succ_name": l.get("toName"),
-            "type": l.get("type") or "FS", "lag_days": _num(l.get("lagDays")),
-            "driving": 1 if l.get("driving") else 0,
-            "provenance": "MCP_FACT",
-        })
+    names_by_uid = {int(r["uid"]): r.get("name") for r in act_rows if r.get("uid") is not None}
+    if is_tabular_source and (source or {}).get("predecessor_values_available"):
+        for l in (source or {}).get("source_relationships") or []:
+            a, b = l.get("pred_uid"), l.get("succ_uid")
+            if a is None or b is None or (a, b) in seen: continue
+            seen.add((a, b))
+            db.insert("relationships", {
+                "project_id": project_id, "snapshot_id": snapshot_id,
+                "pred_uid": a, "succ_uid": b,
+                "pred_name": names_by_uid.get(int(a)), "succ_name": names_by_uid.get(int(b)),
+                "type": l.get("type") or "unspecified",
+                "lag_days": l.get("lag_days"), "driving": 0,
+                "provenance": "SOURCE_FILE",
+            })
+    else:
+        for l in engine_links:
+            a, b = l.get("fromUid"), l.get("toUid")
+            if a is None or b is None or (a, b, l.get("type")) in seen: continue
+            seen.add((a, b, l.get("type")))
+            db.insert("relationships", {
+                "project_id": project_id, "snapshot_id": snapshot_id,
+                "pred_uid": a, "succ_uid": b,
+                "pred_name": l.get("fromName"), "succ_name": l.get("toName"),
+                "type": l.get("type") or "FS", "lag_days": _num(l.get("lagDays")),
+                "driving": 1 if l.get("driving") else 0,
+                "provenance": "MCP_FACT",
+            })
     step("relationships_analyzed", str(len(seen)) + " relationships analysed")
 
     # ---- resources & assignments ---------------------------------------
-    resources = page_all("resources_query",
-                         {"handle": handle, "includeAssignments": True},
-                         project_id=project_id, job_id=job_id, limit=200)
+    engine_resources = page_all("resources_query", {"handle": handle, "includeAssignments": True},
+                                project_id=project_id, job_id=job_id, limit=200)
     db.ex("DELETE FROM resources WHERE project_id=?", [project_id])
     db.ex("DELETE FROM assignments WHERE project_id=?", [project_id])
-    for r in resources:
-        assigns = r.get("assignments") or []
-        db.insert("resources", {
-            "project_id": project_id, "snapshot_id": snapshot_id,
-            "uid": r.get("uid"), "name": r.get("name"), "type": r.get("type"),
-            "calendar": r.get("calendar"), "max_units": _num(r.get("maxUnits")),
-            "standard_rate": _num(r.get("standardRate")),
-            "work_hours": _num(r.get("workHours")), "cost": _num(r.get("cost")),
-            "overallocated": 1 if r.get("overallocated") else 0,
-            "peak_units": _num(r.get("peakUnits")),
-            "assignment_count": len(assigns),
-            "provenance": "MCP_FACT",
-        })
-        for a in assigns:
+    resources = []
+    if is_tabular_source and (source or {}).get("resource_values_available"):
+        labels = list((source or {}).get("resource_labels") or [])
+        uid_by_resource = {name: i + 1 for i, name in enumerate(labels)}
+        counts = {}
+        for a in (source or {}).get("source_assignments") or []:
+            counts[a["resource_name"]] = counts.get(a["resource_name"], 0) + 1
+        for name in labels:
+            rr = {"uid": uid_by_resource[name], "name": name, "assignments": counts.get(name, 0)}
+            resources.append(rr)
+            db.insert("resources", {
+                "project_id": project_id, "snapshot_id": snapshot_id,
+                "uid": rr["uid"], "name": name, "type": "source assignment label",
+                "calendar": None, "max_units": None, "standard_rate": None,
+                "work_hours": None, "cost": None, "overallocated": 0,
+                "peak_units": None, "assignment_count": counts.get(name, 0),
+                "provenance": "SOURCE_FILE",
+            })
+        for a in (source or {}).get("source_assignments") or []:
+            task_uid = a.get("task_uid")
             db.insert("assignments", {
                 "project_id": project_id, "snapshot_id": snapshot_id,
-                "task_uid": a.get("taskUid"), "resource_uid": a.get("resourceUid"),
-                "task_name": a.get("taskName"), "resource_name": a.get("resourceName"),
-                "units": _num(a.get("units")),
-                "work_hours": _num(a.get("workHours")),
-                "actual_work_hours": _num(a.get("actualWorkHours")),
-                "remaining_work_hours": _num(a.get("remainingWorkHours")),
-                "cost": _num(a.get("cost")), "actual_cost": _num(a.get("actualCost")),
-                "start": _dt(a.get("start")), "finish": _dt(a.get("finish")),
+                "task_uid": task_uid, "resource_uid": uid_by_resource.get(a.get("resource_name")),
+                "task_name": names_by_uid.get(int(task_uid)) if task_uid is not None else None,
+                "resource_name": a.get("resource_name"),
+                "units": _num(a.get("budgeted_units")), "work_hours": None,
+                "actual_work_hours": None, "remaining_work_hours": None,
+                "cost": None, "actual_cost": None, "start": None, "finish": None,
+                "provenance": "SOURCE_FILE",
+            })
+    else:
+        resources = engine_resources
+        for r in resources:
+            assigns = r.get("assignments") or []
+            db.insert("resources", {
+                "project_id": project_id, "snapshot_id": snapshot_id,
+                "uid": r.get("uid"), "name": r.get("name"), "type": r.get("type"),
+                "calendar": r.get("calendar"), "max_units": _num(r.get("maxUnits")),
+                "standard_rate": _num(r.get("standardRate")),
+                "work_hours": _num(r.get("workHours")), "cost": _num(r.get("cost")),
+                "overallocated": 1 if r.get("overallocated") else 0,
+                "peak_units": _num(r.get("peakUnits")), "assignment_count": len(assigns),
                 "provenance": "MCP_FACT",
             })
+            for a in assigns:
+                db.insert("assignments", {
+                    "project_id": project_id, "snapshot_id": snapshot_id,
+                    "task_uid": a.get("taskUid"), "resource_uid": a.get("resourceUid"),
+                    "task_name": a.get("taskName"), "resource_name": a.get("resourceName"),
+                    "units": _num(a.get("units")), "work_hours": _num(a.get("workHours")),
+                    "actual_work_hours": _num(a.get("actualWorkHours")),
+                    "remaining_work_hours": _num(a.get("remainingWorkHours")),
+                    "cost": _num(a.get("cost")), "actual_cost": _num(a.get("actualCost")),
+                    "start": _dt(a.get("start")), "finish": _dt(a.get("finish")),
+                    "provenance": "MCP_FACT",
+                })
 
     # ---- analysis (spec 22) --------------------------------------------
     analyze = {}
@@ -377,14 +477,15 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             "project_id": project_id, "snapshot_id": snapshot_id,
             "uid": r["uid"], "display_id": r["display_id"], "name": r["name"],
             "planned_date": r["start"], "baseline_date": r["baseline_finish"],
-            "forecast_date": _dt(m.get("finish")) or r["finish"],
+            "forecast_date": (None if source_guarded and not (source or {}).get("forecast_values_available")
+                              else (_dt(m.get("finish")) or r["finish"])),
             "actual_date": r["actual_finish"], "deadline": r["deadline"],
             "variance_days": _num(m.get("slipDays")) if m.get("slipDays") is not None
             else r.get("finish_variance_days"),
             "status": m.get("status") or r["status"],
             "critical": r["critical"],
             "total_float_days": r["total_float_days"],
-            "provenance": "MCP_FACT",
+            "provenance": "SOURCE_FILE" if is_tabular_source else "MCP_FACT",
         })
 
     # ---- WBS rollup (spec 18) ------------------------------------------
@@ -421,12 +522,18 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
                  " DCMA checks failed")
 
     # ---- baseline / earned value (spec 24, 28) -------------------------
+    # A source can legitimately contain baseline/reference dates without enough
+    # status/progress/cost information to support earned-value metrics. Keep
+    # those concepts separate and never let baseline_compare erase explicit
+    # source baseline columns.
+    db.ex("DELETE FROM earned_value WHERE project_id=?", [project_id])
     bc = {}
     ok, res = horizun.try_call("baseline_compare", {"handle": handle, "byBranch": True},
                                project_id=project_id, job_id=job_id, timeout=300)
-    if ok and isinstance(res, dict) and res.get("baselinePresent"):
+    source_baseline_present = bool((source or {}).get("baseline_values_available"))
+    ev_eligible = bool((source or {}).get("ev_eligible")) if is_tabular_source else True
+    if ok and isinstance(res, dict) and res.get("baselinePresent") and ev_eligible:
         bc = res
-        db.ex("DELETE FROM earned_value WHERE project_id=?", [project_id])
         basis = "Horizun baseline_compare, measure=" + \
                 str((res.get("project") or {}).get("measure", "unknown")) + \
                 ", baseline " + str(res.get("baselineNumber", 0))
@@ -434,7 +541,8 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             db.insert("earned_value", {
                 "project_id": project_id, "snapshot_id": snapshot_id,
                 "scope": scope, "scope_key": key,
-                "status_date": _iso(res.get("statusDate") or info.get("statusDate")),
+                "status_date": ((source or {}).get("data_date") if source_guarded
+                                else _iso(res.get("statusDate") or info.get("statusDate"))),
                 "pv": _num(scope_row.get("bcws")), "ev": _num(scope_row.get("bcwp")),
                 "ac": _num(scope_row.get("acwp")),
                 "sv": _num(scope_row.get("scheduleVariance")),
@@ -445,11 +553,10 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
                 "basis": basis, "provenance": "MCP_FACT",
             })
         step("baseline_compared", "Earned value computed against stored baseline")
-    elif ok and isinstance(res, dict):
-        # Some importers expose planned/target dates through baseline-shaped
-        # task properties even when no P6 baseline is actually assigned.  Only
-        # clear them when baseline_compare successfully proves baselinePresent
-        # is false; a tool failure is "unknown", not proof of absence.
+    elif ok and isinstance(res, dict) and not source_baseline_present:
+        # Only clear adapter-shaped baseline fields when the original source does
+        # not itself contain baseline values. A source baseline is evidence even
+        # if Horizun does not recognise it as an assigned P6 baseline.
         db.ex("UPDATE activities SET baseline_start=NULL, baseline_finish=NULL, "
               "baseline_duration_days=NULL, start_variance_days=NULL, "
               "finish_variance_days=NULL, duration_variance_days=NULL "
@@ -461,6 +568,8 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             r["start_variance_days"] = None
             r["finish_variance_days"] = None
             r["duration_variance_days"] = None
+    elif source_baseline_present and not ev_eligible:
+        step("baseline_compared", "Baseline/reference dates retained; earned value not evaluable from source", "success")
 
     # ---- timephased S-curve (spec 27) ----------------------------------
     if caps.get("timephased", True):
@@ -493,50 +602,62 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
 
     # ---- snapshot header -----------------------------------------------
     leaves = [r for r in act_rows if not r["is_summary"]]
-    crit = sum(1 for r in leaves if r["critical"])
-    status_date = _iso(info.get("statusDate")) or (source or {}).get("data_date")
 
-    # Keep two different delay concepts separate:
-    #   overdue = unfinished work whose reference/planned finish is before DD
-    #   completed_late = completed work that actually finished after baseline
-    # The old UI called both "late", producing contradictory 53 vs 137 counts.
-    overdue = 0
-    source_task_by_id = (source or {}).get("task_by_id") or {}
-    for r in leaves:
-        if r["status"] == "complete" or not status_date:
-            continue
-        raw = source_task_by_id.get(str(r.get("uid")))
-        ref_finish = None
-        if raw is not None:
-            # XER target_end_date is Planned Finish, not current Forecast Finish.
-            ref_finish = _iso(raw.get("target_end_date"))
-        if not ref_finish:
-            ref_finish = _iso(r.get("finish"))
-        if ref_finish and ref_finish < status_date:
-            overdue += 1
+    # Availability is a first-class fact. A transport default of false/zero is
+    # not the same as the source establishing that the true value is zero.
+    criticality_available = (bool((source or {}).get("criticality_available"))
+                             if is_tabular_source else True)
+    crit = (sum(1 for r in leaves if r["critical"])
+            if criticality_available else None)
+    status_date = ((source or {}).get("data_date") if source_guarded
+                   else _iso(info.get("statusDate")))
 
-    completed_late = sum(1 for r in leaves
-                         if r.get("actual_finish") and r.get("baseline_finish")
-                         and (_daydiff(r.get("actual_finish"),
-                                      r.get("baseline_finish")) or 0) > 0)
+    # Keep two different delay concepts separate and preserve N/E when their
+    # required reference date/status evidence is missing.
+    overdue_evaluable = bool(status_date)
+    overdue = 0 if overdue_evaluable else None
+    if overdue_evaluable:
+        for r in leaves:
+            if r["status"] == "complete":
+                continue
+            raw = source_task_by_id.get(str(r.get("uid")))
+            ref_finish = _iso((raw or {}).get("target_end_date")) or _iso(r.get("finish"))
+            if ref_finish and ref_finish < status_date:
+                overdue += 1
 
-    pct = (bc.get("project") or {})
-    overall = None
-    if pct.get("bac"):
-        overall = round(100.0 * (_num(pct.get("bcwp")) or 0) / _num(pct["bac"]), 1)
-    if overall is None and leaves:
-        durs = [(r.get("duration_days") or 0) for r in leaves]
-        tot = sum(durs) or len(leaves)
-        overall = round(sum((r.get("percent_complete") or 0) *
-                            ((r.get("duration_days") or 1)) for r in leaves) / (tot or 1), 1)
+    source_baseline_present = bool((source or {}).get("baseline_values_available"))
+    baseline_present = source_baseline_present or bool(bc)
+    completed_with_actual = [r for r in leaves if r.get("actual_finish")]
+    completed_late_evaluable = bool(baseline_present and completed_with_actual)
+    completed_late = None
+    if completed_late_evaluable:
+        completed_late = sum(1 for r in completed_with_actual
+                             if r.get("baseline_finish") and
+                             (_daydiff(r.get("actual_finish"), r.get("baseline_finish")) or 0) > 0)
 
-    source_guarded = bool((source or {}).get("source_guarded"))
+    if is_tabular_source:
+        progress_available = bool((source or {}).get("progress_available"))
+        progress_basis = (source or {}).get("progress_basis") or "not available in source"
+        overall = (source or {}).get("source_progress_pct") if progress_available else None
+    else:
+        progress_available = True
+        progress_basis = "schedule progress"
+        pct = (bc.get("project") or {})
+        overall = None
+        if pct.get("bac"):
+            overall = round(100.0 * (_num(pct.get("bcwp")) or 0) / _num(pct["bac"]), 1)
+            progress_basis = "EV/BAC"
+        if overall is None and leaves:
+            durs = [(r.get("duration_days") or 0) for r in leaves]
+            tot = sum(durs) or len(leaves)
+            overall = round(sum((r.get("percent_complete") or 0) *
+                                ((r.get("duration_days") or 1)) for r in leaves) / (tot or 1), 1)
+
     if source_guarded:
         planned_start = (source or {}).get("planned_start")
         planned_finish = (source or {}).get("planned_finish")
         forecast_finish = (source or {}).get("forecast_finish")
-        forecast_basis = ((source or {}).get("forecast_basis") or
-                          "not available in source")
+        forecast_basis = ((source or {}).get("forecast_basis") or "not available in source")
         must_finish_by = (source or {}).get("must_finish_by")
     else:
         planned_start = _iso(info.get("startDate"))
@@ -545,8 +666,14 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         forecast_basis = "Horizun project_info.finishDate" if forecast_finish else None
         must_finish_by = None
 
-    baseline_finish = _baseline_finish(act_rows) if bc else None
-    if bc:
+    if source_baseline_present:
+        baseline_start = (source or {}).get("baseline_start")
+        baseline_finish = (source or {}).get("baseline_finish")
+        baseline_basis = (source or {}).get("baseline_basis") or "embedded source baseline/reference"
+    elif bc:
+        baseline_start_vals = [r.get("baseline_start") for r in act_rows if r.get("baseline_start")]
+        baseline_start = _iso(min(baseline_start_vals)) if baseline_start_vals else None
+        baseline_finish = _baseline_finish(act_rows)
         if source_guarded and not (source or {}).get("baseline_assigned"):
             baseline_basis = "P6 current-project fallback baseline"
         elif source_guarded:
@@ -554,10 +681,15 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         else:
             baseline_basis = "Horizun stored baseline"
     else:
+        baseline_start = None
+        baseline_finish = None
         baseline_basis = None
 
     cptype = str((source or {}).get("critical_path_type") or "").strip()
-    if cptype == "CT_TotFloat":
+    if is_tabular_source:
+        criticality_basis = ((source or {}).get("criticality_basis")
+                             if criticality_available else "not available in source")
+    elif cptype == "CT_TotFloat":
         criticality_basis = "total float"
     elif cptype:
         criticality_basis = cptype
@@ -569,54 +701,69 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
                                   if threshold_hours is not None and hpd else None)
 
     type_counts = (source or {}).get("task_type_counts") or {}
-    loe_count = int(type_counts.get("TT_LOE", 0) or 0)
+    loe_count = int(type_counts.get("TT_LOE", 0) or type_counts.get("Level of Effort", 0) or 0)
     summary_count = sum(1 for r in act_rows if r.get("is_summary"))
     milestone_count = sum(1 for r in act_rows if r.get("is_milestone"))
+    resource_assignment_count = (int((source or {}).get("resource_assignment_count") or 0)
+                                 if is_tabular_source else _count_assignments_local(project_id))
+    resource_basis = ("source resource-assignment column" if is_tabular_source and
+                      (source or {}).get("resource_values_available") else "Horizun resources_query")
+
+    reference_context = inspect_project_references(project_id, source) if is_tabular_source else None
 
     source_public = None
     if source:
         source_public = {k: source.get(k) for k in (
             "format", "source_guarded", "project_resolution", "ambiguous_project",
-            "project_id", "project_code", "task_count", "wbs_count",
-            "task_type_counts", "forecast_columns", "forecast_values_available",
-            "forecast_finish", "forecast_basis", "planned_start", "planned_finish",
-            "project_planned_start", "must_finish_by", "schedule_finish",
-            "data_date", "baseline_assigned", "baseline_id", "baseline_basis",
-            "critical_path_type", "critical_float_threshold_hours", "hours_per_day")
-            if k in source}
+            "project_id", "project_code", "task_count", "wbs_count", "task_type_counts",
+            "forecast_columns", "forecast_values_available", "forecast_finish", "forecast_basis",
+            "planned_start", "planned_finish", "project_planned_start", "must_finish_by",
+            "schedule_finish", "data_date", "baseline_assigned", "baseline_id", "baseline_basis",
+            "baseline_values_available", "baseline_start", "baseline_finish",
+            "baseline_coverage_count", "baseline_coverage_total", "baseline_equals_planned_count",
+            "critical_path_type", "critical_float_threshold_hours", "hours_per_day",
+            "criticality_available", "criticality_basis", "progress_available", "progress_basis",
+            "source_progress_pct", "status_counts", "resource_assignment_count",
+            "resource_label_count", "calendar_labels", "relationship_type_values_available",
+            "lag_values_available", "duplicate_sibling_affected_ids", "milestone_duration_uids",
+            "milestone_resource_uids") if k in source}
 
     db.insert("schedule_snapshots", {
         "id": snapshot_id, "project_id": project_id, "file_id": file_id,
         "job_id": job_id, "revision": revision, "source_path": schedule_path,
-        "project_name": info.get("name") or info.get("title") or
-                        (source or {}).get("project_code"),
+        "project_name": info.get("name") or info.get("title") or (source or {}).get("project_code"),
         "data_date": status_date, "status_date": status_date,
-        "planned_start": planned_start,
-        "planned_finish": planned_finish,
+        "planned_start": planned_start, "planned_finish": planned_finish,
         "forecast_finish": forecast_finish,
-        "baseline_finish": baseline_finish,
+        "baseline_start": baseline_start, "baseline_finish": baseline_finish,
+        "baseline_present": 1 if baseline_present else 0,
+        "baseline_coverage_count": int((source or {}).get("baseline_coverage_count") or 0),
         "must_finish_by": must_finish_by,
-        "forecast_basis": forecast_basis,
-        "baseline_basis": baseline_basis,
+        "forecast_basis": forecast_basis, "baseline_basis": baseline_basis,
         "criticality_basis": criticality_basis,
+        "criticality_available": 1 if criticality_available else 0,
         "criticality_threshold_days": criticality_threshold_days,
-        "task_count": len(act_rows),
-        "wbs_count": int((source or {}).get("wbs_count") or 0),
+        "overdue_evaluable": 1 if overdue_evaluable else 0,
+        "completed_late_evaluable": 1 if completed_late_evaluable else 0,
+        "progress_available": 1 if progress_available else 0,
+        "progress_basis": progress_basis,
+        "resource_assignment_count": resource_assignment_count,
+        "resource_basis": resource_basis,
+        "task_count": len(act_rows), "wbs_count": int((source or {}).get("wbs_count") or 0),
         "summary_activity_count": summary_count, "loe_count": loe_count,
         "milestone_count": milestone_count,
         "relationship_count": len(seen), "resource_count": len(resources),
         "critical_count": crit, "late_count": overdue,
         "overdue_count": overdue, "completed_late_count": completed_late,
-        "percent_complete": overall,
-        "health_score": _health_score(qa),
+        "percent_complete": overall, "health_score": _health_score(qa),
         "capabilities_json": db.jdumps(caps),
         "info_json": db.jdumps({"info": info, "source": source_public,
-                                  "analyze": _slim(analyze), "qa": {
+                                 "reference_context": reference_context,
+                                 "analyze": _slim(analyze), "qa": {
             "checks": qa.get("checks"), "passed": qa.get("passed"),
             "failed": qa.get("failed"), "notEvaluated": qa.get("notEvaluated"),
-            "notes": qa.get("notes"),
-            "semanticGuard": qa.get("vedaSemanticGuard"),
-        }, "baseline": {"present": bool(bc), "basis": baseline_basis,
+            "notes": qa.get("notes"), "semanticGuard": qa.get("vedaSemanticGuard"),
+        }, "baseline": {"present": baseline_present, "basis": baseline_basis,
                          "project": bc.get("project")}}),
         "is_current": 1,
     })
@@ -637,7 +784,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         "critical": crit, "late": overdue, "overdue": overdue,
         "completed_late": completed_late,
         "qa_failed": qa.get("failed"), "qa_checks": qa.get("checks"),
-        "baseline_present": bool(bc),
+        "baseline_present": baseline_present,
         "project_name": info.get("name") or (source or {}).get("project_code"),
         "planned_start": planned_start,
         "forecast_finish": forecast_finish,
@@ -849,10 +996,14 @@ def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
                 "finish": max(finishes) if finishes else None,
                 "percent_complete": round(pc, 1),
                 "activity_count": len(kids),
-                "critical_count": sum(1 for k in kids if k.get("critical")),
-                "late_count": sum(1 for k in kids
-                                  if (k.get("finish_variance_days") or 0) > 0),
-                "provenance": "MCP_FACT",
+                "critical_count": (sum(1 for k in kids if k.get("critical"))
+                                   if (source or {}).get("criticality_available") else None),
+                "late_count": (sum(1 for k in kids if k.get("status") != "complete" and
+                                  k.get("finish") and (source or {}).get("data_date") and
+                                  _iso(k.get("finish")) < _iso((source or {}).get("data_date")))
+                               if (source or {}).get("data_date") else None),
+                "provenance": ("SOURCE_FILE" if (source or {}).get("format") in
+                               ("csv", "tsv", "xlsx", "xlsm") else "MCP_FACT"),
             })
         return
 

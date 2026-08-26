@@ -157,10 +157,23 @@ def overview(pid: str):
     qa_map = {r["status"]: r["c"] for r in qa}
     job = db.q1("SELECT * FROM jobs WHERE project_id=? ORDER BY created_at DESC "
                 "LIMIT 1", [pid])
+    snap_info = db.jloads((snap or {}).get("info_json"), {}) or {}
+    reference_context = snap_info.get("reference_context") or {}
+    critical_count = None
+    if snap and int(snap.get("criticality_available") or 0) == 1:
+        critical_count = int(snap.get("critical_count") or 0)
+    overdue_count = None
+    if snap and int(snap.get("overdue_evaluable") or 0) == 1:
+        overdue_count = int(snap.get("overdue_count") or 0)
+    completed_late_count = None
+    if snap and int(snap.get("completed_late_evaluable") or 0) == 1:
+        completed_late_count = int(snap.get("completed_late_count") or 0)
+
     return {
         "project": p,
         "schedule": snap,
         "earned_value": ev,
+        "reference_context": reference_context,
         "quality": {"passed": qa_map.get("pass", 0), "failed": qa_map.get("fail", 0),
                     "not_evaluated": qa_map.get("not_evaluated", 0)},
         "counts": {
@@ -177,13 +190,12 @@ def overview(pid: str):
             "risks": _count("risks", pid),
             "files": _count("files", pid),
             "artifacts": _count("artifacts", pid),
-            "critical": int((snap or {}).get("critical_count") or 0),
+            "critical": critical_count,
             # Back-compat: "late" now consistently means currently overdue.
-            "late": int((snap or {}).get("overdue_count") or
-                        (snap or {}).get("late_count") or 0),
-            "overdue": int((snap or {}).get("overdue_count") or
-                           (snap or {}).get("late_count") or 0),
-            "completed_late": int((snap or {}).get("completed_late_count") or 0),
+            # Preserve NULL when the status boundary is unavailable.
+            "late": overdue_count,
+            "overdue": overdue_count,
+            "completed_late": completed_late_count,
             "pending_reviews": (db.q1("SELECT COUNT(*) c FROM reviews WHERE "
                                       "project_id=? AND status='open'",
                                       [pid]) or {}).get("c", 0),
@@ -425,14 +437,21 @@ def activities(pid: str, q: str = "", wbs: str = "", status: str = "",
     if status:
         sql += " AND status=?"
         params.append(status)
-    if critical in ("1", "true"):
+    snap = _snapshot(pid)
+    criticality_available = bool(snap and int(snap.get("criticality_available") or 0) == 1)
+    completed_late_evaluable = bool(snap and int(snap.get("completed_late_evaluable") or 0) == 1)
+    if critical in ("1", "true") and criticality_available:
         sql += " AND critical=1"
     if milestone in ("1", "true"):
         sql += " AND is_milestone=1"
     elif milestone in ("0", "false"):
         sql += " AND is_milestone=0"
     if late in ("1", "true"):
-        sql += " AND finish_variance_days > 0"
+        if completed_late_evaluable:
+            sql += " AND actual_finish IS NOT NULL AND baseline_finish IS NOT NULL " \
+                   "AND date(actual_finish) > date(baseline_finish)"
+        else:
+            sql += " AND 1=0"
 
     total = (db.q1("SELECT COUNT(*) c FROM (" + sql + ")", params) or {}).get("c", 0)
     cols = {"start": "start", "finish": "finish", "float": "total_float_days",
@@ -455,7 +474,8 @@ def activities(pid: str, q: str = "", wbs: str = "", status: str = "",
         r["review_state"] = c.get("review_state")
         r["observed_progress"] = c.get("observed")
     return {"total": total, "returned": len(rows), "offset": offset,
-            "activities": rows}
+            "activities": rows, "criticality_available": criticality_available,
+            "completed_late_evaluable": completed_late_evaluable}
 
 
 def _activity_counts(pid: str, uids: list) -> dict:
@@ -535,6 +555,11 @@ def activity_detail(pid: str, uid: int):
                      "start_variance_days": a.get("start_variance_days"),
                      "finish_variance_days": a.get("finish_variance_days"),
                      "duration_variance_days": a.get("duration_variance_days")},
+        "schedule_semantics": (lambda ss: {
+            "criticality_available": bool(ss and int(ss.get("criticality_available") or 0) == 1),
+            "progress_available": bool(ss and int(ss.get("progress_available") or 0) == 1),
+            "progress_basis": (ss or {}).get("progress_basis"),
+        })(_snapshot(pid)),
         "audit": audit_mod.for_project(pid, limit=40, entity_type="activity",
                                        entity_id=str(uid)),
     }
@@ -597,13 +622,19 @@ def critical_path(pid: str):
                 "AND total_float_days IS NOT NULL GROUP BY band", [pid])
     drivers = db.q("SELECT * FROM relationships WHERE project_id=? AND driving=1",
                    [pid])
-    return {"critical": rows, "float_distribution": {d["band"]: d["c"] for d in dist},
-            "driving_links": drivers,
-            "analysis": info.get("analyze", {}),
+    criticality_available = bool(snap and int(snap.get("criticality_available") or 0) == 1)
+    return {"critical": rows if criticality_available else [],
+            "float_distribution": ({d["band"]: d["c"] for d in dist}
+                                   if criticality_available else {}),
+            "driving_links": drivers if criticality_available else [],
+            "analysis": info.get("analyze", {}) if criticality_available else {},
             "finish": (snap or {}).get("forecast_finish"),
+            "criticality_available": criticality_available,
             "criticality_basis": (snap or {}).get("criticality_basis"),
             "criticality_threshold_days": (snap or {}).get("criticality_threshold_days"),
-            "basis": "Horizun schedule_analyze (MCP_FACT); VEDA preserves the source criticality method"}
+            "basis": ("Horizun schedule_analyze (MCP_FACT); VEDA preserves the source criticality method"
+                      if criticality_available else
+                      "Criticality is N/E: the selected source does not establish critical/float semantics, so transport or engine defaults are not presented as source facts.")}
 
 
 # =====================================================================
@@ -650,12 +681,21 @@ def earned_value(pid: str):
     rows = db.q("SELECT * FROM earned_value WHERE project_id=? ORDER BY scope, "
                 "scope_key", [pid])
     project = next((r for r in rows if r["scope"] == "project"), None)
+    snap = _snapshot(pid)
+    baseline_present = bool(snap and int(snap.get("baseline_present") or 0) == 1)
+    if rows:
+        message = None
+    elif baseline_present:
+        message = ("Baseline/reference dates are available, but current earned-value "
+                   "metrics are N/E because the source does not establish the required "
+                   "status/progress/cost inputs.")
+    else:
+        message = ("Earned value requires a usable baseline/reference plus current "
+                   "status/progress/cost inputs. The required source facts are unavailable.")
     return {"project": project,
             "branches": [r for r in rows if r["scope"] == "branch"],
-            "available": bool(rows),
-            "message": None if rows else
-            "Earned value requires a stored baseline. None is available for this "
-            "schedule."}
+            "available": bool(rows), "baseline_present": baseline_present,
+            "message": message}
 
 
 @router.get("/projects/{pid}/timephased")

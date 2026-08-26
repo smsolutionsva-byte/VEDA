@@ -95,17 +95,27 @@ def analysis_prompt(project: dict, snapshot: dict | None, files: list,
                          ("must_finish_by", "must finish by"),
                          ("forecast_finish", "current forecast finish"),
                          ("forecast_basis", "forecast basis"),
+                         ("baseline_start", "baseline/reference start"),
                          ("baseline_finish", "baseline/reference finish"),
+                         ("baseline_present", "baseline/reference available"),
+                         ("baseline_coverage_count", "baselined activities"),
                          ("baseline_basis", "baseline basis"),
                          ("task_count", "activities"),
                          ("wbs_count", "WBS nodes (not activities)"),
                          ("relationship_count", "relationships"),
-                         ("resource_count", "resources"),
+                         ("resource_count", "resource labels"),
+                         ("resource_assignment_count", "resource assignments"),
+                         ("resource_basis", "resource basis"),
+                         ("criticality_available", "criticality evaluable"),
                          ("critical_count", "critical activities"),
                          ("criticality_basis", "criticality method"),
+                         ("overdue_evaluable", "overdue count evaluable"),
                          ("overdue_count", "unfinished past planned/reference finish"),
+                         ("completed_late_evaluable", "completed-late evaluable"),
                          ("completed_late_count", "completed after baseline/reference finish"),
-                         ("percent_complete", "percent complete"),
+                         ("progress_available", "recorded progress available"),
+                         ("percent_complete", "recorded percent complete"),
+                         ("progress_basis", "progress basis"),
                          ("health_score", "schedule health score")):
             if snapshot.get(k) is not None:
                 lines.append("  " + label + ": " + str(snapshot[k]))
@@ -241,9 +251,12 @@ def question_prompt(question: str, project: dict, snapshot: dict | None) -> str:
             sched_line += ", current forecast finish " + str(snapshot.get("forecast_finish"))
         else:
             sched_line += ", current forecast finish unavailable"
-        sched_line += ", " + str(snapshot.get("critical_count")) + " critical activities"
-        if snapshot.get("criticality_basis"):
-            sched_line += " by " + str(snapshot.get("criticality_basis"))
+        if int(snapshot.get("criticality_available") or 0) == 1:
+            sched_line += ", " + str(snapshot.get("critical_count") or 0) + " critical activities"
+            if snapshot.get("criticality_basis"):
+                sched_line += " by " + str(snapshot.get("criticality_basis"))
+        else:
+            sched_line += ", criticality unavailable from source"
         lines.append(sched_line + ".")
     lines.append("")
     lines.append("""Investigate before answering:

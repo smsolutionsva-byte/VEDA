@@ -108,9 +108,24 @@ VIEWS.overview = async (pid) => {
     ? (s.baseline_finish ? 'baseline ' + day(s.baseline_finish) : E(s.forecast_basis || 'current schedule'))
     : 'current forecast unavailable in source';
   const baselineFallback = String(s.baseline_basis || '').toLowerCase().includes('fallback');
-  const criticalDetail = (s.criticality_basis || 'Horizun critical flag') +
-    (s.criticality_threshold_days !== null && s.criticality_threshold_days !== undefined
-      ? ' · threshold ' + num(s.criticality_threshold_days, 2) + 'd' : '');
+  const criticalAvailable = Number(s.criticality_available || 0) === 1;
+  const overdueEvaluable = Number(s.overdue_evaluable || 0) === 1;
+  const completedLateEvaluable = Number(s.completed_late_evaluable || 0) === 1;
+  const progressAvailable = Number(s.progress_available || 0) === 1;
+  const criticalDetail = criticalAvailable
+    ? ((s.criticality_basis || 'source/engine criticality method') +
+      (s.criticality_threshold_days !== null && s.criticality_threshold_days !== undefined
+        ? ' · threshold ' + num(s.criticality_threshold_days, 2) + 'd' : ''))
+    : 'criticality not available in source';
+  const statusCounts = (() => {
+    try { return JSON.parse(s.info_json || '{}').source?.status_counts || {}; }
+    catch (_) { return {}; }
+  })();
+  const progressDetail = ev && ev.spi
+    ? 'SPI ' + num(ev.spi, 3) + (baselineFallback ? ' · fallback baseline' : '')
+    : (s.progress_basis || (progressAvailable ? 'recorded schedule progress' : 'progress unavailable'));
+  const ref = o.reference_context || {};
+  const refCount = ref.reference_record_count !== undefined ? ref.reference_record_count : c.evidence;
 
   return '<div class="head"><div><div class="eyebrow">Project overview</div>' +
     '<h1>' + E(o.project.name) + '</h1>' +
@@ -122,11 +137,11 @@ VIEWS.overview = async (pid) => {
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Forecast finish', forecastValue, forecastDetail,
       lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
-    stat('Progress', num(s.percent_complete, 1) + '%',
-      ev && ev.spi ? 'SPI ' + num(ev.spi, 3) + (baselineFallback ? ' · fallback baseline' : '')
-        : 'schedule progress') +
-    stat('Critical', int(c.critical), 'of ' + int(c.activities) + ' activities · ' +
-      E(criticalDetail), 'warm') +
+    stat('Recorded progress', progressAvailable ? num(s.percent_complete, 1) + '%' : 'N/E',
+      E(progressDetail)) +
+    stat('Critical', criticalAvailable ? int(c.critical) : 'N/E',
+      criticalAvailable ? ('of ' + int(c.activities) + ' activities · ' + E(criticalDetail))
+        : E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
     stat('Schedule health', num(s.health_score, 1) + '%',
       o.quality.failed + ' of ' + (o.quality.passed + o.quality.failed) +
         ' evaluated checks failed' + (o.quality.not_evaluated
@@ -135,11 +150,15 @@ VIEWS.overview = async (pid) => {
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Currently overdue', int(c.overdue), 'unfinished past planned/reference finish',
-      c.overdue ? 'warm' : '') +
-    stat('Completed late', int(c.completed_late), 'actual finish after baseline/reference finish',
-      c.completed_late ? 'warm' : '') +
-    stat('Evidence', int(c.evidence), 'field records held') +
+    stat('Currently overdue', overdueEvaluable ? int(c.overdue) : 'N/E',
+      overdueEvaluable ? 'unfinished past planned/reference finish' : 'data/status date unavailable',
+      overdueEvaluable && c.overdue ? 'warm' : '') +
+    stat('Completed after baseline', completedLateEvaluable ? int(c.completed_late) : 'N/A',
+      completedLateEvaluable ? 'actual finish after embedded baseline/reference finish'
+        : 'no completed activities with actual finish available for comparison',
+      completedLateEvaluable && c.completed_late ? 'warm' : '') +
+    stat(ref.reference_record_count !== undefined ? 'Reference records' : 'Evidence', int(refCount),
+      ref.reference_record_count !== undefined ? 'project-control records held separately' : 'field records held') +
     stat('WBS structure', int(c.wbs), 'nodes · not counted as activities') +
     '</div>' +
 
@@ -168,15 +187,21 @@ VIEWS.overview = async (pid) => {
       row('Forecast finish', s.forecast_finish ? day(s.forecast_finish)
         : '<span style="color:var(--ink-3)">N/E — current forecast unavailable</span>') +
       (s.forecast_basis ? row('Forecast basis', E(s.forecast_basis)) : '') +
+      row('Baseline / reference start', s.baseline_start ? day(s.baseline_start)
+        : '<span style="color:var(--ink-3)">none stored</span>') +
       row('Baseline / reference finish', s.baseline_finish ? day(s.baseline_finish)
         : '<span style="color:var(--ink-3)">none stored</span>') +
       (s.baseline_basis ? row('Baseline basis', E(s.baseline_basis)) : '') +
+      (s.baseline_present ? row('Baselined activities', int(s.baseline_coverage_count) + ' / ' + int(s.task_count)) : '') +
       row('Activities', int(s.task_count)) +
       row('WBS nodes', int(s.wbs_count)) +
-      (s.summary_activity_count ? row('WBS Summary activities', int(s.summary_activity_count)) : '') +
+      row('WBS Summary activities', int(s.summary_activity_count || 0)) +
+      row('Milestone activities', int(s.milestone_count || c.milestones || 0)) +
       (s.loe_count ? row('Level of Effort activities', int(s.loe_count)) : '') +
       row('Relationships', int(s.relationship_count)) +
-      row('Resources', int(s.resource_count)) +
+      row('Resource labels', int(s.resource_count)) +
+      row('Resource assignments', int(s.resource_assignment_count !== null && s.resource_assignment_count !== undefined ? s.resource_assignment_count : c.assignments)) +
+      (s.resource_basis ? row('Resource basis', E(s.resource_basis)) : '') +
       '</dl><div style="margin-top:10px">' + prov('MCP_FACT') +
       ' <span style="color:var(--ink-3);font-size:12px">Horizun performs schedule ' +
       'analysis; VEDA source semantics keep WBS, planned, forecast and baseline ' +
@@ -194,10 +219,30 @@ VIEWS.overview = async (pid) => {
         (baselineFallback ? '<br>Source note: P6 is using the current project as ' +
           'the fallback baseline; this is not an independently frozen/assigned baseline.' : '') +
         '</div></div>'
-      : '<div class="body"><div class="note warn">Earned value requires a ' +
-        'usable baseline/reference. If the source cannot establish one, VEDA ' +
-        'leaves the metrics unavailable rather than inventing them.</div></div>') +
-    '</div>';
+      : '<div class="body"><div class="note warn">' +
+        (s.baseline_present
+          ? 'Baseline/reference dates are available, but earned value is N/E because the source does not establish the status/progress/cost inputs required for a current EV calculation.'
+          : 'Earned value requires a usable baseline/reference. If the source cannot establish one, VEDA leaves the metrics unavailable rather than inventing them.') +
+        '</div></div>') +
+    '</div>' +
+    (ref.reference_record_count !== undefined ? panel('Source integrity',
+      '<div class="body"><dl class="kv">' +
+      row('Reference records', int(ref.reference_record_count)) +
+      row('Activity-code rows', int(ref.activity_code_count)) +
+      row('Calendar definitions', int(ref.calendar_definition_count)) +
+      row('Milestone-register rows', int(ref.milestone_register_count)) +
+      row('Resource-master rows', int(ref.resource_master_count)) +
+      row('WBS dictionary rows', int(ref.wbs_dictionary_count)) +
+      row('Schedule resource labels', int(ref.resource_schedule_label_count)) +
+      row('Exact resource-master matches', int(ref.resource_exact_match_count)) +
+      row('Unresolved resource labels', int(ref.resource_unresolved_count)) +
+      row('Unresolved calendar labels', int(ref.calendar_unresolved_count)) +
+      row('Unresolved milestone links', int(ref.milestone_links_unresolved_count)) +
+      '</dl>' +
+      ((ref.warnings || []).length ? '<div class="note warn" style="margin-top:10px">' +
+        (ref.warnings || []).map(w => '<div style="margin-bottom:6px"><b>' + E(w.code || 'SOURCE_WARNING') +
+          '</b><br>' + E(w.summary || '') + '</div>').join('') + '</div>' : '') +
+      '</div>') : '');
 };
 
 const row = (k, v) => '<dt>' + E(k) + '</dt><dd>' + v + '</dd>';
@@ -294,8 +339,8 @@ VIEWS.activities = async (pid, params) => {
     '<td class="r mono">' + (a.risk_count || '') + '</td></tr>',
     { emptyTitle: 'No activities', emptyMsg: 'Analyse a schedule first.' });
 
-  return head('Activities', 'Schedule facts, read from Horizun',
-    prov('MCP_FACT')) +
+  return head('Activities', 'Source schedule activities and governed analysis',
+    (r.activities[0] ? prov(r.activities[0].provenance) : prov('MCP_FACT'))) +
     '<div class="toolbar">' +
     '<input class="inp" id="fq" placeholder="Search name, id or WBS" value="' +
     E(params.q || '') + '">' +
@@ -304,9 +349,11 @@ VIEWS.activities = async (pid, params) => {
       (params.status === s ? 'selected' : '') + '>' + s + '</option>').join('') +
     '</select>' +
     '<button class="btn sm' + (params.critical ? ' primary' : '') +
-    '" id="fc">Critical only</button>' +
+    '" id="fc" ' + (r.criticality_available ? '' : 'disabled title="Criticality unavailable from source"') +
+    '>' + (r.criticality_available ? 'Critical only' : 'Critical N/E') + '</button>' +
     '<button class="btn sm' + (params.late ? ' primary' : '') +
-    '" id="fl">Completed late</button>' +
+    '" id="fl" ' + (r.completed_late_evaluable ? '' : 'disabled title="No completed actual finishes available for baseline comparison"') +
+    '>' + (r.completed_late_evaluable ? 'Completed late' : 'Completed late N/A') + '</button>' +
     '<button class="btn sm' + (params.milestone ? ' primary' : '') +
     '" id="fm">Milestones</button>' +
     (params.wbs ? '<span class="tag blue">WBS ' + E(params.wbs) + '</span>' : '') +
@@ -328,9 +375,9 @@ VIEWS.bind_activities = (pid, params) => {
   const s = document.getElementById('fs');
   if (s) s.onchange = () => set({ status: s.value });
   const c = document.getElementById('fc');
-  if (c) c.onclick = () => set({ critical: params.critical ? '' : '1' });
+  if (c && !c.disabled) c.onclick = () => set({ critical: params.critical ? '' : '1' });
   const l = document.getElementById('fl');
-  if (l) l.onclick = () => set({ late: params.late ? '' : '1' });
+  if (l && !l.disabled) l.onclick = () => set({ late: params.late ? '' : '1' });
   const m = document.getElementById('fm');
   if (m) m.onclick = () => set({ milestone: params.milestone ? '' : '1' });
   const r = document.getElementById('fr');
@@ -350,6 +397,8 @@ VIEWS.bind_activities = (pid, params) => {
 VIEWS.activity = async (pid, params) => {
   const d = await A('/projects/' + pid + '/activities/' + params.id);
   const a = d.activity;
+  const asem = d.schedule_semantics || {};
+  const activityCriticalAvailable = !!asem.criticality_available;
   const relRow = (r, dir) =>
     '<tr class="click" onclick="go(\'activity\',{id:' +
     (dir === 'pred' ? r.pred_uid : r.succ_uid) + '})">' +
@@ -387,7 +436,7 @@ VIEWS.activity = async (pid, params) => {
     '<div class="head"><div><div class="eyebrow">Activity ' + E(a.display_id) +
     ' · uid ' + E(a.uid) + '</div><h1>' + E(a.name) + '</h1>' +
     '<div class="sub">WBS ' + E(a.wbs) + ' · ' + E(a.status) +
-    (a.critical ? ' · on the critical path' : '') + '</div></div>' +
+    (activityCriticalAvailable && a.critical ? ' · on the critical path' : '') + '</div></div>' +
     '<div class="spacer"></div>' + provKey() + '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
@@ -399,16 +448,17 @@ VIEWS.activity = async (pid, params) => {
       d.observed_progress ? E(d.observed_progress.basis || '') +
         ' (' + d.observed_progress.evidence_count + ' records)'
       : 'no field evidence') +
-    stat('Total float', num(a.total_float_days, 1) + 'd',
-      a.critical ? 'critical' : 'has slack',
-      (a.total_float_days || 0) < 0 ? 'hot' : '') +
+    stat('Total float', activityCriticalAvailable && a.total_float_days !== null && a.total_float_days !== undefined
+      ? num(a.total_float_days, 1) + 'd' : 'N/E',
+      activityCriticalAvailable ? (a.critical ? 'critical' : 'source/engine float') : 'float/criticality unavailable from source',
+      activityCriticalAvailable && (a.total_float_days || 0) < 0 ? 'hot' : '') +
     stat('Finish variance', num(a.finish_variance_days, 1) + 'd',
       a.baseline_finish ? 'vs baseline ' + day(a.baseline_finish) : 'no baseline',
       (a.finish_variance_days || 0) > 0 ? 'hot' : 'good') +
     '</div>' +
 
     '<div class="grid g2">' +
-    panel('Schedule facts <small>MCP_FACT</small>',
+    panel('Schedule facts <small>' + E(a.provenance || 'MCP_FACT') + '</small>',
       '<div class="body"><dl class="kv">' +
       row('Start', day(a.start)) + row('Finish', day(a.finish)) +
       row('Actual start', day(a.actual_start)) +
@@ -488,12 +538,13 @@ VIEWS.relationships = async (pid, params) => {
   const r = await A('/projects/' + pid + '/relationships?' +
     new URLSearchParams({ type: params.type || '', driving: params.driving || '',
       q: params.q || '', limit: 500 }));
-  const types = ['FS', 'SS', 'FF', 'SF'];
+  const types = ['FS', 'SS', 'FF', 'SF', 'unspecified'];
   return head('Relationships', 'Dependency network', prov('MCP_FACT')) +
     '<div class="grid g4" style="margin-bottom:14px">' +
     types.map(t => stat(t, int(r.by_type[t] || 0),
       t === 'FS' ? 'finish to start' : t === 'SS' ? 'start to start'
-        : t === 'FF' ? 'finish to finish' : 'start to finish')).join('') +
+        : t === 'FF' ? 'finish to finish' : t === 'SF' ? 'start to finish'
+        : 'type not supplied by source')).join('') +
     '</div>' +
     '<div class="grid g2" style="margin-bottom:14px">' +
     panel('Missing predecessor <small>' + r.missing_predecessor.length + '</small>',
@@ -522,7 +573,7 @@ VIEWS.relationships = async (pid, params) => {
         '<tr><td class="mono link" onclick="go(\'activity\',{id:' + x.pred_uid +
         '})">' + E(x.pred_uid) + '</td><td class="trunc">' + E(x.pred_name) +
         '</td><td><span class="tag blue">' + E(x.type) + '</span></td>' +
-        '<td class="r mono">' + num(x.lag_days, 0) + 'd</td>' +
+        '<td class="r mono">' + (x.lag_days === null || x.lag_days === undefined ? '—' : num(x.lag_days, 0) + 'd') + '</td>' +
         '<td class="mono link" onclick="go(\'activity\',{id:' + x.succ_uid +
         '})">' + E(x.succ_uid) + '</td><td class="trunc">' + E(x.succ_name) +
         '</td><td>' + (x.driving ? '<span class="tag red">driving</span>' : '') +
@@ -544,17 +595,20 @@ VIEWS.bind_relationships = (pid, params) => {
 VIEWS.critical = async (pid) => {
   const r = await A('/projects/' + pid + '/critical-path');
   const fd = r.float_distribution || {};
+  const critAvailable = !!r.criticality_available;
   return head('Critical path', 'Driving work and float distribution',
-    prov('MCP_FACT')) +
-    '<div class="note mcp" style="margin-bottom:14px">' + E(r.basis) +
-    '. VEDA does not run its own CPM engine.</div>' +
+    critAvailable ? prov('MCP_FACT') : prov('DETERMINISTIC_CALCULATION')) +
+    '<div class="note ' + (critAvailable ? 'mcp' : 'warn') + '" style="margin-bottom:14px">' + E(r.basis) +
+    (critAvailable ? '. VEDA does not run its own CPM engine.' : '') + '</div>' +
     '<div class="grid g3" style="margin-bottom:14px">' +
-    stat('Critical activities', int(r.critical.length),
-      E(r.criticality_basis || 'source/engine criticality method') +
+    stat('Critical activities', critAvailable ? int(r.critical.length) : 'N/E',
+      critAvailable ? (E(r.criticality_basis || 'source/engine criticality method') +
       (r.criticality_threshold_days !== null && r.criticality_threshold_days !== undefined
-        ? ' · threshold ' + num(r.criticality_threshold_days, 2) + 'd' : ''), 'warm') +
-    stat('Negative float', int(fd.negative || 0), 'cannot meet constraints',
-      fd.negative ? 'hot' : 'good') +
+        ? ' · threshold ' + num(r.criticality_threshold_days, 2) + 'd' : '')) : 'criticality unavailable from source',
+      critAvailable && r.critical.length ? 'warm' : '') +
+    stat('Negative float', critAvailable ? int(fd.negative || 0) : 'N/E',
+      critAvailable ? 'cannot meet constraints' : 'float unavailable from source',
+      critAvailable && fd.negative ? 'hot' : '') +
     stat('Project finish', r.finish ? day(r.finish) : 'N/E',
       r.finish ? 'current forecast' : 'current forecast unavailable') +
     '</div>' +
@@ -577,7 +631,8 @@ VIEWS.critical = async (pid) => {
         '<td class="r mono ' + ((a.total_float_days || 0) < 0 ? 'sev-critical' : '') +
         '">' + num(a.total_float_days, 1) + '</td>' +
         '<td class="r mono">' + num(a.percent_complete, 0) + '%</td></tr>',
-      { emptyTitle: 'No critical activities', emptyMsg: '' })) +
+      { emptyTitle: critAvailable ? 'No critical activities' : 'Criticality not evaluated',
+        emptyMsg: critAvailable ? '' : 'The selected source does not establish critical/float semantics.' })) +
     (r.driving_links.length ? panel('Driving links <small>' +
       r.driving_links.length + '</small>',
       table([{ t: 'Predecessor' }, { t: 'Type' }, { t: 'Successor' }],
@@ -605,10 +660,14 @@ VIEWS.quality = async (pid) => {
     (g.applied ? '<div class="note" style="margin-bottom:14px">' +
       '<b>Source-semantic guard applied.</b> ' +
       (g.sourceFormat ? E(String(g.sourceFormat).toUpperCase()) + ': ' : '') +
-      (g.forecastValuesAvailable ? 'current forecast dates available' :
-        'current forecast dates unavailable') + ' · ' +
-      (g.baselineAssigned ? 'assigned baseline present' : 'assigned baseline absent') +
-      (g.dataDate ? ' · data date ' + day(g.dataDate) : '') + '</div>' : '') +
+      (g.sourceFormat && String(g.sourceFormat).toLowerCase() !== 'xer'
+        ? ((g.baselineValuesAvailable ? 'embedded baseline/reference values available' : 'baseline/reference values unavailable') +
+          ' · ' + (g.criticalityAvailable ? 'criticality available' : 'criticality unavailable') +
+          ' · ' + (g.relationshipTypesAvailable ? 'relationship types available' : 'relationship types unavailable') +
+          ' · ' + (g.resourceAssignmentsAvailable ? 'resource assignments available' : 'resource assignments unavailable'))
+        : ((g.forecastValuesAvailable ? 'current forecast dates available' : 'current forecast dates unavailable') + ' · ' +
+          (g.baselineAssigned ? 'assigned baseline present' : 'assigned baseline absent'))) +
+      (g.dataDate ? ' · data date ' + day(g.dataDate) : ' · data/status date unavailable') + '</div>' : '') +
     panel('Findings <small>' + r.findings.length + '</small>',
       '<div class="body">' + (r.findings.length ? r.findings.map(f =>
       '<div class="check"><span class="m ' +

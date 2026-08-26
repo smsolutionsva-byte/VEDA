@@ -46,12 +46,14 @@ def analyse(project_id: str) -> AgentResult:
     for f in db.q("SELECT * FROM qa_findings WHERE project_id=? AND status='fail' "
                   "ORDER BY CASE severity WHEN 'error' THEN 0 WHEN 'warning' "
                   "THEN 1 ELSE 2 END", [project_id]):
+        qa_prov = str(f.get("provenance") or "MCP_FACT")
         findings.append(ScheduleFinding(
             title=str(f.get("title") or f.get("code")),
             detail=str(f.get("detail") or ""),
             activity_uids=db.jloads(f.get("task_uids_json"), [])[:40],
-            basis="Horizun schedule_qa, rule " + str(f.get("code")),
-            provenance="MCP_FACT",
+            basis=(("Source-semantic QA guard, rule " if qa_prov != "MCP_FACT" else
+                    "Horizun schedule_qa, rule ") + str(f.get("code"))),
+            provenance=qa_prov,
         ))
 
     ev = db.q1("SELECT * FROM earned_value WHERE project_id=? AND scope='project' "
@@ -160,10 +162,13 @@ def analyse(project_id: str) -> AgentResult:
             break
 
     # ---- risks: only where a rule can name a credible future event ---------
-    late_crit = db.q(
-        "SELECT uid, name, total_float_days, finish FROM activities "
-        "WHERE project_id=? AND is_summary=0 AND critical=1 AND status!='complete' "
-        "ORDER BY total_float_days LIMIT 5", [project_id])
+    criticality_available = bool(snap and int(snap.get("criticality_available") or 0) == 1)
+    late_crit = []
+    if criticality_available:
+        late_crit = db.q(
+            "SELECT uid, name, total_float_days, finish FROM activities "
+            "WHERE project_id=? AND is_summary=0 AND critical=1 AND status!='complete' "
+            "ORDER BY total_float_days LIMIT 5", [project_id])
     if late_crit:
         risks.append(Risk(
             ref="DET-CP",
@@ -227,12 +232,19 @@ def _summary(snap, issues, risks, findings, ev) -> str:
         bits.append("A current forecast finish is not available from the supplied source.")
     if snap.get("must_finish_by"):
         bits.append("The project Must Finish By date is " + str(snap.get("must_finish_by")) + ".")
-    bits.append(str(snap.get("critical_count")) + " activities are marked critical " +
-                "using " + str(snap.get("criticality_basis") or "the source/engine method") + ".")
-    bits.append(str(snap.get("overdue_count") if snap.get("overdue_count") is not None
-                    else snap.get("late_count")) + " unfinished activities are past their " +
-                "planned/reference finish; " + str(snap.get("completed_late_count") or 0) +
-                " completed activities finished after baseline/reference finish.")
+    if int(snap.get("criticality_available") or 0) == 1:
+        bits.append(str(snap.get("critical_count") or 0) + " activities are marked critical " +
+                    "using " + str(snap.get("criticality_basis") or "the source/engine method") + ".")
+    else:
+        bits.append("Criticality is not evaluable from the supplied source; VEDA does not turn a missing critical flag into zero critical activities.")
+    if int(snap.get("overdue_evaluable") or 0) == 1:
+        bits.append(str(snap.get("overdue_count") or 0) + " unfinished activities are past their planned/reference finish.")
+    else:
+        bits.append("Currently-overdue activity count is not evaluated because the source does not establish a data/status date.")
+    if int(snap.get("completed_late_evaluable") or 0) == 1:
+        bits.append(str(snap.get("completed_late_count") or 0) + " completed activities finished after baseline/reference finish.")
+    else:
+        bits.append("Completed-late comparison is not applicable/evaluable because no completed activities with actual finish are available for baseline comparison.")
     if ev and ev.get("spi") is not None:
         bits.append("SPI is " + str(round(float(ev["spi"]), 3)) + ".")
     if snap.get("health_score") is not None:
