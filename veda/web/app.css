@@ -424,3 +424,37 @@ textarea.inp { min-width: 100%; font-family: var(--sans); }
 .pcell .bar { flex: 1; min-width: 40px; }
 .pcell .pct { font-size: 11px; color: var(--ink-2); min-width: 30px;
               text-align: right; }
+
+/* ----------------------------------------------- project delete dialog */
+.delete-project-modal { width: min(640px, 100%); }
+.delete-project-list { display: flex; flex-direction: column; gap: 7px; }
+.delete-project-row {
+  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 11px 12px; background: #0D1117; border: 1px solid var(--line-2);
+  color: var(--ink); cursor: pointer; box-shadow: var(--sink);
+}
+.delete-project-row:hover { border-color: var(--line-3); background: #11161D; }
+.delete-project-row.selected {
+  border-color: #6A2C2A; background: #241416;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 101, .08);
+}
+.delete-radio {
+  width: 18px; height: 18px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--line-3); border-radius: 50%; color: var(--danger);
+  font-size: 12px; line-height: 1;
+}
+.delete-project-row.selected .delete-radio { border-color: var(--danger); }
+.delete-project-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.delete-project-copy b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delete-project-copy small { color: var(--ink-3); font-family: var(--mono); font-size: 10.5px; }
+.delete-warning {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 13px;
+  border-left: 2px solid var(--danger); background: #261415; color: var(--ink-2);
+}
+.delete-warning b { color: #FFD0CE; }
+.delete-confirm-name {
+  margin-top: 12px; padding: 10px 12px; border: 1px solid #6A2C2A;
+  background: #0D1015; font-family: var(--mono); color: #FFD0CE;
+}
+.modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 15px; }
+.btn:disabled { opacity: .42; cursor: not-allowed; }

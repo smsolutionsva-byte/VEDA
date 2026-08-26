@@ -193,24 +193,142 @@ async function newProject() {
   go('files');
 }
 
-async function deleteCurrentProject() {
-  if (!S.project) return toast('No project selected');
-  const p = S.projects.find(x => x.id === S.project);
-  const name = p ? p.name : 'this project';
-  if (!confirm('Delete "' + name + '"?\n\nThis permanently removes its uploaded files, analysis, and history.')) return;
+function closeProjectDeleteDialog() {
+  const old = $('#project-delete-scrim');
+  if (old) old.remove();
+}
 
-  const deleting = S.project;
-  try {
-    await api('/projects/' + deleting, { method: 'DELETE' });
-    if (S.es) { S.es.close(); S.es = null; }
-    S.project = null;
-    S.overview = null;
-    S.counts = {};
-    toast('Project deleted.', 'good');
-    await loadProjects();
-  } catch (e) {
-    toast('Could not delete project: ' + e.message, 'bad');
+function projectDeleteMeta(p) {
+  const bits = [];
+  if (p.client) bits.push(p.client);
+  if (p.location) bits.push(p.location);
+  const c = p.counts || {};
+  const files = Number(c.files || 0);
+  const activities = Number(c.activities || 0);
+  bits.push(files + ' file' + (files === 1 ? '' : 's'));
+  if (activities) bits.push(activities + ' activities');
+  return bits.join(' · ');
+}
+
+function showDeleteConfirmation(project) {
+  const modal = $('#project-delete-modal');
+  if (!modal) return;
+  modal.innerHTML =
+    '<header><div><div class="eyebrow">Delete project</div>' +
+    '<h2>Confirm deletion</h2></div></header>' +
+    '<div class="body">' +
+      '<div class="delete-warning">' +
+        '<b>This permanently deletes “' + esc(project.name) + '”.</b>' +
+        '<span>Uploaded files, analysis, project history, and any running or queued work for this project will be removed.</span>' +
+      '</div>' +
+      '<div class="delete-confirm-name">' + esc(project.name) + '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn" id="delete-back">Back</button>' +
+        '<div class="spacer"></div>' +
+        '<button class="btn" id="delete-cancel">Cancel</button>' +
+        '<button class="btn danger" id="delete-confirm">Delete project</button>' +
+      '</div>' +
+    '</div>';
+
+  $('#delete-back').onclick = () => renderProjectDeletePicker(project.id);
+  $('#delete-cancel').onclick = closeProjectDeleteDialog;
+  $('#delete-confirm').onclick = async () => {
+    const b = $('#delete-confirm');
+    b.disabled = true;
+    b.textContent = 'Deleting…';
+    try {
+      const deletingCurrent = project.id === S.project;
+      const keepProject = deletingCurrent ? null : S.project;
+      await api('/projects/' + encodeURIComponent(project.id), { method: 'DELETE' });
+
+      if (deletingCurrent) {
+        if (S.es) { S.es.close(); S.es = null; }
+        S.project = null;
+        S.overview = null;
+        S.counts = {};
+      }
+
+      closeProjectDeleteDialog();
+      toast('Deleted “' + project.name + '”.', 'good');
+      await loadProjects(keepProject || undefined);
+    } catch (e) {
+      b.disabled = false;
+      b.textContent = 'Delete project';
+      toast('Could not delete project: ' + e.message, 'bad');
+    }
+  };
+}
+
+function renderProjectDeletePicker(selectedId) {
+  const modal = $('#project-delete-modal');
+  if (!modal) return;
+
+  const projects = S.projects || [];
+  if (!projects.length) {
+    modal.innerHTML =
+      '<header><h2>Delete project</h2></header>' +
+      '<div class="body"><div class="empty"><b>No projects to delete</b>' +
+      'Create a project first.</div>' +
+      '<div class="modal-actions"><div class="spacer"></div>' +
+      '<button class="btn" id="delete-close">Close</button></div></div>';
+    $('#delete-close').onclick = closeProjectDeleteDialog;
+    return;
   }
+
+  modal.innerHTML =
+    '<header><div><div class="eyebrow">Project management</div>' +
+    '<h2>Choose a project to delete</h2></div></header>' +
+    '<div class="body">' +
+      '<div class="delete-project-list">' +
+      projects.map(p => {
+        const selected = p.id === selectedId;
+        const current = p.id === S.project;
+        return '<button class="delete-project-row' + (selected ? ' selected' : '') +
+          '" data-delete-project="' + esc(p.id) + '">' +
+          '<span class="delete-radio">' + (selected ? '●' : '') + '</span>' +
+          '<span class="delete-project-copy"><b>' + esc(p.name) + '</b>' +
+          '<small>' + esc(projectDeleteMeta(p)) + '</small></span>' +
+          (current ? '<span class="tag amber">Current</span>' : '') +
+          '</button>';
+      }).join('') +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn" id="delete-picker-cancel">Cancel</button>' +
+        '<div class="spacer"></div>' +
+        '<button class="btn danger" id="delete-picker-next"' +
+          (selectedId ? '' : ' disabled') + '>Continue</button>' +
+      '</div>' +
+    '</div>';
+
+  modal.querySelectorAll('[data-delete-project]').forEach(row => {
+    row.onclick = () => renderProjectDeletePicker(row.dataset.deleteProject);
+  });
+  $('#delete-picker-cancel').onclick = closeProjectDeleteDialog;
+  $('#delete-picker-next').onclick = () => {
+    const project = projects.find(p => p.id === selectedId);
+    if (project) showDeleteConfirmation(project);
+  };
+}
+
+async function openProjectDeleteDialog() {
+  // Re-read the list so the picker cannot show a stale/deleted project.
+  try {
+    const r = await api('/projects');
+    S.projects = r.projects || [];
+  } catch (e) {
+    return toast('Could not load projects: ' + e.message, 'bad');
+  }
+
+  closeProjectDeleteDialog();
+  const scrim = document.createElement('div');
+  scrim.className = 'scrim';
+  scrim.id = 'project-delete-scrim';
+  scrim.innerHTML = '<section class="modal delete-project-modal" id="project-delete-modal"></section>';
+  scrim.onclick = (e) => {
+    if (e.target === scrim) closeProjectDeleteDialog();
+  };
+  document.body.appendChild(scrim);
+  renderProjectDeletePicker(null);
 }
 
 async function activateCurrentProject(pid) {
@@ -296,7 +414,7 @@ async function init() {
     render();
   };
   $('#newproj').onclick = newProject;
-  $('#delproj').onclick = deleteCurrentProject;
+  $('#delproj').onclick = openProjectDeleteDialog;
   $('#analyze').onclick = async () => {
     if (!S.project) return toast('Create a project first');
     await activateCurrentProject(S.project);
@@ -318,6 +436,9 @@ async function init() {
   setInterval(refreshHealth, 30000);
   window.addEventListener('focus', () => {
     if (S.project) { refreshCounts().then(() => render()); }
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeProjectDeleteDialog();
   });
 }
 init();
