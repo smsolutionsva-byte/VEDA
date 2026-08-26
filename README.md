@@ -31,6 +31,31 @@ as a schedule fact.
 
 ---
 
+## v0.1.2 — multi-source incremental intake
+
+The Files page is now a **source inbox**, not a one-file uploader. One ingestion
+batch may contain a revised schedule, DPR spreadsheets, PDFs, scanned/image-only
+PDFs, photos/screenshots, Word/text/JSON files and pasted field text at the same
+time. Repeated Browse selections accumulate, and drag/drop plus clipboard image
+paste are supported.
+
+Pasted text is stored as an immutable source too. Choose whether it is a field
+note, WhatsApp/chat transcript, or an explicit schedule change request. A change
+request can produce `update`, `create`, or `delete` task proposals, but every
+structural change still goes through deterministic validation, Horizun dry-run,
+human approval, revision-copy write, and independent verification. Parent/summary
+task deletion is refused when it would cascade into children.
+
+PDF extraction is adaptive: VEDA first uses embedded text and sends only
+text-poor pages through local OCR. Exact duplicate source bytes are skipped by
+SHA-256. Evidence-only batches reuse the current schedule snapshot; uploading a
+new schedule creates a real revision and records activity-level added/removed/
+updated deltas instead of generating fake revisions for every DPR.
+
+OCR controls: `VEDA_OCR_ENABLED`, `VEDA_OCR_DPI`, `VEDA_OCR_MAX_PAGES`.
+
+---
+
 ## Quick start
 
 ```bat
@@ -65,7 +90,7 @@ a welding register, an NDT/NCR log, material receipts, a weekly site report, a
 site chat export — and one hostile document used to exercise the untrusted-data
 rules.
 
-Then in the website: **New project → Files → Upload** everything in
+Then in the website: **New project → Files → Add project sources** and ingest everything in
 `sample_data\`. The agent wakes on its own.
 
 ---

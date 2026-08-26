@@ -12,7 +12,7 @@ import threading
 import time
 from typing import Any, Callable
 
-from .. import config, db
+from .. import __version__, config, db
 
 
 class McpError(RuntimeError):
@@ -76,7 +76,7 @@ class HorizunClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "veda", "version": "1.0.0"},
+                "clientInfo": {"name": "veda", "version": __version__},
             },
             timeout=60,
         )

@@ -12,6 +12,7 @@ Two rules dominate this module:
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -63,6 +64,16 @@ TASK_QUERY_FIELD = {
     "constraintDate": "constraintDate",
 }
 
+CREATE_TASK_FIELDS = {
+    "name", "duration", "start", "finish", "percentComplete",
+    "actualStart", "actualFinish", "milestone", "active", "notes",
+    "deadline", "constraintType", "constraintDate", "cost", "custom",
+}
+
+
+def _proposal_payload(p: dict) -> dict:
+    return db.jloads(p.get("payload_json"), {}) or {}
+
 
 def current_schedule_path(project_id: str) -> str | None:
     """The newest schedule VEDA holds - the latest revision, else the upload."""
@@ -80,39 +91,70 @@ def current_schedule_path(project_id: str) -> str | None:
     return f["stored_path"] if f and os.path.exists(f["stored_path"]) else None
 
 
-def create(project_id: str, *, target_uid: int | None, field: str,
-           proposed_value: str, reason: str = "", target_type: str = "activity",
+def create(project_id: str, *, target_uid: int | None = None,
+           field: str | None = None, proposed_value: Any = None,
+           reason: str = "", target_type: str = "activity",
            target_name: str | None = None, evidence_ids: list | None = None,
            confidence: float = 0.5, job_id: str | None = None,
-           provenance: str = "AI_INFERENCE") -> str:
+           provenance: str = "AI_INFERENCE", operation: str = "update",
+           parent_uid: int | None = None, after_uid: int | None = None,
+           task_fields: dict | None = None) -> str:
+    operation = str(operation or "update").strip().lower()
+    if operation not in {"update", "create", "delete"}:
+        operation = "update"
+
     act = db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?",
                 [project_id, target_uid]) if target_uid is not None else None
     current = None
-    if act:
-        col = ACTIVITY_FIELD.get(field)
+    if operation == "update" and act:
+        col = ACTIVITY_FIELD.get(str(field))
         if col:
             current = act.get(col)
+    elif operation == "delete" and act:
+        current = act.get("name")
+
+    tf = {k: v for k, v in dict(task_fields or {}).items()
+          if k in CREATE_TASK_FIELDS and v is not None}
+    if operation == "create":
+        if target_name and not tf.get("name"):
+            tf["name"] = target_name
+        elif proposed_value and not tf.get("name"):
+            # Forgiving fallback for an agent that puts the new task name in
+            # proposed_value rather than task_fields.name.
+            tf["name"] = str(proposed_value)
+        target_name = str(tf.get("name") or target_name or "New task")
+
+    payload = {"parent_uid": parent_uid, "after_uid": after_uid,
+               "task_fields": tf}
+    if operation == "update":
+        requested = "" if proposed_value is None else str(proposed_value)
+    elif operation == "delete":
+        requested = "<deleted>"
+        field = field or "task"
+    else:
+        requested = json.dumps(tf, ensure_ascii=False, sort_keys=True)
+        field = field or "task"
 
     pid = db.insert("proposals", {
         "project_id": project_id, "job_id": job_id,
-        "target_type": target_type, "target_uid": target_uid,
+        "target_type": target_type, "operation": operation,
+        "target_uid": target_uid,
         "target_name": target_name or (act or {}).get("name"),
-        "field": field,
+        "field": field, "payload_json": db.jdumps(payload),
         "current_value": None if current is None else str(current),
-        "proposed_value": str(proposed_value),
-        "requested_value": str(proposed_value),
+        "proposed_value": requested, "requested_value": requested,
         "reason": reason,
         "evidence_ids_json": db.jdumps(evidence_ids or []),
-        "confidence": confidence,
-        "provenance": provenance,
+        "confidence": confidence, "provenance": provenance,
         "updated_at": db.now(),
     })
     audit.record(project_id, actor="agent", actor_type="agent",
                  action="proposal_created", job_id=job_id,
                  entity_type="proposal", entity_id=pid,
-                 previous_value=current, new_value=proposed_value,
+                 previous_value=current, new_value=requested,
                  result=reason[:200] if reason else None,
-                 detail={"field": field, "target_uid": target_uid})
+                 detail={"operation": operation, "field": field,
+                         "target_uid": target_uid, "payload": payload})
     validate(pid)
     return pid
 
@@ -136,14 +178,30 @@ def validate(proposal_id: str) -> dict:
 
 
 def _op_for(p: dict) -> dict:
-    field = p["field"]
-    val: Any = p["proposed_value"]
+    operation = str(p.get("operation") or "update").lower()
+    if operation == "delete":
+        return {"op": "delete", "uid": p.get("target_uid")}
+    if operation == "create":
+        payload = _proposal_payload(p)
+        op: dict[str, Any] = {"op": "create"}
+        if payload.get("parent_uid") is not None:
+            op["parentUid"] = payload["parent_uid"]
+        if payload.get("after_uid") is not None:
+            op["afterUid"] = payload["after_uid"]
+        for key, value in (payload.get("task_fields") or {}).items():
+            if key in CREATE_TASK_FIELDS and value is not None:
+                op[key] = value
+        return op
+
+    field = p.get("field")
+    val: Any = p.get("proposed_value")
     if field == "percentComplete":
         try:
             val = float(str(val).replace("%", "").strip())
         except ValueError:
             pass
-    return {"op": "update", "uid": p["target_uid"], FIELD_TO_OP[field]: val}
+    return {"op": "update", "uid": p.get("target_uid"),
+            FIELD_TO_OP[str(field)]: val}
 
 
 def dry_run(proposal_id: str, job_id: str | None = None) -> dict:
@@ -167,8 +225,9 @@ def dry_run(proposal_id: str, job_id: str | None = None) -> dict:
                 "updated_at": db.now()})
             return {"ok": False, "error": "validation failed", "validation": res}
 
-    if p["field"] not in FIELD_TO_OP:
-        return {"ok": False, "error": "field is not writable: " + str(p["field"])}
+    operation = str(p.get("operation") or "update").lower()
+    if operation == "update" and p.get("field") not in FIELD_TO_OP:
+        return {"ok": False, "error": "field is not writable: " + str(p.get("field"))}
 
     if not horizun.capabilities().get("dry_run_simulation", True):
         db.update("proposals", proposal_id, {"dryrun_state": "failed",
@@ -189,7 +248,8 @@ def dry_run(proposal_id: str, job_id: str | None = None) -> dict:
         handle = horizun.call("project_open",
                               {"path": str(tmp), "mode": "readwrite"},
                               project_id=project_id, job_id=job_id, timeout=300)["handle"]
-        before = _read_field(handle, p["target_uid"], p["field"], project_id, job_id)
+        before = (_read_field(handle, p["target_uid"], p["field"], project_id, job_id)
+                  if operation == "update" else p.get("current_value"))
         info_before = horizun.call("project_info", {"handle": handle},
                                    project_id=project_id, job_id=job_id, log=False)
         res = horizun.call("tasks_write",
@@ -218,6 +278,7 @@ def dry_run(proposal_id: str, job_id: str | None = None) -> dict:
     rejected = (res or {}).get("rejected") or []
     finish_before = (info_before or {}).get("finishDate")
     payload = {
+        "operation": operation,
         "applied": (res or {}).get("applied"),
         "rejected": rejected,
         "impact": impact,
@@ -286,6 +347,22 @@ def approve(proposal_id: str, approved_by: str = "human",
     return db.q1("SELECT * FROM proposals WHERE id=?", [proposal_id]) or {}
 
 
+def _task_rows(handle: str, project_id: str, job_id: str | None) -> list[dict]:
+    # Use the same cursor walker as schedule harvesting. A large project can
+    # exceed a single tasks_query page, and create verification must not miss a
+    # newly inserted task just because it landed beyond page one.
+    return schedule_ops.page_all("tasks_query", {"handle": handle, "shape": "flat"},
+                                 project_id=project_id, job_id=job_id,
+                                 limit=500, cap=50000)
+
+
+def _task_exists(handle: str, uid: int, project_id: str,
+                 job_id: str | None) -> bool:
+    res = horizun.call("tasks_query", {"handle": handle, "uids": [uid], "limit": 1},
+                       project_id=project_id, job_id=job_id, log=False, timeout=120)
+    return bool(schedule_ops._rows(res))
+
+
 def execute(proposal_id: str, job_id: str | None = None,
             actor: str = "human") -> dict:
     """Apply an approved proposal to a revision copy, then verify it (spec 48)."""
@@ -310,17 +387,51 @@ def execute(proposal_id: str, job_id: str | None = None,
     from . import ingest
     dest = ingest.copy_for_edit(project_id, src, suffix="rev")
 
-    requested = p["proposed_value"]
+    operation = str(p.get("operation") or "update").lower()
+    requested = p.get("proposed_value")
+    created_uid: int | None = None
     try:
         handle = horizun.call("project_open", {"path": dest, "mode": "readwrite"},
                               project_id=project_id, job_id=job_id,
                               timeout=300)["handle"]
-        before = _read_field(handle, p["target_uid"], p["field"], project_id, job_id)
+        before_rows = _task_rows(handle, project_id, job_id) if operation == "create" else []
+        if operation == "update":
+            before = _read_field(handle, p["target_uid"], p["field"],
+                                 project_id, job_id)
+        elif operation == "delete":
+            before = p.get("current_value") or p.get("target_name")
+        else:
+            before = None
+
         res = horizun.call("tasks_write",
                            {"handle": handle, "ops": [_op_for(p)], "dryRun": False},
                            project_id=project_id, job_id=job_id, timeout=300)
+
         # Independent re-read. Horizun verifies too; VEDA does not take its word.
-        after = _read_field(handle, p["target_uid"], p["field"], project_id, job_id)
+        if operation == "update":
+            after = _read_field(handle, p["target_uid"], p["field"],
+                                project_id, job_id)
+            verified = _matches(requested, after, p["field"])
+            verified_fields = [p["field"]] if verified else []
+        elif operation == "delete":
+            exists = _task_exists(handle, int(p["target_uid"]), project_id, job_id)
+            after = "<still present>" if exists else "<deleted>"
+            verified = not exists
+            verified_fields = ["delete"] if verified else []
+        else:
+            before_uids = {int(r["uid"]) for r in before_rows if r.get("uid") is not None}
+            after_rows = _task_rows(handle, project_id, job_id)
+            fresh = [r for r in after_rows if r.get("uid") is not None and
+                     int(r["uid"]) not in before_uids]
+            wanted_name = str((_proposal_payload(p).get("task_fields") or {}).get(
+                "name") or p.get("target_name") or "New task")
+            named = [r for r in fresh if str(r.get("name") or "").strip() == wanted_name.strip()]
+            made = named[0] if len(named) == 1 else (fresh[0] if len(fresh) == 1 else None)
+            created_uid = int(made["uid"]) if made and made.get("uid") is not None else None
+            after = ("uid " + str(created_uid) + ": " + str(made.get("name"))) if made else None
+            verified = bool(made and str(made.get("name") or "").strip() == wanted_name.strip())
+            verified_fields = ["create"] if verified else []
+
         save = horizun.call("project_save",
                             {"handle": handle, "op": "save_as", "path": dest,
                              "format": "mspdi", "keepOpen": False},
@@ -329,7 +440,7 @@ def execute(proposal_id: str, job_id: str | None = None,
         db.update("proposals", proposal_id, {
             "execution_state": "failed", "verification_state": "failed",
             "resulting_value": None, "updated_at": db.now(),
-            "rejected_fields_json": db.jdumps([{"field": p["field"],
+            "rejected_fields_json": db.jdumps([{"field": p.get("field") or operation,
                                                 "reason": str(exc)}])})
         audit.record(project_id, actor=actor, actor_type="agent",
                      action="proposal_execute", tool="Horizun/tasks_write",
@@ -341,7 +452,6 @@ def execute(proposal_id: str, job_id: str | None = None,
 
     schedule_ops.forget_handles()
     rejected = (res or {}).get("rejected") or []
-    verified = _matches(requested, after, p["field"])
     if rejected:
         verification = "failed"
     elif verified:
@@ -355,7 +465,7 @@ def execute(proposal_id: str, job_id: str | None = None,
         "verification_state": verification,
         "requested_value": str(requested),
         "resulting_value": None if after is None else str(after),
-        "verified_fields_json": db.jdumps([p["field"]] if verified else []),
+        "verified_fields_json": db.jdumps(verified_fields),
         "rejected_fields_json": db.jdumps(rejected),
         "output_path": dest,
         "updated_at": db.now(),
@@ -366,8 +476,8 @@ def execute(proposal_id: str, job_id: str | None = None,
         "title": Path(dest).name, "path": dest, "format": "mspdi",
         "size_bytes": os.path.getsize(dest) if os.path.exists(dest) else None,
         "description": ("Revision produced by applying proposal " + proposal_id +
-                        " (" + str(p["field"]) + " on uid " +
-                        str(p["target_uid"]) + "). The original upload is "
+                        " (" + operation + ": " + str(p.get("field") or "task") +
+                        " on uid " + str(p.get("target_uid")) + "). The original upload is "
                         "unchanged."),
         "provenance": "DERIVED",
     })
@@ -379,14 +489,16 @@ def execute(proposal_id: str, job_id: str | None = None,
                  new_value=requested, approval=p.get("approved_by"),
                  verification=verification,
                  result=("written to " + Path(dest).name),
-                 detail={"requested": requested, "resulting": after,
+                 detail={"operation": operation, "requested": requested,
+                         "resulting": after, "created_uid": created_uid,
                          "rejected": rejected, "save": save,
                          "output_path": dest})
 
     events.emit(events.SCHEDULE_CHANGED, project_id, {
         "proposal_id": proposal_id, "path": dest,
-        "verification": verification, "field": p["field"],
-        "target_uid": p["target_uid"],
+        "verification": verification, "operation": operation,
+        "field": p.get("field"), "target_uid": p.get("target_uid"),
+        "created_uid": created_uid,
     }, source="proposal")
 
     return {"ok": not rejected, "verification": verification,
@@ -419,6 +531,8 @@ def _matches(requested: Any, actual: Any, field: str) -> bool:
 def shape(p: dict) -> dict:
     p = dict(p)
     p["evidence_ids"] = db.jloads(p.pop("evidence_ids_json", None), []) or []
+    p["payload"] = db.jloads(p.pop("payload_json", None), {}) or {}
+    p["operation"] = p.get("operation") or "update"
     p["validation"] = db.jloads(p.pop("validation_json", None), {}) or {}
     p["dryrun"] = db.jloads(p.pop("dryrun_json", None), {}) or {}
     p["verified_fields"] = db.jloads(p.pop("verified_fields_json", None), []) or []

@@ -14,11 +14,13 @@ import re
 from datetime import datetime
 from typing import Any
 
-from .. import db
+from .. import config, db
 
 TABULAR = {".csv", ".tsv"}
 EXCEL = {".xlsx", ".xlsm", ".xls"}
 TEXTY = {".txt", ".md", ".log", ".json"}
+IMAGE = set(config.IMAGE_EXTS)
+_OCR_ENGINE = None
 
 
 # ------------------------------------------------------------------ reading
@@ -73,27 +75,143 @@ def _sniff(sample: str) -> str:
         return ","
 
 
+def _cache_path(path: str) -> str:
+    return path + ".veda-extracted.txt"
+
+
+def _read_cache(path: str, limit: int) -> str | None:
+    cp = _cache_path(path)
+    try:
+        if os.path.exists(cp) and os.path.getmtime(cp) >= os.path.getmtime(path):
+            with open(cp, "r", encoding="utf-8", errors="replace") as f:
+                return f.read(limit)
+    except Exception:
+        pass
+    return None
+
+
+def _write_cache(path: str, text: str) -> None:
+    try:
+        with open(_cache_path(path), "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        pass
+
+
+def _ocr_engine():
+    """Lazy local OCR engine. RapidOCR ships its recognition models and uses
+    ONNX Runtime, so VEDA does not need a separate Tesseract installation."""
+    global _OCR_ENGINE
+    if _OCR_ENGINE is None:
+        from rapidocr import RapidOCR
+        _OCR_ENGINE = RapidOCR()
+    return _OCR_ENGINE
+
+
+def _ocr_image(path: str) -> str:
+    if not config.OCR_ENABLED:
+        return ""
+    try:
+        result = _ocr_engine()(path)
+        txts = getattr(result, "txts", None) or ()
+        return "\n".join(str(x).strip() for x in txts if str(x).strip())
+    except Exception:
+        return ""
+
+
+def _ocr_pdf_page(page, page_no: int) -> str:
+    """Render one text-poor PDF page and OCR only that page."""
+    if not config.OCR_ENABLED:
+        return ""
+    import tempfile
+    tmp = None
+    try:
+        pix = page.get_pixmap(dpi=config.OCR_DPI, alpha=False)
+        fd, tmp = tempfile.mkstemp(prefix="veda_ocr_", suffix=".png")
+        os.close(fd)
+        pix.save(tmp)
+        return _ocr_image(tmp)
+    except Exception:
+        return ""
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except Exception:
+                pass
+
+
+def _read_pdf(path: str, limit: int) -> str:
+    cached = _read_cache(path, limit)
+    if cached is not None:
+        return cached
+
+    pages: list[str] = []
+    sparse: list[int] = []
+    try:
+        from pypdf import PdfReader
+        rd = PdfReader(path)
+        for i, pg in enumerate(rd.pages):
+            if i >= config.OCR_MAX_PAGES:
+                break
+            try:
+                text = pg.extract_text() or ""
+            except Exception:
+                text = ""
+            # A page with only a few glyphs is usually a scanned page carrying
+            # headers/page numbers but no useful embedded text.
+            if len(re.sub(r"\s+", "", text)) < 24:
+                sparse.append(i)
+            pages.append(text)
+            if sum(len(x) for x in pages) > limit:
+                break
+    except Exception:
+        pages = []
+        sparse = []
+
+    # Adaptive OCR fallback. This follows the common fast-first pattern: do not
+    # OCR pages whose embedded text is already usable.
+    if config.OCR_ENABLED and (not pages or sparse):
+        try:
+            import pymupdf
+            doc = pymupdf.open(path)
+            if not pages:
+                pages = [""] * min(len(doc), config.OCR_MAX_PAGES)
+                sparse = list(range(len(pages)))
+            for i in sparse:
+                if i >= len(doc) or i >= len(pages):
+                    continue
+                ocr = _ocr_pdf_page(doc[i], i + 1)
+                if ocr.strip():
+                    pages[i] = ocr
+            doc.close()
+        except Exception:
+            pass
+
+    out = []
+    total = 0
+    for i, text in enumerate(pages):
+        block = "[page " + str(i + 1) + "]\n" + (text or "")
+        out.append(block)
+        total += len(block)
+        if total > limit:
+            break
+    text = "\n\n".join(out)[:limit]
+    _write_cache(path, text)
+    return text
+
+
 def read_text(path: str, ext: str, limit: int = 2_000_000) -> str:
     ext = ext.lower()
     if ext == ".pdf":
-        try:
-            from pypdf import PdfReader
-        except ImportError:
-            return ""
-        try:
-            rd = PdfReader(path)
-            out = []
-            for i, pg in enumerate(rd.pages):
-                try:
-                    t = pg.extract_text() or ""
-                except Exception:
-                    t = ""
-                out.append("[page " + str(i + 1) + "]\n" + t)
-                if sum(len(x) for x in out) > limit:
-                    break
-            return "\n\n".join(out)
-        except Exception:
-            return ""
+        return _read_pdf(path, limit)
+    if ext in IMAGE:
+        cached = _read_cache(path, limit)
+        if cached is not None:
+            return cached
+        text = _ocr_image(path)[:limit]
+        _write_cache(path, text)
+        return text
     if ext == ".docx":
         try:
             import docx
@@ -265,6 +383,8 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
     ext = (f.get("ext") or "").lower()
     path = f["stored_path"]
     out: list = []
+    source_provenance = "HUMAN_INPUT" if f.get("source_mode") in (
+        "field_note", "whatsapp", "change_request") else "SOURCE_FILE"
 
     if ext in TABULAR or ext in EXCEL:
         headers, rows, _ = read_rows(path, ext)
@@ -313,7 +433,7 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
                 "state": "new",
                 "security_state": f.get("security_state", "clean"),
                 "raw_json": db.jdumps(dict(zip(headers, row))),
-                "provenance": "SOURCE_FILE",
+                "provenance": source_provenance,
             }
             if status:
                 item["raw_json"] = db.jdumps({**db.jloads(item["raw_json"], {}),
@@ -326,26 +446,28 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
     if not text.strip():
         return out
     if ext == ".json":
-        return _extract_json(project_id, f, job_id, text)
+        return _extract_json(project_id, f, job_id, text, source_provenance)
 
-    chat = re.findall(r"^\[([^\]]+)\]\s*([^:]{1,60}):\s*(.+)$", text, re.M)
-    if len(chat) >= 3:
+    chat = _parse_chat_messages(text)
+    if chat:
         for i, (stamp, who, msg) in enumerate(chat, start=1):
             out.append({
                 "project_id": project_id, "file_id": f["id"], "job_id": job_id,
                 "source_file": f.get("filename"), "locator": "message " + str(i),
-                "date": norm_date(stamp.split(",")[0]),
+                "date": norm_date((stamp or "").split(",")[0]),
                 "author": who.strip() or None,
                 "discipline": guess_discipline(msg),
                 "description": msg.strip()[:900],
                 "confidence": 0.45, "state": "new",
                 "security_state": f.get("security_state", "clean"),
                 "raw_json": db.jdumps({"timestamp": stamp, "from": who, "text": msg}),
-                "provenance": "SOURCE_FILE",
+                "provenance": source_provenance,
             })
         return out
 
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if len(b.strip()) > 60]
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if len(b.strip()) > 20]
+    if not blocks and text.strip():
+        blocks = [text.strip()]
     for i, b in enumerate(blocks, start=1):
         head = b.split("\n", 1)[0][:120]
         out.append({
@@ -358,10 +480,42 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
             "confidence": 0.4, "state": "new",
             "security_state": f.get("security_state", "clean"),
             "raw_json": db.jdumps({"heading": head}),
-            "provenance": "SOURCE_FILE",
+            "provenance": source_provenance,
         })
     return out
 
+
+
+def _parse_chat_messages(text: str) -> list[tuple[str, str, str]]:
+    """Parse common WhatsApp/export transcript shapes, including continuations.
+
+    Android exports commonly use ``date, time - Name: message`` while iOS and
+    copied chat views often use ``[date, time] Name: message``. We keep this
+    deliberately conservative: a line must look like a timestamped sender.
+    """
+    patterns = (
+        re.compile(r"^\[([^\]]+)\]\s*([^:]{1,80}):\s*(.*)$"),
+        re.compile(r"^(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4},?\s+"
+                   r"\d{1,2}:\d{2}(?:\s*[APap][Mm])?)\s+-\s+"
+                   r"([^:]{1,80}):\s*(.*)$"),
+    )
+    parsed: list[list[str]] = []
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        hit = None
+        for pat in patterns:
+            m = pat.match(line)
+            if m:
+                hit = m.groups()
+                break
+        if hit:
+            parsed.append([hit[0].strip(), hit[1].strip(), hit[2].strip()])
+        elif parsed and line.strip():
+            # WhatsApp multiline messages continue on the following line.
+            parsed[-1][2] = (parsed[-1][2] + "\n" + line.strip()).strip()
+    # A single timestamped message is still useful evidence. Avoid the old
+    # three-message threshold that dropped short supervisor updates.
+    return [(a, b, c) for a, b, c in parsed if c]
 
 def _locator_for(block: str, i: int) -> str:
     m = re.search(r"\[page (\d+)\]", block)
@@ -376,7 +530,7 @@ def _first_date(text: str) -> str | None:
     return m.group(0) if m else None
 
 
-def _extract_json(project_id: str, f: dict, job_id, text: str) -> list:
+def _extract_json(project_id: str, f: dict, job_id, text: str, provenance: str = "SOURCE_FILE") -> list:
     try:
         data = json.loads(text)
     except Exception:
@@ -409,6 +563,6 @@ def _extract_json(project_id: str, f: dict, job_id, text: str) -> list:
             "observed_progress": _num(pick("progress")),
             "confidence": 0.5, "state": "new",
             "security_state": f.get("security_state", "clean"),
-            "raw_json": db.jdumps(r), "provenance": "SOURCE_FILE",
+            "raw_json": db.jdumps(r), "provenance": provenance,
         })
     return out

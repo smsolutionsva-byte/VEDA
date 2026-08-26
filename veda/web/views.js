@@ -1174,14 +1174,26 @@ function proposalCard(p) {
   const im = dr.impact || {};
   const st = (label, value, cls) => '<div class="s ' + cls + '"><div class="k">' +
     label + '</div><div class="v">' + value + '</div></div>';
+  const op = p.operation || 'update';
+  const tf = (p.payload && p.payload.task_fields) || {};
+  const title = op === 'create' ? 'Create · ' + (tf.name || p.target_name || 'new task')
+    : op === 'delete' ? 'Delete · ' + (p.target_name || ('uid ' + p.target_uid))
+    : (p.target_name || ('uid ' + p.target_uid)) + ' · ' + (p.field || 'update');
+  const change = op === 'create'
+    ? '<b style="color:var(--human)">new task</b> · <span class="mono">' +
+      E(JSON.stringify(tf)) + '</span>'
+    : op === 'delete'
+      ? '<span class="mono">' + E(p.current_value || p.target_name || 'task') +
+        ' <span style="color:var(--ink-4)">→</span> ' +
+        '<b class="sev-critical">DELETE</b></span>'
+      : '<span class="mono">' + E(p.current_value === null ||
+        p.current_value === undefined ? '—' : p.current_value) +
+        ' <span style="color:var(--ink-4)">→</span> <b style="color:var(--human)">' +
+        E(p.proposed_value) + '</b></span>';
   return '<div class="review"><div class="h">' +
-    '<h3>' + E(p.target_name || ('uid ' + p.target_uid)) + ' · ' + E(p.field) +
-    '</h3>' +
+    '<h3>' + E(title) + '</h3>' +
     '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">' +
-    '<span class="mono">' + E(p.current_value === null ||
-      p.current_value === undefined ? '—' : p.current_value) +
-    ' <span style="color:var(--ink-4)">→</span> <b style="color:var(--human)">' +
-    E(p.proposed_value) + '</b></span>' +
+    change + '<span class="tag grey">' + E(op) + '</span>' +
     prov(p.provenance) +
     '<span class="tag grey">confidence ' + num(p.confidence, 2) + '</span>' +
     '<div style="flex:1"></div>' +
@@ -1390,23 +1402,91 @@ VIEWS.bind_jobs = (pid) => {
 /* ==================================================== 23. Files */
 VIEWS.files = async (pid) => {
   const r = await A('/projects/' + pid + '/files');
-  return head('Files', 'Source documents — never modified in place') +
-    panel('Upload', '<div class="body">' +
-      '<input type="file" id="fileinput" multiple class="inp" ' +
-      'style="min-width:340px">' +
-      '<button class="btn primary" id="up" style="margin-left:8px">Upload</button>' +
-      '<div class="note" style="margin-top:11px">Upload a schedule (XER, MPP, ' +
-      'MSPDI XML, PMXML, Asta PP) together with DPRs, registers, reports and ' +
-      'trackers. Uploading raises <span class="mono">dataset_uploaded</span> ' +
-      'and the agent wakes on its own — you never open Claude Code or ' +
-      'Antigravity yourself.</div></div>') +
-    panel('Files <small>' + r.files.length + '</small>',
-      table([{ t: 'Name' }, { t: 'Kind' }, { t: 'Size', r: true },
-        { t: 'SHA-256' }, { t: 'Extraction' }, { t: 'Security' },
-        { t: 'Uploaded' }], r.files, f =>
+  VIEWS._ingestState = VIEWS._ingestState || {};
+  const st = VIEWS._ingestState[pid] ||
+    (VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' });
+  const revs = r.schedule_revisions || [];
+  const staged = st.files || [];
+  const stagedHtml = staged.length ? staged.map((f, i) =>
+    '<div style="display:flex;gap:9px;align-items:center;padding:7px 0;' +
+    'border-bottom:1px solid var(--line)"><span style="flex:1">' +
+    E(f.name) + ' <span class="mono" style="color:var(--ink-3)">' +
+    int(f.size) + ' B</span></span><button class="btn sm" data-rmfile="' + i +
+    '">remove</button></div>').join('')
+    : '<div class="note">No files staged yet. You can browse repeatedly; ' +
+      'each selection is added to this batch.</div>';
+
+  const accept = '.mpp,.mpt,.mpx,.xml,.xer,.pmxml,.pp,.planner,.sdef,' +
+    '.csv,.tsv,.xlsx,.xlsm,.xls,.pdf,.docx,.txt,.json,.md,.log,' +
+    '.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp';
+
+  return head('Files', 'v0.1.2 multi-source inbox — immutable, incremental, auditable') +
+    panel('Add project sources', '<div class="body">' +
+      '<div id="ingestdrop" tabindex="0" style="border:1px dashed var(--ink-3);' +
+      'border-radius:9px;padding:18px;text-align:center;cursor:pointer;' +
+      'background:var(--paper-2)">' +
+      '<div style="font-weight:650;margin-bottom:5px">Drop many files here</div>' +
+      '<div style="color:var(--ink-3);font-size:12px;margin-bottom:11px">' +
+      'Schedules + DPRs + spreadsheets + scanned PDFs/photos can arrive together. ' +
+      'Focus this box and paste a screenshot too.</div>' +
+      '<button class="btn" id="pickfiles" type="button">Browse files</button>' +
+      '<input type="file" id="fileinput" multiple accept="' + accept + '" hidden>' +
+      '</div>' +
+      '<div id="stagedfiles" style="margin-top:10px">' + stagedHtml + '</div>' +
+      '<div style="margin:18px 0 8px;border-top:1px solid var(--line)"></div>' +
+      '<div class="grid g2">' +
+        '<div><label class="lab">Pasted text type</label>' +
+        '<select id="textmode" class="inp" style="width:100%">' +
+          '<option value="field_note"' + (st.mode === 'field_note' ? ' selected' : '') +
+          '>Field / supervisor note</option>' +
+          '<option value="whatsapp"' + (st.mode === 'whatsapp' ? ' selected' : '') +
+          '>WhatsApp / chat transcript</option>' +
+          '<option value="change_request"' + (st.mode === 'change_request' ? ' selected' : '') +
+          '>Schedule change request</option>' +
+        '</select></div>' +
+        '<div><label class="lab">Optional label</label>' +
+        '<input id="texttitle" class="inp" style="width:100%" value="' +
+        E(st.title || '') + '" placeholder="e.g. Piping supervisor update"></div>' +
+      '</div>' +
+      '<label class="lab" style="margin-top:10px">Paste text / notes</label>' +
+      '<textarea id="pastetext" class="inp" style="width:100%;min-height:125px;' +
+      'resize:vertical" placeholder="Paste WhatsApp messages, Notepad notes, ' +
+      'field updates, or a deliberate change request here…">' + E(st.text || '') +
+      '</textarea>' +
+      '<div class="note" style="margin-top:9px">Image-only PDFs and photos use ' +
+      'adaptive local OCR. Normal PDFs use embedded text first and OCR only on ' +
+      'text-poor pages. Exact duplicate sources are skipped by SHA-256.</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:13px">' +
+      '<button class="btn primary" id="up">Ingest batch & analyse</button>' +
+      '<span id="ingestsummary" style="color:var(--ink-3);font-size:12px">' +
+      staged.length + ' file(s) staged' + (st.text ? ' + pasted text' : '') +
+      '</span></div></div>') +
+    (revs.length ? panel('Schedule revisions <small>' + revs.length + '</small>',
+      '<div class="note" style="margin:0 12px 10px">A new schedule is a new ' +
+      'revision. VEDA compares activities by Horizun stable UID and keeps the ' +
+      'source file immutable.</div>' +
+      table([{ t: 'Rev' }, { t: 'Source' }, { t: 'Activities', r: true },
+        { t: 'Added', r: true }, { t: 'Removed', r: true },
+        { t: 'Updated', r: true }, { t: 'Current' }], revs, x =>
+        '<tr><td class="mono">r' + int(x.revision) + '</td>' +
+        '<td class="trunc mono" style="max-width:260px">' +
+        E((x.source_path || '').split(/[\\/]/).pop() || '—') + '</td>' +
+        '<td class="r mono">' + int(x.task_count) + '</td>' +
+        '<td class="r mono sev-low">+' + int(x.added_count || 0) + '</td>' +
+        '<td class="r mono ' + ((x.removed_count || 0) ? 'sev-critical' : '') +
+        '">−' + int(x.removed_count || 0) + '</td>' +
+        '<td class="r mono">' + int(x.updated_count || 0) + '</td>' +
+        '<td>' + (x.is_current ? '<span class="tag green">current</span>' : '') +
+        '</td></tr>')) : '') +
+    panel('Source library <small>' + r.files.length + '</small>',
+      table([{ t: 'Name' }, { t: 'Kind' }, { t: 'Source mode' },
+        { t: 'Size', r: true }, { t: 'SHA-256' }, { t: 'Extraction' },
+        { t: 'Security' }, { t: 'Uploaded' }], r.files, f =>
         '<tr><td>' + E(f.filename) + '</td>' +
         '<td>' + tagFor(f.kind, { schedule: 'blue', evidence: 'grey',
           unknown: 'amber' }) + '</td>' +
+        '<td>' + tagFor(f.source_mode || 'file', { file: 'grey', field_note: 'green',
+          whatsapp: 'blue', change_request: 'amber' }) + '</td>' +
         '<td class="r mono">' + int(f.size_bytes) + '</td>' +
         '<td class="mono" style="font-size:10.5px;color:var(--ink-3)">' +
         E(String(f.sha256 || '').slice(0, 16)) + '…</td>' +
@@ -1417,7 +1497,7 @@ VIEWS.files = async (pid) => {
           : '<span class="tag red">' + E(f.security_state) + '</span>') +
         '</td><td class="mono">' +
         new Date(f.created_at * 1000).toLocaleDateString() + '</td></tr>',
-      { emptyTitle: 'No files yet', emptyMsg: 'Upload a schedule to begin.' })) +
+      { emptyTitle: 'No sources yet', emptyMsg: 'Drop a schedule and field evidence to begin.' })) +
     (r.files.some(f => f.security_state !== 'clean')
       ? panel('Quarantined content',
         '<div class="body">' + r.files.filter(f => f.security_state !== 'clean')
@@ -1428,25 +1508,90 @@ VIEWS.files = async (pid) => {
         '</div>') : '');
 };
 VIEWS.bind_files = (pid) => {
+  VIEWS._ingestState = VIEWS._ingestState || {};
+  const st = VIEWS._ingestState[pid] ||
+    (VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' });
+  const inp = document.getElementById('fileinput');
+  const dz = document.getElementById('ingestdrop');
+  const pick = document.getElementById('pickfiles');
+  const list = document.getElementById('stagedfiles');
+  const text = document.getElementById('pastetext');
+  const mode = document.getElementById('textmode');
+  const title = document.getElementById('texttitle');
   const b = document.getElementById('up');
-  if (!b) return;
+  if (!b || !inp) return;
+
+  const draw = () => {
+    if (list) list.innerHTML = st.files.length ? st.files.map((f, i) =>
+      '<div style="display:flex;gap:9px;align-items:center;padding:7px 0;' +
+      'border-bottom:1px solid var(--line)"><span style="flex:1">' + E(f.name) +
+      ' <span class="mono" style="color:var(--ink-3)">' + int(f.size) +
+      ' B</span></span><button class="btn sm" data-rmfile="' + i +
+      '">remove</button></div>').join('') :
+      '<div class="note">No files staged yet. Browse or drop as many as you need.</div>';
+    const sum = document.getElementById('ingestsummary');
+    if (sum) sum.textContent = st.files.length + ' file(s) staged' +
+      ((text && text.value.trim()) ? ' + pasted text' : '');
+    if (list) list.querySelectorAll('[data-rmfile]').forEach(x => x.onclick = () => {
+      st.files.splice(Number(x.dataset.rmfile), 1); draw();
+    });
+  };
+  const addFiles = (fs) => {
+    for (const f of Array.from(fs || [])) {
+      const key = [f.name, f.size, f.lastModified].join('|');
+      if (!st.files.some(x => [x.name, x.size, x.lastModified].join('|') === key))
+        st.files.push(f);
+    }
+    draw();
+  };
+
+  if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
+  inp.onchange = () => { addFiles(inp.files); inp.value = ''; };
+  if (dz) {
+    dz.onclick = (e) => { if (!e.target.closest('button')) inp.click(); };
+    dz.ondragover = (e) => { e.preventDefault(); dz.style.opacity = '.72'; };
+    dz.ondragleave = () => { dz.style.opacity = '1'; };
+    dz.ondrop = (e) => {
+      e.preventDefault(); dz.style.opacity = '1'; addFiles(e.dataTransfer.files);
+    };
+    dz.onpaste = (e) => {
+      const fs = e.clipboardData && e.clipboardData.files;
+      if (fs && fs.length) { e.preventDefault(); addFiles(fs); }
+    };
+  }
+  if (text) text.oninput = () => { st.text = text.value; draw(); };
+  if (mode) mode.onchange = () => { st.mode = mode.value; };
+  if (title) title.oninput = () => { st.title = title.value; };
+  draw();
+
   b.onclick = async () => {
-    const inp = document.getElementById('fileinput');
-    if (!inp.files.length) return window.toast('Choose files first');
+    st.text = text ? text.value : st.text;
+    st.mode = mode ? mode.value : st.mode;
+    st.title = title ? title.value : st.title;
+    if (!st.files.length && !String(st.text || '').trim())
+      return window.toast('Add files or paste some text first');
     const fd = new FormData();
-    for (const f of inp.files) fd.append('files', f);
-    b.disabled = true; b.textContent = 'Uploading…';
+    for (const f of st.files) fd.append('files', f);
+    if (String(st.text || '').trim()) {
+      fd.append('text', st.text.trim());
+      fd.append('text_mode', st.mode || 'field_note');
+      fd.append('text_title', st.title || '');
+    }
+    b.disabled = true; b.textContent = 'Ingesting…';
     try {
-      const r = await fetch('/api/projects/' + pid + '/files',
+      const r = await fetch('/api/projects/' + pid + '/ingest',
         { method: 'POST', body: fd });
       if (!r.ok) throw new Error(await r.text());
       const j = await r.json();
-      window.toast(j.files.length + ' file(s) stored. The agent is waking.',
-        'good');
-      go('agent');
+      VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' };
+      let msg = j.stored_count + ' new source(s) stored';
+      if (j.duplicate_count) msg += ', ' + j.duplicate_count + ' duplicate(s) skipped';
+      if (j.schedule_count) msg += ', ' + j.schedule_count + ' schedule revision(s)';
+      window.toast(msg + '.', 'good');
+      if (j.event) go('agent'); else window.render();
     } catch (e) {
-      window.toast('Upload failed: ' + e.message, 'bad');
-      b.disabled = false; b.textContent = 'Upload';
+      window.toast('Ingestion failed: ' + e.message, 'bad');
+      b.disabled = false; b.textContent = 'Ingest batch & analyse';
     }
   };
 };

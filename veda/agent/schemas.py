@@ -165,14 +165,23 @@ class ReviewQuestion(_Base):
 
 
 class ChangeProposal(_Base):
-    """A durable proposal (spec 46). Never applied without dry-run + approval."""
+    """A durable task proposal. Never applied without dry-run + approval.
+
+    update keeps the v0.1.1 field/proposed_value shape. create/delete are
+    explicit operations so a human change request can safely ask for structural
+    schedule edits without smuggling them into a fake field update.
+    """
+    operation: Literal["update", "create", "delete"] = "update"
     target_type: str = "activity"
     target_uid: int | None = Field(None, validation_alias=AliasChoices(
         "target_uid", "uid", "activity_uid"))
     target_name: str | None = None
-    field: str
+    parent_uid: int | None = None
+    after_uid: int | None = None
+    field: str | None = None
     current_value: str | None = None
-    proposed_value: str
+    proposed_value: str | None = None
+    task_fields: dict = Field(default_factory=dict)
     reason: str = ""
     evidence_refs: list = Field(default_factory=list,
                                 validation_alias=AliasChoices(

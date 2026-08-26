@@ -45,9 +45,27 @@ CREATE TABLE IF NOT EXISTS files (
   security_notes TEXT,
   extract_state TEXT DEFAULT 'pending',
   extract_error TEXT,
+  batch_id TEXT,
+  source_mode TEXT DEFAULT 'file',
+  duplicate_of TEXT,
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_files_project ON files(project_id);
+-- ix_files_batch is created in init_db after forward migration adds batch_id.
+
+CREATE TABLE IF NOT EXISTS ingestion_batches (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  source TEXT DEFAULT 'website',
+  status TEXT DEFAULT 'stored',
+  file_count INTEGER DEFAULT 0,
+  duplicate_count INTEGER DEFAULT 0,
+  schedule_count INTEGER DEFAULT 0,
+  evidence_count INTEGER DEFAULT 0,
+  note TEXT,
+  created_at REAL
+);
+CREATE INDEX IF NOT EXISTS ix_batches_project ON ingestion_batches(project_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
@@ -109,6 +127,23 @@ CREATE TABLE IF NOT EXISTS schedule_snapshots (
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_snap_project ON schedule_snapshots(project_id);
+
+CREATE TABLE IF NOT EXISTS schedule_revision_changes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  snapshot_id TEXT,
+  revision INTEGER,
+  activity_uid INTEGER,
+  display_id TEXT,
+  activity_name TEXT,
+  change_type TEXT NOT NULL,
+  changed_fields_json TEXT,
+  before_json TEXT,
+  after_json TEXT,
+  created_at REAL
+);
+CREATE INDEX IF NOT EXISTS ix_sched_changes_project
+  ON schedule_revision_changes(project_id, revision, change_type);
 
 CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
@@ -372,7 +407,9 @@ CREATE TABLE IF NOT EXISTS proposals (
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   job_id TEXT,
   target_type TEXT,
+  operation TEXT DEFAULT 'update',
   target_uid INTEGER, target_name TEXT, field TEXT,
+  payload_json TEXT,
   current_value TEXT, proposed_value TEXT,
   reason TEXT,
   evidence_ids_json TEXT,
@@ -488,7 +525,28 @@ def init_db() -> None:
     config.ensure_dirs()
     conn = connect()
     conn.executescript(SCHEMA)
+    # Lightweight forward migrations for existing v0.1.x databases. SQLite
+    # CREATE TABLE IF NOT EXISTS does not add new columns to an old table.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(files)").fetchall()}
+    for name, ddl in (
+        ("batch_id", "ALTER TABLE files ADD COLUMN batch_id TEXT"),
+        ("source_mode", "ALTER TABLE files ADD COLUMN source_mode TEXT DEFAULT 'file'"),
+        ("duplicate_of", "ALTER TABLE files ADD COLUMN duplicate_of TEXT"),
+    ):
+        if name not in cols:
+            conn.execute(ddl)
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_files_batch ON files(batch_id)")
+
+    # v0.1.2 proposals can represent task create/delete as well as field updates.
+    pcols = {r[1] for r in conn.execute("PRAGMA table_info(proposals)").fetchall()}
+    for name, ddl in (
+        ("operation", "ALTER TABLE proposals ADD COLUMN operation TEXT DEFAULT 'update'"),
+        ("payload_json", "ALTER TABLE proposals ADD COLUMN payload_json TEXT"),
+    ):
+        if name not in pcols:
+            conn.execute(ddl)
     conn.commit()
+    _COLS_CACHE.clear()
 
 
 def new_id(prefix: str = "") -> str:

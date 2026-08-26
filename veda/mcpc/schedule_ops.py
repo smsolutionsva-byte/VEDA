@@ -167,6 +167,15 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     prev = db.q1("SELECT MAX(revision) AS r FROM schedule_snapshots WHERE project_id=?",
                  [project_id])
     revision = int((prev or {}).get("r") or 0) + 1
+    # Capture the previous current activity set before the live tables are
+    # replaced. The immutable source files + this delta form the schedule
+    # revision audit trail used by v0.1.2.
+    previous_activities = db.q(
+        "SELECT uid, display_id, name, wbs, parent_uid, is_summary, is_milestone, "
+        "status, start, finish, actual_start, actual_finish, duration_days, "
+        "remaining_days, percent_complete, constraint_type, constraint_date, "
+        "deadline, baseline_start, baseline_finish FROM activities "
+        "WHERE project_id=?", [project_id])
     db.ex("UPDATE schedule_snapshots SET is_current=0 WHERE project_id=?", [project_id])
 
     # ---- tasks --------------------------------------------------------
@@ -464,6 +473,14 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         "is_current": 1,
     })
 
+    revision_changes = _record_revision_changes(
+        project_id, snapshot_id, revision, previous_activities, act_rows)
+    if revision > 1:
+        step("schedule_revision_compared",
+             str(revision_changes["added"]) + " added, " +
+             str(revision_changes["removed"]) + " removed, " +
+             str(revision_changes["updated"]) + " updated")
+
     return {
         "snapshot_id": snapshot_id, "revision": revision,
         "tasks": len(act_rows), "relationships": len(seen),
@@ -476,7 +493,60 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         "forecast_finish": _iso(info.get("finishDate")),
         "status_date": status_date,
         "percent_complete": overall,
+        "revision_changes": revision_changes,
     }
+
+
+_REVISION_FIELDS = (
+    "display_id", "name", "wbs", "parent_uid", "is_summary", "is_milestone",
+    "status", "start", "finish", "actual_start", "actual_finish",
+    "duration_days", "remaining_days", "percent_complete", "constraint_type",
+    "constraint_date", "deadline", "baseline_start", "baseline_finish",
+)
+
+
+def _record_revision_changes(project_id: str, snapshot_id: str, revision: int,
+                             before_rows: list, after_rows: list) -> dict:
+    """Persist an activity-level revision delta keyed by Horizun stable uid."""
+    counts = {"added": 0, "removed": 0, "updated": 0}
+    if revision <= 1 or not before_rows:
+        return counts
+
+    def keyed(rows):
+        return {str(r.get("uid")): r for r in rows if r.get("uid") is not None}
+
+    before = keyed(before_rows)
+    after = keyed(after_rows)
+    db.ex("DELETE FROM schedule_revision_changes WHERE snapshot_id=?", [snapshot_id])
+
+    def slim(r):
+        if not r:
+            return None
+        return {"uid": r.get("uid"), **{k: r.get(k) for k in _REVISION_FIELDS}}
+
+    for key in sorted(set(before) | set(after), key=lambda x: (len(x), x)):
+        old, new = before.get(key), after.get(key)
+        if old is None:
+            change_type, changed = "added", list(_REVISION_FIELDS)
+            row = new
+        elif new is None:
+            change_type, changed = "removed", list(_REVISION_FIELDS)
+            row = old
+        else:
+            changed = [k for k in _REVISION_FIELDS if old.get(k) != new.get(k)]
+            if not changed:
+                continue
+            change_type, row = "updated", new
+        counts[change_type] += 1
+        db.insert("schedule_revision_changes", {
+            "project_id": project_id, "snapshot_id": snapshot_id,
+            "revision": revision, "activity_uid": row.get("uid"),
+            "display_id": row.get("display_id"), "activity_name": row.get("name"),
+            "change_type": change_type, "changed_fields_json": db.jdumps(changed),
+            "before_json": db.jdumps(slim(old)) if old else None,
+            "after_json": db.jdumps(slim(new)) if new else None,
+        })
+    return counts
 
 
 def _ev_rows(res: dict):

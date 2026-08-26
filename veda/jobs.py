@@ -221,20 +221,59 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
         raise
 
     # ---- 2. schedule snapshot (spec 15) ---------------------------------
-    sched = db.q1("SELECT * FROM files WHERE project_id=? AND kind='schedule' "
-                  "ORDER BY created_at DESC LIMIT 1", [project_id])
+    # Incremental v0.1.2 rule: evidence-only batches reuse the current MCP
+    # snapshot. Re-reading a 5k-task MPP because someone pasted one WhatsApp
+    # update is expensive and also creates fake schedule revisions.
+    latest_sched = db.q1("SELECT * FROM files WHERE project_id=? AND kind='schedule' "
+                         "ORDER BY created_at DESC LIMIT 1", [project_id])
+    current_snap = db.q1("SELECT * FROM schedule_snapshots WHERE project_id=? "
+                         "AND is_current=1 ORDER BY created_at DESC LIMIT 1",
+                         [project_id])
+    incoming_ids = payload.get("file_ids") or []
+    incoming_schedules: list[dict] = []
+    if incoming_ids:
+        marks = ",".join("?" for _ in incoming_ids)
+        incoming_schedules = db.q(
+            "SELECT * FROM files WHERE project_id=? AND kind='schedule' "
+            "AND id IN (" + marks + ") ORDER BY created_at ASC, id ASC",
+            [project_id, *incoming_ids])
+
     snap_summary: dict = {}
-    if sched:
+    if incoming_schedules:
+        # A single ingestion batch may intentionally contain a baseline/current
+        # pair or several successive schedule exports. Preserve that history by
+        # harvesting them in upload order; each one becomes a durable revision.
+        for idx, sched in enumerate(incoming_schedules, start=1):
+            label = "Schedule revision detected: " + str(sched["filename"])
+            if len(incoming_schedules) > 1:
+                label += " (" + str(idx) + "/" + str(len(incoming_schedules)) + ")"
+            step(job_id, project_id, "schedule_detected", label)
+            db.update("projects", project_id, {"schedule_file_id": sched["id"],
+                                               "updated_at": db.now()})
+            snap_summary = schedule_ops.collect_snapshot(
+                project_id, sched["stored_path"], job_id=job_id, file_id=sched["id"],
+                progress=lambda n, l, s: step(job_id, project_id, n, l, s))
+            db.update("files", sched["id"], {"extract_state": "done",
+                                              "extract_error": None})
+    elif current_snap:
+        snap_summary = {"snapshot_id": current_snap.get("id"),
+                        "revision": current_snap.get("revision"),
+                        "reused": True}
+        step(job_id, project_id, "schedule_reused",
+             "Existing schedule snapshot reused; processing new evidence only")
+    elif latest_sched:
+        # Compatibility/recovery path for an old project whose schedule upload
+        # exists but whose snapshot was never successfully harvested.
         step(job_id, project_id, "schedule_detected",
-             "Schedule detected: " + str(sched["filename"]))
-        db.update("projects", project_id, {"schedule_file_id": sched["id"],
+             "Recovering schedule snapshot: " + str(latest_sched["filename"]))
+        db.update("projects", project_id, {"schedule_file_id": latest_sched["id"],
                                            "updated_at": db.now()})
         snap_summary = schedule_ops.collect_snapshot(
             project_id, proposals.current_schedule_path(project_id) or
-            sched["stored_path"],
-            job_id=job_id, file_id=sched["id"],
+            latest_sched["stored_path"], job_id=job_id, file_id=latest_sched["id"],
             progress=lambda n, l, s: step(job_id, project_id, n, l, s))
-        db.update("files", sched["id"], {"extract_state": "done"})
+        db.update("files", latest_sched["id"], {"extract_state": "done",
+                                                "extract_error": None})
     else:
         step(job_id, project_id, "schedule_detected",
              "No schedule file uploaded yet", "failed")
@@ -268,8 +307,8 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
              str(len(ev_files)) + " document(s)")
 
     # ---- 4. reasoning (spec 7 - VEDA invokes the agent itself) ----------
-    files = db.q("SELECT id, filename, kind, size_bytes, security_state FROM files "
-                 "WHERE project_id=?", [project_id])
+    files = db.q("SELECT id, filename, kind, size_bytes, security_state, "
+                 "source_mode, batch_id FROM files WHERE project_id=?", [project_id])
     ev_sample = db.q("SELECT id, date, discipline, crew, location, chainage, "
                      "description FROM evidence WHERE project_id=? "
                      "ORDER BY date DESC LIMIT 40", [project_id])
@@ -512,9 +551,11 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
     n_props = 0
     for p in result.change_proposals:
         pid = proposals.create(
-            project_id, target_uid=p.target_uid, field=p.field,
-            proposed_value=p.proposed_value, reason=p.reason,
+            project_id, operation=p.operation, target_uid=p.target_uid,
+            field=p.field, proposed_value=p.proposed_value, reason=p.reason,
             target_type=p.target_type, target_name=p.target_name,
+            parent_uid=p.parent_uid, after_uid=p.after_uid,
+            task_fields=p.task_fields,
             evidence_ids=[ref_to_id.get(r, r) for r in p.evidence_refs],
             confidence=p.confidence, job_id=job_id,
             provenance=p.provenance or prov_default)

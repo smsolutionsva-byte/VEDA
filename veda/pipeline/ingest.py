@@ -5,6 +5,7 @@ import hashlib
 import os
 import re
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 from .. import audit, config, db
@@ -49,19 +50,45 @@ def _looks_like_schedule_xml(path: str) -> bool:
 
 
 def store_upload(project_id: str, filename: str, data: bytes,
-                 content_type: str | None = None, uploaded_by: str = "human") -> dict:
-    """Persist one uploaded file with provenance, then classify and scan it.
+                 content_type: str | None = None, uploaded_by: str = "human",
+                 batch_id: str | None = None, source_mode: str = "file",
+                 trusted_human: bool = False) -> dict:
+    """Persist one source immutably, classify it, and security-scan evidence.
 
-    The stored copy is the source document and is never modified in place
-    (spec 12). Revisions and outputs are written elsewhere.
+    v0.1.2 makes ingestion idempotent per project: identical bytes already in
+    the project are not stored/extracted twice. The caller still receives a
+    duplicate result so a batch can report what happened.
     """
     pdir = config.project_dir(project_id)
     name = safe_name(filename)
-    dest = pdir / "files" / name
+    files_dir = pdir / "files"
+
+    # Hash before allocating the final immutable path. This means repeated
+    # drag/drop, paste or browser retries do not create duplicate evidence.
+    digest = hashlib.sha256(data).hexdigest()
+    dup = db.q1("SELECT id, filename, stored_path, ext, kind, size_bytes, "
+                "security_state FROM files WHERE project_id=? AND sha256=? "
+                "ORDER BY created_at ASC LIMIT 1", [project_id, digest])
+    if dup:
+        audit.record(project_id, actor=uploaded_by, actor_type="human",
+                     action="duplicate_upload_skipped", source="website",
+                     entity_type="file", entity_id=dup["id"],
+                     new_value=name, result="skipped",
+                     detail={"sha256": digest, "duplicate_of": dup["id"],
+                             "batch_id": batch_id, "source_mode": source_mode})
+        return {"id": dup["id"], "filename": dup["filename"],
+                "path": dup.get("stored_path"), "ext": dup.get("ext"),
+                "kind": dup.get("kind"), "sha256": digest,
+                "size_bytes": dup.get("size_bytes") or len(data),
+                "security_state": dup.get("security_state") or "clean",
+                "duplicate_of": dup["id"], "skipped": True,
+                "source_mode": source_mode, "batch_id": batch_id}
+
+    dest = files_dir / name
     stem, ext = os.path.splitext(name)
     n = 1
     while dest.exists():
-        dest = pdir / "files" / (stem + "_" + str(n) + ext)
+        dest = files_dir / (stem + "_" + str(n) + ext)
         n += 1
     dest.write_bytes(data)
 
@@ -70,12 +97,11 @@ def store_upload(project_id: str, filename: str, data: bytes,
     if ext == ".xml":
         kind = "schedule" if _looks_like_schedule_xml(str(dest)) else "evidence"
 
-    digest = sha256_of(str(dest))
-    dup = db.q1("SELECT id, filename FROM files WHERE project_id=? AND sha256=?",
-                [project_id, digest])
-
     sec = {"state": "clean", "note": None, "findings": []}
-    if kind != "schedule":
+    # Deliberate operator text is an instruction/evidence source by design. It
+    # must not be quarantined merely for containing words such as update/delete.
+    # It is still constrained downstream by proposal approval + dry-run rules.
+    if kind != "schedule" and not trusted_human:
         from . import extract
         try:
             text = extract.full_text(str(dest), ext)
@@ -87,18 +113,19 @@ def store_upload(project_id: str, filename: str, data: bytes,
         "project_id": project_id, "filename": dest.name, "stored_path": str(dest),
         "ext": ext, "size_bytes": dest.stat().st_size, "sha256": digest,
         "kind": kind, "content_type": content_type, "uploaded_by": uploaded_by,
-        "security_state": sec["state"],
-        "security_notes": sec.get("note"),
-        "extract_state": "pending",
+        "security_state": sec["state"], "security_notes": sec.get("note"),
+        "extract_state": "pending", "batch_id": batch_id,
+        "source_mode": source_mode or "file",
     })
 
     audit.record(project_id, actor=uploaded_by, actor_type="human",
                  action="file_uploaded", source="website",
                  entity_type="file", entity_id=fid,
                  new_value=dest.name, result="stored",
-                 detail={"sha256": digest, "kind": kind, "bytes": dest.stat().st_size,
+                 detail={"sha256": digest, "kind": kind,
+                         "bytes": dest.stat().st_size,
                          "security_state": sec["state"],
-                         "duplicate_of": (dup or {}).get("id")})
+                         "batch_id": batch_id, "source_mode": source_mode})
 
     if sec["state"] != "clean":
         from .. import reviews as reviews_mod
@@ -111,8 +138,7 @@ def store_upload(project_id: str, filename: str, data: bytes,
                       "How should it be handled?"),
             detail=sec.get("note"),
             options=["Quarantine permanently (recommended)",
-                     "Release for analysis as data only",
-                     "Delete the file"],
+                     "Release for analysis as data only", "Delete the file"],
             entity_type="file", entity_id=fid, priority="high",
             extra={"findings": sec.get("findings", [])[:10]})
         audit.record(project_id, actor="system", actor_type="system",
@@ -122,7 +148,27 @@ def store_upload(project_id: str, filename: str, data: bytes,
 
     return {"id": fid, "filename": dest.name, "path": str(dest), "ext": ext,
             "kind": kind, "sha256": digest, "size_bytes": dest.stat().st_size,
-            "security_state": sec["state"], "duplicate_of": (dup or {}).get("id")}
+            "security_state": sec["state"], "duplicate_of": None,
+            "skipped": False, "source_mode": source_mode, "batch_id": batch_id}
+
+
+def store_text_input(project_id: str, text: str, source_mode: str = "field_note",
+                     title: str | None = None, batch_id: str | None = None,
+                     uploaded_by: str = "human") -> dict:
+    """Turn pasted/operator text into an immutable, citable project source."""
+    mode = source_mode if source_mode in {"field_note", "whatsapp", "change_request"} \
+        else "field_note"
+    clean_title = safe_name((title or mode.replace("_", " ").title()).strip())
+    if not clean_title.lower().endswith(".txt"):
+        clean_title += ".txt"
+    # Timestamp keeps separate operator notes readable in the file list; byte
+    # hashing still deduplicates exact repeated pastes.
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem, ext = os.path.splitext(clean_title)
+    filename = f"{stem}_{stamp}{ext}"
+    return store_upload(project_id, filename, text.encode("utf-8"), "text/plain",
+                        uploaded_by=uploaded_by, batch_id=batch_id,
+                        source_mode=mode, trusted_human=True)
 
 
 def revision_path(project_id: str, original: str, suffix: str = "rev") -> Path:

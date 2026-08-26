@@ -4,6 +4,8 @@ from __future__ import annotations
 import contextlib
 
 from fastapi import FastAPI
+
+from . import __version__
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +27,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="VEDA",
               description="Agent-Native Construction Project Intelligence Platform",
-              version="1.0.0", lifespan=lifespan)
+              version=__version__, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

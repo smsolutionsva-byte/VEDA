@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from veda import db  # noqa: E402
+from veda import __version__, db  # noqa: E402
 
 PROJECT_ID = os.environ.get("VEDA_PROJECT_ID", "")
 JOB_ID = os.environ.get("VEDA_JOB_ID", "")
@@ -320,7 +320,7 @@ def main() -> None:
         if method == "initialize":
             resp = {"protocolVersion": "2024-11-05",
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "veda", "version": "1.0.0"}}
+                    "serverInfo": {"name": "veda", "version": __version__}}
         elif method == "tools/list":
             resp = {"tools": TOOLS}
         elif method == "tools/call":

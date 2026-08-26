@@ -359,6 +359,9 @@ WRITABLE_FIELDS = {
     "percentComplete", "actualStart", "actualFinish", "start", "finish",
     "duration", "deadline", "notes", "name", "constraintType", "constraintDate",
 }
+CREATE_WRITABLE_FIELDS = WRITABLE_FIELDS | {
+    "milestone", "active", "cost", "custom",
+}
 
 
 def validate_proposal(proposal: dict, activity: dict | None, *,
@@ -366,71 +369,115 @@ def validate_proposal(proposal: dict, activity: dict | None, *,
                       capabilities: dict | None = None) -> dict:
     checks: list = []
     caps = capabilities or {}
+    operation = str(proposal.get("operation") or "update").lower()
+    payload = db.jloads(proposal.get("payload_json"), {}) or {}
 
-    if activity is None:
-        checks.append(_r("activity_exists", FAIL,
-                         "Proposal targets uid " + str(proposal.get("target_uid")) +
-                         ", which does not exist."))
+    if operation not in {"update", "create", "delete"}:
+        checks.append(_r("operation", FAIL,
+                         "Unsupported task operation '" + operation + "'."))
         return _summarise(checks)
-    checks.append(_r("activity_exists", PASS,
-                     "Target activity '" + str(activity.get("name")) + "' exists."))
+    checks.append(_r("operation", PASS, "Task operation is " + operation + "."))
 
-    field = proposal.get("field")
-    if field not in WRITABLE_FIELDS:
-        checks.append(_r("write_scope", FAIL,
-                         "Field '" + str(field) + "' is outside the permitted write "
-                         "scope " + ", ".join(sorted(WRITABLE_FIELDS)) + "."))
-    else:
-        checks.append(_r("write_scope", PASS,
-                         "Field '" + str(field) + "' is writable."))
-
-    val = proposal.get("proposed_value")
-    if field == "percentComplete":
-        try:
-            p = float(str(val).replace("%", "").strip())
-            if 0 <= p <= 100:
-                checks.append(_r("progress_range", PASS,
-                                 "Proposed progress " + str(p) + "% is in range."))
-            else:
-                checks.append(_r("progress_range", FAIL,
-                                 "Proposed progress " + str(p) + "% is out of range."))
-            official = activity.get("percent_complete")
-            if official is not None and p < float(official) - 0.01:
-                checks.append(_r("progress_regression", FAIL,
-                                 "Proposal would reduce progress from " +
-                                 str(official) + "% to " + str(p) + "%. Progress "
-                                 "regression requires explicit human authority.",
-                                 official=official, proposed=p))
-            else:
-                checks.append(_r("progress_regression", PASS,
-                                 "No progress regression."))
-        except (TypeError, ValueError):
-            checks.append(_r("progress_range", FAIL,
-                             "Proposed value '" + str(val) + "' is not a number."))
-    elif field in ("actualStart", "actualFinish", "start", "finish",
-                   "deadline", "constraintDate"):
-        dv = _d(val)
-        if dv is None:
-            checks.append(_r("date_validity", FAIL,
-                             "Proposed value '" + str(val) + "' is not a date "
-                             "(expected yyyy-MM-dd)."))
+    if operation == "create":
+        fields = payload.get("task_fields") or {}
+        name = str(fields.get("name") or proposal.get("target_name") or "").strip()
+        checks.append(_r("task_name", PASS if name else FAIL,
+                         "New task name is present." if name else
+                         "A create proposal needs a task name."))
+        unknown = sorted(set(fields) - CREATE_WRITABLE_FIELDS)
+        checks.append(_r("write_scope", PASS if not unknown else FAIL,
+                         "Create fields are within the permitted task scope." if not unknown
+                         else "Unsupported create fields: " + ", ".join(unknown) + "."))
+        parent_uid = payload.get("parent_uid")
+        if parent_uid is not None:
+            parent = db.q1("SELECT uid,name FROM activities WHERE project_id=? AND uid=?",
+                           [project_id, parent_uid])
+            checks.append(_r("parent_exists", PASS if parent else FAIL,
+                             ("Parent task '" + str((parent or {}).get("name")) + "' exists.")
+                             if parent else "No task exists with parent uid " +
+                             str(parent_uid) + "."))
         else:
-            checks.append(_r("date_validity", PASS,
-                             "Proposed date " + dv.isoformat() + " parses."))
-            s = _d(activity.get("actual_start") or activity.get("start"))
-            if field == "actualFinish" and s and dv < s:
-                checks.append(_r("date_ordering", FAIL,
-                                 "Proposed finish " + dv.isoformat() +
-                                 " precedes the start " + s.isoformat() + "."))
-            else:
-                checks.append(_r("date_ordering", PASS, "Date ordering is consistent."))
-            if dv > date.today() + timedelta(days=1) and field.startswith("actual"):
-                checks.append(_r("date_validity_future", FAIL,
-                                 "An actual date cannot be in the future."))
+            checks.append(_r("parent_exists", PASS,
+                             "No parent uid requested; task will be created at project level."))
     else:
-        checks.append(_r("value_present", PASS if str(val or "").strip() else FAIL,
-                         "Proposed value is present." if str(val or "").strip()
-                         else "Proposed value is empty."))
+        if activity is None:
+            checks.append(_r("activity_exists", FAIL,
+                             "Proposal targets uid " + str(proposal.get("target_uid")) +
+                             ", which does not exist."))
+            return _summarise(checks)
+        checks.append(_r("activity_exists", PASS,
+                         "Target activity '" + str(activity.get("name")) + "' exists."))
+
+        if operation == "delete":
+            children = (db.q1("SELECT COUNT(*) c FROM activities WHERE project_id=? "
+                              "AND parent_uid=?",
+                              [project_id, proposal.get("target_uid")]) or {}).get("c", 0)
+            if children:
+                checks.append(_r("delete_scope", FAIL,
+                                 "Refusing to delete a summary/parent task with " +
+                                 str(children) + " child task(s). Upload a revised schedule "
+                                 "or remove children explicitly so the scope is visible."))
+            else:
+                checks.append(_r("delete_scope", PASS,
+                                 "Target has no child tasks; delete scope is one task."))
+        else:
+            field = proposal.get("field")
+            if field not in WRITABLE_FIELDS:
+                checks.append(_r("write_scope", FAIL,
+                                 "Field '" + str(field) + "' is outside the permitted write "
+                                 "scope " + ", ".join(sorted(WRITABLE_FIELDS)) + "."))
+            else:
+                checks.append(_r("write_scope", PASS,
+                                 "Field '" + str(field) + "' is writable."))
+
+            val = proposal.get("proposed_value")
+            if field == "percentComplete":
+                try:
+                    pct = float(str(val).replace("%", "").strip())
+                    if 0 <= pct <= 100:
+                        checks.append(_r("progress_range", PASS,
+                                         "Proposed progress " + str(pct) + "% is in range."))
+                    else:
+                        checks.append(_r("progress_range", FAIL,
+                                         "Proposed progress " + str(pct) + "% is out of range."))
+                    official = activity.get("percent_complete")
+                    if official is not None and pct < float(official) - 0.01:
+                        checks.append(_r("progress_regression", FAIL,
+                                         "Proposal would reduce progress from " +
+                                         str(official) + "% to " + str(pct) + "%. Progress "
+                                         "regression requires explicit human authority.",
+                                         official=official, proposed=pct))
+                    else:
+                        checks.append(_r("progress_regression", PASS,
+                                         "No progress regression."))
+                except (TypeError, ValueError):
+                    checks.append(_r("progress_range", FAIL,
+                                     "Proposed value '" + str(val) + "' is not a number."))
+            elif field in ("actualStart", "actualFinish", "start", "finish",
+                           "deadline", "constraintDate"):
+                dv = _d(val)
+                if dv is None:
+                    checks.append(_r("date_validity", FAIL,
+                                     "Proposed value '" + str(val) + "' is not a date "
+                                     "(expected yyyy-MM-dd)."))
+                else:
+                    checks.append(_r("date_validity", PASS,
+                                     "Proposed date " + dv.isoformat() + " parses."))
+                    st = _d(activity.get("actual_start") or activity.get("start"))
+                    if field == "actualFinish" and st and dv < st:
+                        checks.append(_r("date_ordering", FAIL,
+                                         "Proposed finish " + dv.isoformat() +
+                                         " precedes the start " + st.isoformat() + "."))
+                    else:
+                        checks.append(_r("date_ordering", PASS,
+                                         "Date ordering is consistent."))
+                    if dv > date.today() + timedelta(days=1) and field.startswith("actual"):
+                        checks.append(_r("date_validity_future", FAIL,
+                                         "An actual date cannot be in the future."))
+            else:
+                checks.append(_r("value_present", PASS if str(val or "").strip() else FAIL,
+                                 "Proposed value is present." if str(val or "").strip()
+                                 else "Proposed value is empty."))
 
     # --- evidence backing ---------------------------------------------------
     ev_ids = db.jloads(proposal.get("evidence_ids_json"), []) or []

@@ -84,9 +84,18 @@ MAX_UPLOAD_MB = int(os.environ.get("VEDA_MAX_UPLOAD_MB", "200"))
 SCHEDULE_EXTS = {
     ".xer", ".mpp", ".mpt", ".mpx", ".xml", ".pmxml", ".pp", ".planner", ".sdef",
 }
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 EVIDENCE_EXTS = {
-    ".csv", ".xlsx", ".xlsm", ".xls", ".pdf", ".docx", ".txt", ".json", ".md", ".log",
+    ".csv", ".tsv", ".xlsx", ".xlsm", ".xls", ".pdf", ".docx", ".txt", ".json", ".md", ".log",
+    *IMAGE_EXTS,
 }
+
+# OCR is deliberately adaptive: normal PDF text extraction first, OCR only on
+# pages that appear image-only / text-poor. This avoids paying OCR cost on every
+# page while still handling scanned site diaries and photo PDFs.
+OCR_ENABLED = os.environ.get("VEDA_OCR_ENABLED", os.environ.get("VEDA_OCR", "1")).lower() not in ("0", "false", "no")
+OCR_DPI = int(os.environ.get("VEDA_OCR_DPI", "170"))
+OCR_MAX_PAGES = int(os.environ.get("VEDA_OCR_MAX_PAGES", "250"))
 
 
 def ensure_dirs() -> None:

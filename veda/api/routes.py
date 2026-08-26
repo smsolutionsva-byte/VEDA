@@ -12,10 +12,10 @@ import os
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Body, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from .. import audit as audit_mod
+from .. import __version__, audit as audit_mod
 from .. import config, db, events, jobs, reviews
 from ..agent import registry
 from ..mcpc import horizun, schedule_ops
@@ -41,7 +41,7 @@ def _snapshot(pid: str) -> dict | None:
 # =====================================================================
 @router.get("/health")
 async def health(deep: bool = False):
-    out: dict = {"veda": {"ok": True, "version": "1.0.0",
+    out: dict = {"veda": {"ok": True, "version": __version__,
                           "data_dir": str(config.DATA_DIR)}}
     try:
         h = await asyncio.get_event_loop().run_in_executor(
@@ -190,30 +190,112 @@ def overview(pid: str):
 # =====================================================================
 #  Files / upload  (spec 6)
 # =====================================================================
+async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
+                                 text: str = "", text_mode: str = "field_note",
+                                 text_title: str = "") -> dict:
+    """Store one user action as one ingestion batch and emit one analysis event."""
+    _project_or_404(pid)
+    incoming = list(files or [])
+    if not incoming and not (text or "").strip():
+        raise HTTPException(400, "add at least one file or pasted text")
+
+    batch_id = db.insert("ingestion_batches", {
+        "project_id": pid, "source": "website", "status": "receiving",
+        "note": "multi-source ingestion",
+    })
+    results: list[dict] = []
+    try:
+        for f in incoming:
+            data = await f.read()
+            if len(data) > config.MAX_UPLOAD_MB * 1024 * 1024:
+                raise HTTPException(413, (f.filename or "upload") + " exceeds " +
+                                    str(config.MAX_UPLOAD_MB) + " MB")
+            results.append(ingest.store_upload(
+                pid, f.filename or "upload", data, f.content_type,
+                batch_id=batch_id, source_mode="file"))
+
+        if (text or "").strip():
+            results.append(ingest.store_text_input(
+                pid, text.strip(), text_mode, text_title or None,
+                batch_id=batch_id))
+
+        unique = [r for r in results if not r.get("skipped")]
+        duplicates = [r for r in results if r.get("skipped")]
+        schedules = [r for r in unique if r.get("kind") == "schedule"]
+        evidence = [r for r in unique if r.get("kind") == "evidence"]
+        db.update("ingestion_batches", batch_id, {
+            "status": "stored", "file_count": len(unique),
+            "duplicate_count": len(duplicates), "schedule_count": len(schedules),
+            "evidence_count": len(evidence),
+            "note": ("pasted " + text_mode if (text or "").strip() else None),
+        })
+
+        ev = None
+        if unique:
+            ev = events.emit(
+                events.DATASET_UPLOADED if schedules else events.FILES_ADDED,
+                pid, {"batch_id": batch_id,
+                      "file_ids": [r["id"] for r in unique],
+                      "filenames": [r["filename"] for r in unique],
+                      "source_modes": [r.get("source_mode", "file") for r in unique],
+                      "schedule_count": len(schedules),
+                      "evidence_count": len(evidence)}, source="website")
+
+        return {"batch_id": batch_id, "files": results,
+                "stored_count": len(unique), "duplicate_count": len(duplicates),
+                "schedule_count": len(schedules), "evidence_count": len(evidence),
+                "event": (ev or {}).get("id"),
+                "note": ("analysis job created; the agent wakes automatically"
+                         if ev else "all submitted sources were already present")}
+    except Exception:
+        db.update("ingestion_batches", batch_id, {"status": "failed"})
+        raise
+
+
+@router.post("/projects/{pid}/ingest")
+async def ingest_batch(pid: str,
+                       files: list[UploadFile] | None = File(None),
+                       text: str = Form(""),
+                       text_mode: str = Form("field_note"),
+                       text_title: str = Form("")):
+    """v0.1.2 multi-source intake: many files + deliberate pasted text."""
+    return await _store_ingestion_batch(pid, files, text, text_mode, text_title)
+
+
 @router.post("/projects/{pid}/files")
 async def upload(pid: str, files: list[UploadFile] = File(...)):
-    _project_or_404(pid)
-    stored = []
-    for f in files:
-        data = await f.read()
-        if len(data) > config.MAX_UPLOAD_MB * 1024 * 1024:
-            raise HTTPException(413, f.filename + " exceeds " +
-                                str(config.MAX_UPLOAD_MB) + " MB")
-        stored.append(ingest.store_upload(pid, f.filename or "upload", data,
-                                          f.content_type))
-    has_schedule = any(s["kind"] == "schedule" for s in stored)
-    ev = events.emit(
-        events.DATASET_UPLOADED if has_schedule else events.FILES_ADDED,
-        pid, {"file_ids": [s["id"] for s in stored],
-              "filenames": [s["filename"] for s in stored]}, source="website")
-    return {"files": stored, "event": ev["id"],
-            "note": "analysis job created; the agent wakes automatically"}
+    """Backward-compatible upload endpoint; now batch-aware and deduplicated."""
+    return await _store_ingestion_batch(pid, files)
 
 
 @router.get("/projects/{pid}/files")
 def list_files(pid: str):
-    return {"files": db.q("SELECT * FROM files WHERE project_id=? "
-                          "ORDER BY created_at DESC", [pid])}
+    _project_or_404(pid)
+    files = db.q("SELECT * FROM files WHERE project_id=? ORDER BY created_at DESC",
+                 [pid])
+    batches = db.q("SELECT * FROM ingestion_batches WHERE project_id=? "
+                   "ORDER BY created_at DESC LIMIT 20", [pid])
+    revisions = db.q(
+        "SELECT s.*, "
+        "SUM(CASE WHEN c.change_type='added' THEN 1 ELSE 0 END) AS added_count, "
+        "SUM(CASE WHEN c.change_type='removed' THEN 1 ELSE 0 END) AS removed_count, "
+        "SUM(CASE WHEN c.change_type='updated' THEN 1 ELSE 0 END) AS updated_count "
+        "FROM schedule_snapshots s LEFT JOIN schedule_revision_changes c "
+        "ON c.snapshot_id=s.id WHERE s.project_id=? GROUP BY s.id "
+        "ORDER BY s.revision DESC LIMIT 20", [pid])
+    return {"files": files, "batches": batches, "schedule_revisions": revisions}
+
+
+@router.get("/projects/{pid}/schedule-revisions/{revision}/changes")
+def schedule_revision_changes(pid: str, revision: int):
+    _project_or_404(pid)
+    rows = db.q("SELECT * FROM schedule_revision_changes WHERE project_id=? "
+                "AND revision=? ORDER BY change_type, activity_uid", [pid, revision])
+    for r in rows:
+        r["changed_fields"] = db.jloads(r.get("changed_fields_json"), [])
+        r["before"] = db.jloads(r.get("before_json"), None)
+        r["after"] = db.jloads(r.get("after_json"), None)
+    return {"revision": revision, "changes": rows}
 
 
 @router.get("/projects/{pid}/files/{fid}/preview")

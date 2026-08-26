@@ -7,6 +7,7 @@ echo  VEDA - Agent-Native Construction Project Intelligence Platform
 echo  ==============================================================
 echo.
 
+set "VEDA_INSTALL_DEPS=0"
 if not exist ".venv\Scripts\python.exe" (
     echo  [setup] Creating virtual environment...
     python -m venv .venv
@@ -16,7 +17,19 @@ if not exist ".venv\Scripts\python.exe" (
         pause
         exit /b 1
     )
-    echo  [setup] Installing dependencies...
+    set "VEDA_INSTALL_DEPS=1"
+)
+
+rem v0.1.2 added adaptive OCR. Existing v0.1.1 environments need the new
+rem packages too, so do a cheap import probe rather than assuming .venv means
+rem requirements.txt is already satisfied.
+if "%VEDA_INSTALL_DEPS%"=="0" (
+    ".venv\Scripts\python.exe" -c "import pymupdf, rapidocr, onnxruntime" >nul 2>&1
+    if errorlevel 1 set "VEDA_INSTALL_DEPS=1"
+)
+
+if "%VEDA_INSTALL_DEPS%"=="1" (
+    echo  [setup] Installing/updating dependencies...
     ".venv\Scripts\python.exe" -m pip install --upgrade pip -q
     ".venv\Scripts\python.exe" -m pip install -r requirements.txt
     if errorlevel 1 (
