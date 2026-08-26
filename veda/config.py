@@ -45,6 +45,8 @@ HORIZUN_TIMEOUT = int(os.environ.get("VEDA_HORIZUN_TIMEOUT", "180"))
 # is checked at runtime for every job, and a provider that is installed but not
 # authenticated / temporarily offline is skipped without blocking the queue.
 def _default_provider() -> str:
+    if os.environ.get("ANTIGRAVITY_AGENTAPI_EXE"):
+        return "local_antigravity"
     return os.environ.get("VEDA_AGENT_PROVIDER", "auto").strip() or "auto"
 
 AGENT_PROVIDER = _default_provider()

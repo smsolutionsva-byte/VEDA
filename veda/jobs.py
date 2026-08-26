@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import queue
+import shutil
 import threading
 import traceback
 from typing import Any
@@ -20,9 +21,18 @@ from .mcpc import McpError, horizun, schedule_ops
 from .pipeline import deterministic, extract, linking, proposals
 
 _queue: "queue.Queue[str]" = queue.Queue()
+_priority_queue: "queue.Queue[str]" = queue.Queue()
 _worker: threading.Thread | None = None
 _started = False
-_current: dict = {"job_id": None}
+_state_lock = threading.RLock()
+_cancelled: dict[str, str] = {}
+_active_project_id: str | None = None
+_current: dict = {"job_id": None, "project_id": None,
+                  "provider": None, "session": None}
+
+
+class JobCancelled(RuntimeError):
+    """Raised inside the worker when the operator switches/deletes a project."""
 
 
 # ----------------------------------------------------------------- job records
@@ -45,6 +55,8 @@ def create_job(project_id: str, kind: str, trigger_event_id: str | None = None,
 def step(job_id: str, project_id: str, name: str, label: str,
          state: str = "success", detail: str | None = None) -> None:
     """Safe, high-level agent progress (spec 50). No chain-of-thought."""
+    if _is_cancelled(job_id):
+        return
     db.insert("agent_activity", {
         "project_id": project_id, "job_id": job_id, "step": name,
         "label": label, "state": state, "detail": detail,
@@ -56,6 +68,9 @@ def step(job_id: str, project_id: str, name: str, label: str,
 
 def _finish(job_id: str, project_id: str, status: str, error: str | None = None,
             result: dict | None = None) -> None:
+    current = db.q1("SELECT status FROM jobs WHERE id=?", [job_id])
+    if not current or current.get("status") == "cancelled":
+        return
     patch: dict = {"status": status, "finished_at": db.now(), "progress": 1.0}
     if error:
         patch["error"] = error[:4000]
@@ -90,8 +105,155 @@ def handle_event(ev: dict) -> None:
         enqueue(create_job(project_id, "resnapshot", ev.get("id"), payload))
 
 
-def enqueue(job_id: str) -> None:
-    _queue.put(job_id)
+def enqueue(job_id: str, *, priority: bool = False) -> None:
+    if not priority:
+        row = db.q1("SELECT project_id FROM jobs WHERE id=?", [job_id])
+        with _state_lock:
+            priority = bool(row and _active_project_id == row.get("project_id"))
+    (_priority_queue if priority else _queue).put(job_id)
+
+
+def _is_cancelled(job_id: str) -> bool:
+    with _state_lock:
+        if job_id in _cancelled:
+            return True
+    row = db.q1("SELECT status FROM jobs WHERE id=?", [job_id])
+    return bool(row and row.get("status") == "cancelled")
+
+
+def _raise_if_cancelled(job_id: str) -> None:
+    with _state_lock:
+        reason = _cancelled.get(job_id)
+    row = db.q1("SELECT status FROM jobs WHERE id=?", [job_id])
+    if reason is not None or (row and row.get("status") == "cancelled"):
+        reason = reason or str((row or {}).get("error") or "cancelled")
+        # Re-assert the terminal state in case cancellation raced with the
+        # queued -> running transition in the worker thread.
+        if row and row.get("status") != "cancelled":
+            db.update("jobs", job_id, {"status": "cancelled",
+                                       "phase": "cancelled",
+                                       "finished_at": db.now(),
+                                       "error": reason})
+        raise JobCancelled(reason)
+
+
+def cancel_job(job_id: str, reason: str = "Cancelled by operator") -> bool:
+    """Cancel queued/running work and interrupt the active provider/MCP process."""
+    job = db.q1("SELECT * FROM jobs WHERE id=?", [job_id])
+    if not job or job.get("status") not in ("queued", "running"):
+        return False
+
+    with _state_lock:
+        _cancelled[job_id] = reason
+        is_current = _current.get("job_id") == job_id
+        provider = _current.get("provider") if is_current else None
+        session = _current.get("session") if is_current else None
+
+    db.update("jobs", job_id, {
+        "status": "cancelled", "phase": "cancelled",
+        "finished_at": db.now(), "error": reason,
+    })
+    db.ex("UPDATE agent_inbox SET status='cancelled', finished_at=? "
+          "WHERE job_id=? AND status IN ('pending','claimed')",
+          [db.now(), job_id])
+    events.notify_ui(job["project_id"], "jobs_changed",
+                     {"job_id": job_id, "status": "cancelled"})
+
+    if is_current:
+        # Provider CLIs expose cancel() and kill their child process. Horizun is
+        # also a child process; closing it makes an in-flight MCP RPC fail fast.
+        if provider is not None and session is not None:
+            try:
+                _await(provider.cancel(session))
+            except Exception:
+                pass
+        try:
+            horizun.close()
+        except Exception:
+            pass
+    return True
+
+
+def activate_project(project_id: str) -> dict:
+    """Make one project current: old work is cancelled, never left ahead of it."""
+    global _active_project_id
+    with _state_lock:
+        _active_project_id = project_id
+    cancelled = []
+    others = db.q("SELECT id FROM jobs WHERE project_id<>? "
+                  "AND status IN ('queued','running') ORDER BY created_at",
+                  [project_id])
+    for row in others:
+        if cancel_job(row["id"], "Stopped because the current project changed"):
+            cancelled.append(row["id"])
+
+    # Existing queued work for the newly selected project jumps ahead of stale
+    # queue entries. Duplicate queue ids are harmless because _run re-reads state.
+    promoted = db.q("SELECT id FROM jobs WHERE project_id=? AND status='queued' "
+                    "ORDER BY created_at", [project_id])
+    for row in promoted:
+        enqueue(row["id"], priority=True)
+    return {"project_id": project_id, "cancelled": cancelled,
+            "promoted": [r["id"] for r in promoted]}
+
+
+def _purge_project(project_id: str) -> None:
+    """Remove durable project rows plus its on-disk project workspace."""
+    for f in db.q("SELECT stored_path FROM files WHERE project_id=? AND kind='schedule'",
+                  [project_id]):
+        try:
+            schedule_ops.close_schedule(f["stored_path"], "readonly")
+        except Exception:
+            pass
+    # These operational tables intentionally have no FK so audit history can
+    # survive normal data changes. Explicit project deletion should remove it.
+    db.ex("DELETE FROM agent_outbox WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM agent_inbox WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM agent_activity WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM mcp_calls WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM audit WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM events WHERE project_id=?", [project_id])
+    db.ex("DELETE FROM projects WHERE id=?", [project_id])
+    pdir = config.PROJECTS_DIR / project_id
+    if pdir.exists():
+        shutil.rmtree(pdir, ignore_errors=True)
+
+
+def delete_project(project_id: str) -> dict:
+    """Delete a project safely, deferring physical cleanup if its job is unwinding."""
+    global _active_project_id
+    p = db.q1("SELECT * FROM projects WHERE id=?", [project_id])
+    if not p:
+        return {"deleted": project_id, "already_missing": True}
+    with _state_lock:
+        if _active_project_id == project_id:
+            _active_project_id = None
+
+    running = db.q1("SELECT id FROM jobs WHERE project_id=? AND status='running' "
+                    "ORDER BY created_at DESC LIMIT 1", [project_id])
+    for row in db.q("SELECT id FROM jobs WHERE project_id=? "
+                    "AND status IN ('queued','running')", [project_id]):
+        cancel_job(row["id"], "Stopped because the project was deleted")
+
+    with _state_lock:
+        still_current = _current.get("project_id") == project_id
+    if running or still_current:
+        # Hide it from the UI immediately. The worker's finally block performs
+        # physical cleanup after provider/MCP code has released its references.
+        db.update("projects", project_id, {"status": "deleting",
+                                           "updated_at": db.now()})
+        return {"deleted": project_id, "cleanup_pending": True}
+
+    _purge_project(project_id)
+    return {"deleted": project_id, "cleanup_pending": False}
+
+
+def _finalize_pending_delete(project_id: str | None) -> None:
+    if not project_id:
+        return
+    p = db.q1("SELECT status FROM projects WHERE id=?", [project_id])
+    if p and p.get("status") == "deleting":
+        _purge_project(project_id)
 
 
 def _recover_startup_jobs() -> list[str]:
@@ -101,6 +263,10 @@ def _recover_startup_jobs() -> list[str]:
     ``running`` is therefore stale at startup, while persisted ``queued`` rows
     need to be put back into the new process queue.
     """
+    # Finish any deletion that was interrupted by an application restart.
+    for p in db.q("SELECT id FROM projects WHERE status='deleting'"):
+        _purge_project(p["id"])
+
     stale = db.q("SELECT id, project_id FROM jobs WHERE status='running' "
                  "ORDER BY created_at")
     for job in stale:
@@ -137,31 +303,58 @@ def start_worker() -> None:
         enqueue(job_id)
 
 
+def _next_job() -> tuple[str, queue.Queue]:
+    while True:
+        try:
+            return _priority_queue.get_nowait(), _priority_queue
+        except queue.Empty:
+            try:
+                return _queue.get(timeout=0.25), _queue
+            except queue.Empty:
+                continue
+
+
 def _loop() -> None:
     while True:
-        job_id = _queue.get()
+        job_id, source_queue = _next_job()
+        project_id = None
         try:
+            row = db.q1("SELECT project_id FROM jobs WHERE id=?", [job_id]) or {}
+            project_id = row.get("project_id")
             _run(job_id)
+        except JobCancelled:
+            # cancel_job already persisted the terminal state.
+            pass
         except Exception:
             job = db.q1("SELECT * FROM jobs WHERE id=?", [job_id]) or {}
-            _finish(job_id, job.get("project_id", ""), "failed",
-                    traceback.format_exc()[-3000:])
+            if job and job.get("status") != "cancelled":
+                _finish(job_id, job.get("project_id", ""), "failed",
+                        traceback.format_exc()[-3000:])
         finally:
-            _current["job_id"] = None
-            _queue.task_done()
+            with _state_lock:
+                if _current.get("job_id") == job_id:
+                    _current.update({"job_id": None, "project_id": None,
+                                     "provider": None, "session": None})
+                _cancelled.pop(job_id, None)
+            _finalize_pending_delete(project_id)
+            source_queue.task_done()
 
 
 def current_job() -> str | None:
-    return _current.get("job_id")
+    with _state_lock:
+        return _current.get("job_id")
 
 
 # ------------------------------------------------------------------- the work
 def _run(job_id: str) -> None:
     job = db.q1("SELECT * FROM jobs WHERE id=?", [job_id])
-    if not job or job.get("status") in ("cancelled", "done"):
+    if not job or job.get("status") in ("cancelled", "done", "awaiting_review"):
         return
     project_id = job["project_id"]
-    _current["job_id"] = job_id
+    with _state_lock:
+        _current.update({"job_id": job_id, "project_id": project_id,
+                         "provider": None, "session": None})
+    _raise_if_cancelled(job_id)
     db.update("jobs", job_id, {
         "status": "running", "started_at": db.now(), "error": None,
         "attempts": (job.get("attempts") or 0) + 1,
@@ -172,6 +365,7 @@ def _run(job_id: str) -> None:
     payload = (db.jloads(job.get("result_json"), {}) or {}).get("input", {})
     kind = job["kind"]
     try:
+        _raise_if_cancelled(job_id)
         if kind == "analysis":
             result = _run_analysis(job_id, project_id, payload)
         elif kind == "resume_review":
@@ -182,12 +376,18 @@ def _run(job_id: str) -> None:
             result = _run_resnapshot(job_id, project_id, payload)
         else:
             raise ValueError("unknown job kind: " + kind)
+    except JobCancelled:
+        return
     except McpError as exc:
+        if _is_cancelled(job_id):
+            return
         step(job_id, project_id, "mcp_failed", "Horizun call failed", "failed",
              str(exc))
         _finish(job_id, project_id, "failed", "Horizun MCP: " + str(exc))
         return
     except Exception as exc:  # noqa: BLE001
+        if _is_cancelled(job_id):
+            return
         step(job_id, project_id, "job_failed", type(exc).__name__, "failed",
              str(exc)[:500])
         _finish(job_id, project_id, "failed",
@@ -195,6 +395,7 @@ def _run(job_id: str) -> None:
                 traceback.format_exc()[-2000:])
         return
 
+    _raise_if_cancelled(job_id)
     open_reviews = db.q1("SELECT COUNT(*) c FROM reviews WHERE project_id=? "
                          "AND status='open'", [project_id]) or {}
     status = "awaiting_review" if open_reviews.get("c") else "done"
@@ -204,6 +405,7 @@ def _run(job_id: str) -> None:
 
 # ------------------------------------------------------------------ analysis
 def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
+    _raise_if_cancelled(job_id)
     project = db.q1("SELECT * FROM projects WHERE id=?", [project_id]) or {}
     step(job_id, project_id, "files_received", "Files received")
 
@@ -220,6 +422,7 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
              str(exc))
         raise
 
+    _raise_if_cancelled(job_id)
     # ---- 2. schedule snapshot (spec 15) ---------------------------------
     # Incremental v0.1.2 rule: evidence-only batches reuse the current MCP
     # snapshot. Re-reading a 5k-task MPP because someone pasted one WhatsApp
@@ -283,6 +486,7 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
                     "AND extract_state IN ('pending','failed')", [project_id])
     total_ev = 0
     for f in ev_files:
+        _raise_if_cancelled(job_id)
         if f.get("security_state") == "quarantined":
             db.update("files", f["id"], {"extract_state": "skipped",
                                          "extract_error": "quarantined"})
@@ -306,6 +510,7 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
              str(total_ev) + " evidence records extracted from " +
              str(len(ev_files)) + " document(s)")
 
+    _raise_if_cancelled(job_id)
     # ---- 4. reasoning (spec 7 - VEDA invokes the agent itself) ----------
     files = db.q("SELECT id, filename, kind, size_bytes, security_state, "
                  "source_mode, batch_id FROM files WHERE project_id=?", [project_id])
@@ -322,6 +527,7 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
 
     result, used = _invoke_agent(job_id, project_id, prompt)
 
+    _raise_if_cancelled(job_id)
     # ---- 5. persist, validate, link (spec 35, 43, 45) -------------------
     applied = apply_result(project_id, job_id, result, source=used)
     return {"snapshot": snap_summary, "evidence_extracted": total_ev,
@@ -356,6 +562,7 @@ def _invoke_agent(job_id: str, project_id: str, prompt: str,
                 candidates = [prior] + [n for n in candidates if n != prior]
 
     for attempt_no, provider_name in enumerate(candidates, 1):
+        _raise_if_cancelled(job_id)
         label = registry.LABELS.get(provider_name, provider_name)
         try:
             provider = registry.get_provider(provider_name)
@@ -387,6 +594,7 @@ def _invoke_agent(job_id: str, project_id: str, prompt: str,
                 meta={"project_id": project_id, "job_id": job_id})
 
         def on_event(ev) -> None:
+            _raise_if_cancelled(job_id)
             if ev.kind == "tool_call":
                 step(job_id, project_id, "tool_call", ev.label, "success")
             elif ev.kind == "error":
@@ -394,11 +602,25 @@ def _invoke_agent(job_id: str, project_id: str, prompt: str,
             elif ev.kind == "status":
                 step(job_id, project_id, ev.step or "agent_status", ev.label)
 
+        def on_session(session) -> None:
+            should_cancel = False
+            with _state_lock:
+                if _current.get("job_id") == job_id:
+                    _current["provider"] = provider
+                    _current["session"] = session
+                should_cancel = job_id in _cancelled
+            if should_cancel:
+                try:
+                    _await(provider.cancel(session))
+                except Exception:
+                    pass
+
         try:
             run = _await(provider.run(
                 project_id=project_id, job_id=job_id, prompt=prompt, system=SYSTEM,
                 schema=schemas.json_schema(), workspace=str(config.DATA_DIR),
-                resume=resume_session, on_event=on_event))
+                resume=resume_session, on_event=on_event, on_session=on_session))
+            _raise_if_cancelled(job_id)
         except Exception as exc:  # noqa: BLE001
             reason = type(exc).__name__ + ": " + str(exc)
             step(job_id, project_id, "agent_failed",
@@ -493,6 +715,7 @@ def _await(coro):
 def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
                  source: str = "agent") -> dict:
     """Persist a validated agent result and run the deterministic gates."""
+    _raise_if_cancelled(job_id)
     actor_type = "agent" if source != "deterministic" else "system"
     prov_default = "AI_INFERENCE" if source != "deterministic" \
         else "DETERMINISTIC_CALCULATION"

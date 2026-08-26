@@ -178,6 +178,7 @@ async function loadProjects(selectId) {
   const changed = nextProject !== S.project;
   S.project = nextProject;
   if (S.project) sel.value = S.project;
+  if (changed && S.project) await activateCurrentProject(S.project);
   if (changed) connectStream();
   await refreshCounts();
   render();
@@ -190,6 +191,39 @@ async function newProject() {
   toast('Project created. Upload a schedule and project files to begin.', 'good');
   await loadProjects(r.id);
   go('files');
+}
+
+async function deleteCurrentProject() {
+  if (!S.project) return toast('No project selected');
+  const p = S.projects.find(x => x.id === S.project);
+  const name = p ? p.name : 'this project';
+  if (!confirm('Delete "' + name + '"?\n\nThis permanently removes its uploaded files, analysis, and history.')) return;
+
+  const deleting = S.project;
+  try {
+    await api('/projects/' + deleting, { method: 'DELETE' });
+    if (S.es) { S.es.close(); S.es = null; }
+    S.project = null;
+    S.overview = null;
+    S.counts = {};
+    toast('Project deleted.', 'good');
+    await loadProjects();
+  } catch (e) {
+    toast('Could not delete project: ' + e.message, 'bad');
+  }
+}
+
+async function activateCurrentProject(pid) {
+  if (!pid) return;
+  try {
+    const r = await post('/projects/' + pid + '/activate');
+    if (r.cancelled && r.cancelled.length) {
+      toast('Stopped the previous project and switched immediately.', 'good');
+    }
+  } catch (e) {
+    toast('Could not switch project: ' + e.message, 'bad');
+    throw e;
+  }
 }
 
 function bindNoProject() {
@@ -248,16 +282,26 @@ window.api = api; window.post = post; window.toast = toast;
 
 async function init() {
   $('#projpick').onchange = async (e) => {
+    const previous = S.project;
     S.project = e.target.value || null;
+    try {
+      if (S.project) await activateCurrentProject(S.project);
+    } catch (err) {
+      S.project = previous;
+      e.target.value = previous || '';
+      return;
+    }
     connectStream();
     await refreshCounts();
     render();
   };
   $('#newproj').onclick = newProject;
+  $('#delproj').onclick = deleteCurrentProject;
   $('#analyze').onclick = async () => {
     if (!S.project) return toast('Create a project first');
+    await activateCurrentProject(S.project);
     await post('/projects/' + S.project + '/analyze');
-    toast('Analysis queued. The agent wakes on the event.', 'good');
+    toast('Analysis started for the current project.', 'good');
     go('agent');
   };
   window.addEventListener('hashchange', () => {

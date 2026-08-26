@@ -90,7 +90,8 @@ def mcp_tools():
 # =====================================================================
 @router.get("/projects")
 def list_projects():
-    rows = db.q("SELECT * FROM projects ORDER BY created_at DESC")
+    rows = db.q("SELECT * FROM projects WHERE status<>'deleting' "
+                "ORDER BY created_at DESC")
     for r in rows:
         snap = _snapshot(r["id"])
         r["snapshot"] = snap
@@ -129,11 +130,19 @@ def create_project(body: dict = Body(...)):
     return {"id": pid, "project": db.q1("SELECT * FROM projects WHERE id=?", [pid])}
 
 
+@router.post("/projects/{pid}/activate")
+def activate_project(pid: str):
+    """Make pid the operator's current project and pre-empt old project work."""
+    p = _project_or_404(pid)
+    if p.get("status") == "deleting":
+        raise HTTPException(409, "project is being deleted")
+    return jobs.activate_project(pid)
+
+
 @router.delete("/projects/{pid}")
 def delete_project(pid: str):
     _project_or_404(pid)
-    db.ex("DELETE FROM projects WHERE id=?", [pid])
-    return {"deleted": pid}
+    return jobs.delete_project(pid)
 
 
 @router.get("/projects/{pid}/overview")

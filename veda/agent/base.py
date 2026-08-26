@@ -87,7 +87,7 @@ class AgentProvider(abc.ABC):
                   system: str = "", schema: dict | None = None,
                   mcp_config: dict | None = None, allowed_tools: list | None = None,
                   workspace: str | None = None, resume: AgentSession | None = None,
-                  on_event=None) -> AgentRunResult:
+                  on_event=None, on_session=None) -> AgentRunResult:
         """Convenience: start (or resume), drain the stream, return the result."""
         if resume is not None:
             session = await self.resume_session(resume, prompt, schema=schema)
@@ -96,6 +96,12 @@ class AgentProvider(abc.ABC):
                 project_id=project_id, job_id=job_id, prompt=prompt, system=system,
                 schema=schema, mcp_config=mcp_config, allowed_tools=allowed_tools,
                 workspace=workspace)
+        if on_session is not None:
+            try:
+                on_session(session)
+            except Exception:
+                # Session observation must never make a provider run fail.
+                pass
         collected: list = []
         result = AgentRunResult(ok=False, external_id=session.external_id)
         async for ev in self.stream_events(session):
