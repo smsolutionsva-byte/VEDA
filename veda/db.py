@@ -116,9 +116,13 @@ CREATE TABLE IF NOT EXISTS schedule_snapshots (
   source_path TEXT,
   project_name TEXT, data_date TEXT, status_date TEXT,
   planned_start TEXT, planned_finish TEXT, forecast_finish TEXT,
-  baseline_finish TEXT,
-  task_count INTEGER, milestone_count INTEGER, relationship_count INTEGER,
+  baseline_finish TEXT, must_finish_by TEXT,
+  forecast_basis TEXT, baseline_basis TEXT, criticality_basis TEXT,
+  criticality_threshold_days REAL,
+  task_count INTEGER, wbs_count INTEGER, summary_activity_count INTEGER,
+  loe_count INTEGER, milestone_count INTEGER, relationship_count INTEGER,
   resource_count INTEGER, critical_count INTEGER, late_count INTEGER,
+  overdue_count INTEGER, completed_late_count INTEGER,
   percent_complete REAL,
   health_score REAL,
   capabilities_json TEXT,
@@ -536,6 +540,25 @@ def init_db() -> None:
         if name not in cols:
             conn.execute(ddl)
     conn.execute("CREATE INDEX IF NOT EXISTS ix_files_batch ON files(batch_id)")
+
+    # Source-semantic schedule fields added after v0.1.2.  These keep WBS nodes,
+    # forecast provenance and the two different meanings of "late" separate.
+    scols = {r[1] for r in conn.execute(
+        "PRAGMA table_info(schedule_snapshots)").fetchall()}
+    for name, ddl in (
+        ("must_finish_by", "ALTER TABLE schedule_snapshots ADD COLUMN must_finish_by TEXT"),
+        ("forecast_basis", "ALTER TABLE schedule_snapshots ADD COLUMN forecast_basis TEXT"),
+        ("baseline_basis", "ALTER TABLE schedule_snapshots ADD COLUMN baseline_basis TEXT"),
+        ("criticality_basis", "ALTER TABLE schedule_snapshots ADD COLUMN criticality_basis TEXT"),
+        ("criticality_threshold_days", "ALTER TABLE schedule_snapshots ADD COLUMN criticality_threshold_days REAL"),
+        ("wbs_count", "ALTER TABLE schedule_snapshots ADD COLUMN wbs_count INTEGER"),
+        ("summary_activity_count", "ALTER TABLE schedule_snapshots ADD COLUMN summary_activity_count INTEGER"),
+        ("loe_count", "ALTER TABLE schedule_snapshots ADD COLUMN loe_count INTEGER"),
+        ("overdue_count", "ALTER TABLE schedule_snapshots ADD COLUMN overdue_count INTEGER"),
+        ("completed_late_count", "ALTER TABLE schedule_snapshots ADD COLUMN completed_late_count INTEGER"),
+    ):
+        if name not in scols:
+            conn.execute(ddl)
 
     # v0.1.2 proposals can represent task create/delete as well as field updates.
     pcols = {r[1] for r in conn.execute("PRAGMA table_info(proposals)").fetchall()}

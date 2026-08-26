@@ -164,7 +164,10 @@ def overview(pid: str):
         "quality": {"passed": qa_map.get("pass", 0), "failed": qa_map.get("fail", 0),
                     "not_evaluated": qa_map.get("not_evaluated", 0)},
         "counts": {
-            "activities": _count("activities", pid),
+            "activities": int((snap or {}).get("task_count") or _count("activities", pid)),
+            "wbs": int((snap or {}).get("wbs_count") or _count("wbs_nodes", pid)),
+            "summary_activities": int((snap or {}).get("summary_activity_count") or 0),
+            "loe": int((snap or {}).get("loe_count") or 0),
             "milestones": _count("milestones", pid),
             "relationships": _count("relationships", pid),
             "resources": _count("resources", pid),
@@ -174,12 +177,13 @@ def overview(pid: str):
             "risks": _count("risks", pid),
             "files": _count("files", pid),
             "artifacts": _count("artifacts", pid),
-            "critical": (db.q1("SELECT COUNT(*) c FROM activities WHERE project_id=? "
-                               "AND critical=1 AND is_summary=0",
-                               [pid]) or {}).get("c", 0),
-            "late": (db.q1("SELECT COUNT(*) c FROM activities WHERE project_id=? "
-                           "AND is_summary=0 AND finish_variance_days>0",
-                           [pid]) or {}).get("c", 0),
+            "critical": int((snap or {}).get("critical_count") or 0),
+            # Back-compat: "late" now consistently means currently overdue.
+            "late": int((snap or {}).get("overdue_count") or
+                        (snap or {}).get("late_count") or 0),
+            "overdue": int((snap or {}).get("overdue_count") or
+                           (snap or {}).get("late_count") or 0),
+            "completed_late": int((snap or {}).get("completed_late_count") or 0),
             "pending_reviews": (db.q1("SELECT COUNT(*) c FROM reviews WHERE "
                                       "project_id=? AND status='open'",
                                       [pid]) or {}).get("c", 0),
@@ -554,7 +558,9 @@ def critical_path(pid: str):
             "driving_links": drivers,
             "analysis": info.get("analyze", {}),
             "finish": (snap or {}).get("forecast_finish"),
-            "basis": "Horizun schedule_analyze (MCP_FACT)"}
+            "criticality_basis": (snap or {}).get("criticality_basis"),
+            "criticality_threshold_days": (snap or {}).get("criticality_threshold_days"),
+            "basis": "Horizun schedule_analyze (MCP_FACT); VEDA preserves the source criticality method"}
 
 
 # =====================================================================

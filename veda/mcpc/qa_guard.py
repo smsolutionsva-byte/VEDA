@@ -26,6 +26,7 @@ from datetime import datetime
 from typing import Any
 
 from .. import db
+from .source_semantics import inspect_source, parse_dt
 
 
 _FORECAST_FIELDS = {
@@ -65,101 +66,40 @@ def _parse_dt(value: Any) -> datetime | None:
 
 
 def _read_xer_semantics(path: str) -> dict | None:
-    """Read only the XER headers/rows needed for QA source semantics."""
-    if not path or os.path.splitext(path)[1].lower() != ".xer" or not os.path.isfile(path):
+    """Read XER semantics through the shared source manifest.
+
+    QA adds only the narrow future-actual check; structural/date semantics live in
+    source_semantics so dashboard, QA and persistence cannot disagree.
+    """
+    sem = inspect_source(path)
+    if not sem or sem.get("format") != "xer" or not sem.get("source_guarded"):
         return None
-
-    table = None
-    fields: dict[str, list[str]] = {}
-    project_rows: list[dict] = []
-    task_rows: list[dict] = []
-
-    try:
-        with open(path, "r", encoding="utf-8-sig", errors="replace") as fh:
-            for raw in fh:
-                line = raw.rstrip("\r\n")
-                if not line:
-                    continue
-                parts = line.split("\t")
-                marker = parts[0]
-                if marker == "%T":
-                    table = parts[1].strip().upper() if len(parts) > 1 else None
-                elif marker == "%F" and table:
-                    fields[table] = [x.strip() for x in parts[1:]]
-                elif marker == "%R" and table in ("PROJECT", "TASK"):
-                    cols = fields.get(table) or []
-                    vals = parts[1:]
-                    row = {cols[i]: vals[i] if i < len(vals) else ""
-                           for i in range(len(cols))}
-                    if table == "PROJECT":
-                        project_rows.append(row)
-                    else:
-                        task_rows.append(row)
-    except OSError:
-        return None
-
-    if not project_rows and not task_rows:
-        return None
-
-    # The live project is normally the PROJECT row that is not itself a
-    # baseline copy (orig_proj_id blank).  If an XER contains multiple unrelated
-    # live projects, we cannot safely know which one Horizun's handle represents,
-    # so decline to override its QA result rather than guess.
-    live_projects = [p for p in project_rows if not _nonempty(p.get("orig_proj_id"))]
-    if len(live_projects) > 1:
-        return None
-    current = (live_projects[0] if live_projects else
-               (project_rows[0] if project_rows else {}))
-    current_pid = str(current.get("proj_id") or "").strip()
-    live_tasks = [t for t in task_rows
-                  if not current_pid or str(t.get("proj_id") or "").strip() == current_pid]
-
-    task_fields = set(fields.get("TASK") or [])
-    forecast_columns = sorted(task_fields & _FORECAST_FIELDS)
-    forecast_values = any(
-        _nonempty(t.get(col)) for t in live_tasks for col in forecast_columns
-    )
-
-    # P6 PROJECT.sum_base_proj_id identifies the selected project baseline.
-    # A baseline copy can also be recognised by PROJECT.orig_proj_id, but merely
-    # having a copy in an XER is not enough: BEI/missed-task checks need the
-    # baseline actually assigned to the live project.
-    baseline_id = str(current.get("sum_base_proj_id") or "").strip()
-    baseline_assigned = bool(baseline_id)
-    if baseline_assigned and project_rows:
-        known_ids = {str(p.get("proj_id") or "").strip() for p in project_rows}
-        # Some XER variants can reference a baseline that is not embedded in the
-        # export.  The assignment itself is still evidence that a baseline is
-        # selected, so do not require the baseline row to be present.
-        baseline_assigned = baseline_id in known_ids or bool(baseline_id)
-
-    data_date = (_parse_dt(current.get("last_recalc_date")) or
-                 _parse_dt(current.get("sum_data_date")))
+    data_date = parse_dt(sem.get("data_date"))
     future_actual_uids: list[Any] = []
     if data_date:
         dd = data_date.date()
-        for t in live_tasks:
-            astart = _parse_dt(t.get("act_start_date"))
-            afin = _parse_dt(t.get("act_end_date"))
-            # DCMA status-date checks are calendar-date comparisons here.  This
-            # avoids a same-day 17:00 actual being called "future" merely because
-            # the data date was stored as 00:00 or 12:00.
+        for tid, t in (sem.get("task_by_id") or {}).items():
+            astart = parse_dt(t.get("act_start_date"))
+            afin = parse_dt(t.get("act_end_date"))
             if ((astart and astart.date() > dd) or
                     (afin and afin.date() > dd)):
-                uid: Any = t.get("task_id") or t.get("task_code")
+                uid: Any = tid
                 try:
                     uid = int(uid)
                 except (TypeError, ValueError):
                     pass
                 future_actual_uids.append(uid)
-
     return {
         "format": "xer",
-        "task_fields": sorted(task_fields),
-        "forecast_columns": forecast_columns,
-        "forecast_values_available": bool(forecast_values),
-        "baseline_assigned": bool(baseline_assigned),
-        "data_date": data_date.isoformat() if data_date else None,
+        "task_fields": sem.get("task_fields") or [],
+        "forecast_columns": sem.get("forecast_columns") or [],
+        "forecast_values_available": bool(sem.get("forecast_values_available")),
+        # Strict DCMA checks require an explicit/frozen project baseline. P6 may
+        # use the current project as a UI/EV fallback, but that is disclosed
+        # separately by the snapshot rather than silently treated as an approved
+        # DCMA baseline.
+        "baseline_assigned": bool(sem.get("baseline_assigned")),
+        "data_date": sem.get("data_date"),
         "future_actual_uids": future_actual_uids,
     }
 

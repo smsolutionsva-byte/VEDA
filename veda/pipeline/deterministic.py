@@ -56,31 +56,40 @@ def analyse(project_id: str) -> AgentResult:
 
     ev = db.q1("SELECT * FROM earned_value WHERE project_id=? AND scope='project' "
                "ORDER BY created_at DESC LIMIT 1", [project_id])
+    baseline_fallback = bool(snap and "fallback" in
+                             str(snap.get("baseline_basis") or "").lower())
     if ev and ev.get("spi") is not None:
         spi = float(ev["spi"])
+        ref_label = "current-project fallback reference" if baseline_fallback else "stored baseline"
         findings.append(ScheduleFinding(
             title="Schedule performance index is " + str(round(spi, 3)),
-            detail=("Earned value against the stored baseline gives SPI " +
+            detail=("Earned value against the " + ref_label + " gives SPI " +
                     str(round(spi, 3)) + " and schedule variance " +
                     str(ev.get("sv")) + ". " +
-                    ("The project is behind the baseline plan."
-                     if spi < 0.98 else "The project is at or ahead of plan.")),
+                    ("The project is behind the reference plan."
+                     if spi < 0.98 else "The project is at or ahead of the reference plan.") +
+                    (" This is not an independently frozen baseline."
+                     if baseline_fallback else "")),
             basis=str(ev.get("basis") or "Horizun baseline_compare"),
             provenance="MCP_FACT",
         ))
         if spi < 0.95:
             issues.append(Issue(
                 ref="DET-SPI",
-                title="Project is behind the baseline schedule (SPI " +
-                      str(round(spi, 3)) + ")",
-                description=("Earned value measured against the stored baseline "
-                             "reports SPI " + str(round(spi, 3)) + ". This is a "
-                             "measured condition, not a forecast."),
+                title="Project is behind the " +
+                      ("reference plan" if baseline_fallback else "baseline schedule") +
+                      " (SPI " + str(round(spi, 3)) + ")",
+                description=("Earned value measured against the " + ref_label +
+                             " reports SPI " + str(round(spi, 3)) + ". This is a "
+                             "measured condition, not a forecast." +
+                             (" Treat it as provisional until a frozen/assigned "
+                              "baseline is supplied." if baseline_fallback else "")),
                 source="Horizun baseline_compare",
                 severity="high" if spi < 0.9 else "medium",
                 priority="high" if spi < 0.9 else "medium",
                 schedule_impact_note="SPI " + str(round(spi, 3)),
-                confidence=1.0, provenance="DETERMINISTIC_CALCULATION"))
+                confidence=0.9 if baseline_fallback else 1.0,
+                provenance="DETERMINISTIC_CALCULATION"))
 
     if snap and snap.get("baseline_finish") and snap.get("forecast_finish"):
         bf = str(snap["baseline_finish"]).split("T")[0]
@@ -205,14 +214,25 @@ def _summary(snap, issues, risks, findings, ev) -> str:
                 " issue(s) were derived from the uploaded documents.")
     bits = [
         "Schedule '" + str(snap.get("project_name")) + "' holds " +
-        str(snap.get("task_count")) + " activities with data date " +
-        str(snap.get("data_date")) + ".",
-        "Forecast finish is " + str(snap.get("forecast_finish")) +
-        " against a baseline finish of " +
-        str(snap.get("baseline_finish") or "none stored") + ".",
-        str(snap.get("critical_count")) + " activities are critical and " +
-        str(snap.get("late_count")) + " are late.",
+        str(snap.get("task_count")) + " activities" +
+        ((" across " + str(snap.get("wbs_count")) + " WBS nodes")
+         if snap.get("wbs_count") is not None else "") +
+        " with data date " + str(snap.get("data_date")) + ".",
     ]
+    if snap.get("forecast_finish"):
+        bits.append("Current forecast finish is " + str(snap.get("forecast_finish")) +
+                    (" against a baseline/reference finish of " +
+                     str(snap.get("baseline_finish")) if snap.get("baseline_finish") else "") + ".")
+    else:
+        bits.append("A current forecast finish is not available from the supplied source.")
+    if snap.get("must_finish_by"):
+        bits.append("The project Must Finish By date is " + str(snap.get("must_finish_by")) + ".")
+    bits.append(str(snap.get("critical_count")) + " activities are marked critical " +
+                "using " + str(snap.get("criticality_basis") or "the source/engine method") + ".")
+    bits.append(str(snap.get("overdue_count") if snap.get("overdue_count") is not None
+                    else snap.get("late_count")) + " unfinished activities are past their " +
+                "planned/reference finish; " + str(snap.get("completed_late_count") or 0) +
+                " completed activities finished after baseline/reference finish.")
     if ev and ev.get("spi") is not None:
         bits.append("SPI is " + str(round(float(ev["spi"]), 3)) + ".")
     if snap.get("health_score") is not None:

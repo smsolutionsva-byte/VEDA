@@ -166,9 +166,12 @@ def t_overview(_args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
     if snap:
         out["schedule"] = {k: snap.get(k) for k in (
             "project_name", "data_date", "status_date", "planned_start",
-            "planned_finish", "forecast_finish", "baseline_finish", "task_count",
-            "milestone_count", "relationship_count", "resource_count",
-            "critical_count", "late_count", "percent_complete", "health_score",
+            "planned_finish", "forecast_finish", "baseline_finish", "must_finish_by",
+            "forecast_basis", "baseline_basis", "criticality_basis",
+            "criticality_threshold_days", "task_count", "wbs_count",
+            "summary_activity_count", "loe_count", "milestone_count",
+            "relationship_count", "resource_count", "critical_count", "late_count",
+            "overdue_count", "completed_late_count", "percent_complete", "health_score",
             "revision", "source_path")}
         out["schedule"]["horizun_capabilities"] = db.jloads(
             snap.get("capabilities_json"), {})

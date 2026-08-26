@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from .. import db
 from .client import McpError, horizun
+from .source_semantics import inspect_source, raw_task_id, parse_dt
 
 _handles: dict = {}
 _hlock = threading.RLock()
@@ -182,7 +183,30 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     tasks = page_all("tasks_query", {"handle": handle, "shape": "flat",
                                      "sort": "wbs", "includeCustom": True},
                      project_id=project_id, job_id=job_id)
-    step("activities_loaded", str(len(tasks)) + " activities loaded")
+
+    # XER is explicit about structure: PROJWBS rows are WBS nodes and TASK rows
+    # are activities. Some adapters flatten both into tasks_query. Resolve the
+    # source project first, then retain only rows that map to source TASK ids.
+    source = inspect_source(schedule_path, info=info,
+                            task_uid_hints=[t.get("uid") for t in tasks])
+    raw_task_count = len(tasks)
+    if source and source.get("source_guarded") and source.get("task_ids"):
+        source_ids = set(source.get("task_ids") or ())
+        returned_ids = {raw_task_id(t) for t in tasks if raw_task_id(t)}
+        overlap = returned_ids & source_ids
+        denom = min(len(returned_ids), len(source_ids)) or 1
+        # Only apply identity filtering when the adapter/source identity systems
+        # clearly agree. Otherwise preserve the MCP rows and disclose that source
+        # structure could not safely constrain them.
+        if overlap and (len(overlap) / denom) >= 0.80:
+            tasks = [t for t in tasks if raw_task_id(t) in source_ids]
+    wbs_n = int((source or {}).get("wbs_count") or 0)
+    label = str(len(tasks)) + " activities loaded"
+    if wbs_n:
+        label += " · " + str(wbs_n) + " WBS nodes kept separate"
+    if raw_task_count != len(tasks):
+        label += " · " + str(raw_task_count - len(tasks)) + " structural rows excluded"
+    step("activities_loaded", label)
 
     db.ex("DELETE FROM activities WHERE project_id=?", [project_id])
     act_rows = []
@@ -201,6 +225,11 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         else:
             status = "not_started"
         bstart, bfin = t.get("baselineStart"), t.get("baselineFinish")
+        raw = ((source or {}).get("task_by_id") or {}).get(raw_task_id(t), {})
+        raw_type = str(raw.get("task_type") or "")
+        source_summary = raw_type in ("TT_WBS", "WBS Summary")
+        source_milestone = raw_type in ("TT_Mile", "TT_FinMile",
+                                        "Start Milestone", "Finish Milestone")
         act_rows.append({
             "id": db.new_id("act_"), "project_id": project_id,
             "snapshot_id": snapshot_id,
@@ -208,8 +237,8 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             "name": t.get("name"),
             "wbs": t.get("wbs"), "outline_level": t.get("outlineLevel"),
             "parent_uid": t.get("parentUid"),
-            "is_summary": 1 if t.get("summary") else 0,
-            "is_milestone": 1 if t.get("milestone") else 0,
+            "is_summary": 1 if (t.get("summary") or source_summary) else 0,
+            "is_milestone": 1 if (t.get("milestone") or source_milestone) else 0,
             "status": status,
             "start": _dt(t.get("start")), "finish": _dt(t.get("finish")),
             "actual_start": _dt(t.get("actualStart")),
@@ -346,7 +375,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         })
 
     # ---- WBS rollup (spec 18) ------------------------------------------
-    _build_wbs(project_id, snapshot_id, act_rows, by_uid)
+    _build_wbs(project_id, snapshot_id, act_rows, by_uid, source=source)
 
     # ---- schedule quality (spec 23) ------------------------------------
     qa = {}
@@ -452,10 +481,32 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     # ---- snapshot header -----------------------------------------------
     leaves = [r for r in act_rows if not r["is_summary"]]
     crit = sum(1 for r in leaves if r["critical"])
-    status_date = _iso(info.get("statusDate"))
-    late = sum(1 for r in leaves
-               if r["status"] != "complete" and status_date and r.get("finish")
-               and _iso(r["finish"]) < status_date)
+    status_date = _iso(info.get("statusDate")) or (source or {}).get("data_date")
+
+    # Keep two different delay concepts separate:
+    #   overdue = unfinished work whose reference/planned finish is before DD
+    #   completed_late = completed work that actually finished after baseline
+    # The old UI called both "late", producing contradictory 53 vs 137 counts.
+    overdue = 0
+    source_task_by_id = (source or {}).get("task_by_id") or {}
+    for r in leaves:
+        if r["status"] == "complete" or not status_date:
+            continue
+        raw = source_task_by_id.get(str(r.get("uid")))
+        ref_finish = None
+        if raw is not None:
+            # XER target_end_date is Planned Finish, not current Forecast Finish.
+            ref_finish = _iso(raw.get("target_end_date"))
+        if not ref_finish:
+            ref_finish = _iso(r.get("finish"))
+        if ref_finish and ref_finish < status_date:
+            overdue += 1
+
+    completed_late = sum(1 for r in leaves
+                         if r.get("actual_finish") and r.get("baseline_finish")
+                         and (_daydiff(r.get("actual_finish"),
+                                      r.get("baseline_finish")) or 0) > 0)
+
     pct = (bc.get("project") or {})
     overall = None
     if pct.get("bac"):
@@ -466,27 +517,94 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         overall = round(sum((r.get("percent_complete") or 0) *
                             ((r.get("duration_days") or 1)) for r in leaves) / (tot or 1), 1)
 
+    source_guarded = bool((source or {}).get("source_guarded"))
+    if source_guarded:
+        planned_start = (source or {}).get("planned_start")
+        planned_finish = (source or {}).get("planned_finish")
+        forecast_finish = (source or {}).get("forecast_finish")
+        forecast_basis = ((source or {}).get("forecast_basis") or
+                          "not available in source")
+        must_finish_by = (source or {}).get("must_finish_by")
+    else:
+        planned_start = _iso(info.get("startDate"))
+        planned_finish = _iso(info.get("finishDate"))
+        forecast_finish = _iso(info.get("finishDate"))
+        forecast_basis = "Horizun project_info.finishDate" if forecast_finish else None
+        must_finish_by = None
+
+    baseline_finish = _baseline_finish(act_rows) if bc else None
+    if bc:
+        if source_guarded and not (source or {}).get("baseline_assigned"):
+            baseline_basis = "P6 current-project fallback baseline"
+        elif source_guarded:
+            baseline_basis = "assigned P6 project baseline"
+        else:
+            baseline_basis = "Horizun stored baseline"
+    else:
+        baseline_basis = None
+
+    cptype = str((source or {}).get("critical_path_type") or "").strip()
+    if cptype == "CT_TotFloat":
+        criticality_basis = "total float"
+    elif cptype:
+        criticality_basis = cptype
+    else:
+        criticality_basis = "Horizun critical flag"
+    threshold_hours = _num((source or {}).get("critical_float_threshold_hours"))
+    hpd = _num((source or {}).get("hours_per_day"))
+    criticality_threshold_days = (threshold_hours / hpd
+                                  if threshold_hours is not None and hpd else None)
+
+    type_counts = (source or {}).get("task_type_counts") or {}
+    loe_count = int(type_counts.get("TT_LOE", 0) or 0)
+    summary_count = sum(1 for r in act_rows if r.get("is_summary"))
+    milestone_count = sum(1 for r in act_rows if r.get("is_milestone"))
+
+    source_public = None
+    if source:
+        source_public = {k: source.get(k) for k in (
+            "format", "source_guarded", "project_resolution", "ambiguous_project",
+            "project_id", "project_code", "task_count", "wbs_count",
+            "task_type_counts", "forecast_columns", "forecast_values_available",
+            "forecast_finish", "forecast_basis", "planned_start", "planned_finish",
+            "project_planned_start", "must_finish_by", "schedule_finish",
+            "data_date", "baseline_assigned", "baseline_id", "baseline_basis",
+            "critical_path_type", "critical_float_threshold_hours", "hours_per_day")
+            if k in source}
+
     db.insert("schedule_snapshots", {
         "id": snapshot_id, "project_id": project_id, "file_id": file_id,
         "job_id": job_id, "revision": revision, "source_path": schedule_path,
-        "project_name": info.get("name") or info.get("title"),
+        "project_name": info.get("name") or info.get("title") or
+                        (source or {}).get("project_code"),
         "data_date": status_date, "status_date": status_date,
-        "planned_start": _iso(info.get("startDate")),
-        "planned_finish": _iso(info.get("finishDate")),
-        "forecast_finish": _iso(info.get("finishDate")),
-        "baseline_finish": _baseline_finish(act_rows) if bc else None,
-        "task_count": len(act_rows), "milestone_count": info.get("milestones"),
+        "planned_start": planned_start,
+        "planned_finish": planned_finish,
+        "forecast_finish": forecast_finish,
+        "baseline_finish": baseline_finish,
+        "must_finish_by": must_finish_by,
+        "forecast_basis": forecast_basis,
+        "baseline_basis": baseline_basis,
+        "criticality_basis": criticality_basis,
+        "criticality_threshold_days": criticality_threshold_days,
+        "task_count": len(act_rows),
+        "wbs_count": int((source or {}).get("wbs_count") or 0),
+        "summary_activity_count": summary_count, "loe_count": loe_count,
+        "milestone_count": milestone_count,
         "relationship_count": len(seen), "resource_count": len(resources),
-        "critical_count": crit, "late_count": late,
+        "critical_count": crit, "late_count": overdue,
+        "overdue_count": overdue, "completed_late_count": completed_late,
         "percent_complete": overall,
         "health_score": _health_score(qa),
         "capabilities_json": db.jdumps(caps),
-        "info_json": db.jdumps({"info": info, "analyze": _slim(analyze), "qa": {
+        "info_json": db.jdumps({"info": info, "source": source_public,
+                                  "analyze": _slim(analyze), "qa": {
             "checks": qa.get("checks"), "passed": qa.get("passed"),
             "failed": qa.get("failed"), "notEvaluated": qa.get("notEvaluated"),
             "notes": qa.get("notes"),
             "semanticGuard": qa.get("vedaSemanticGuard"),
-        }, "baseline": {"present": bool(bc), "project": bc.get("project")}}),
+        }, "baseline": {"present": bool(bc), "basis": baseline_basis,
+                         "project": bc.get("project")}}),
         "is_current": 1,
     })
 
@@ -500,14 +618,16 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
 
     return {
         "snapshot_id": snapshot_id, "revision": revision,
-        "tasks": len(act_rows), "relationships": len(seen),
-        "resources": len(resources), "milestones": info.get("milestones"),
-        "critical": crit, "late": late,
+        "tasks": len(act_rows), "wbs": int((source or {}).get("wbs_count") or 0),
+        "relationships": len(seen), "resources": len(resources),
+        "milestones": milestone_count,
+        "critical": crit, "late": overdue, "overdue": overdue,
+        "completed_late": completed_late,
         "qa_failed": qa.get("failed"), "qa_checks": qa.get("checks"),
         "baseline_present": bool(bc),
-        "project_name": info.get("name"),
-        "planned_start": _iso(info.get("startDate")),
-        "forecast_finish": _iso(info.get("finishDate")),
+        "project_name": info.get("name") or (source or {}).get("project_code"),
+        "planned_start": planned_start,
+        "forecast_finish": forecast_finish,
         "status_date": status_date,
         "percent_complete": overall,
         "revision_changes": revision_changes,
@@ -660,8 +780,70 @@ def _qa_category(rule: Any) -> str:
     return "Horizun rule"
 
 
-def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict) -> None:
+def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
+               source: dict | None = None) -> None:
+    """Persist WBS hierarchy without confusing WBS nodes with activities.
+
+    For XER, PROJWBS is authoritative for hierarchy. A TASK whose activity type
+    is WBS Summary remains a real activity, but a PROJWBS row is never counted as
+    an activity. Other formats retain the adapter-derived summary fallback.
+    """
     db.ex("DELETE FROM wbs_nodes WHERE project_id=?", [project_id])
+
+    source_nodes = (source or {}).get("wbs_nodes") or []
+    task_to_wbs = (source or {}).get("task_to_wbs") or {}
+    if source_nodes and task_to_wbs:
+        nodes_by_id = {str(n.get("wbs_id")): n for n in source_nodes
+                       if n.get("wbs_id") is not None}
+        children: dict[str, list[str]] = {}
+        for wid, n in nodes_by_id.items():
+            parent = str(n.get("parent_wbs_id") or "")
+            if parent:
+                children.setdefault(parent, []).append(wid)
+
+        memo_desc: dict[str, set[str]] = {}
+        def descendants(wid: str, trail: set[str] | None = None) -> set[str]:
+            if wid in memo_desc:
+                return memo_desc[wid]
+            trail = set(trail or ())
+            if wid in trail:
+                return {wid}
+            trail.add(wid)
+            out = {wid}
+            for child in children.get(wid, []):
+                out.update(descendants(child, trail))
+            memo_desc[wid] = out
+            return out
+
+        # Rollups intentionally exclude WBS Summary activities from the workload
+        # aggregates to avoid double-counting; they remain visible as activities.
+        leaf_rows = [r for r in rows if not r.get("is_summary")]
+        for wid, n in nodes_by_id.items():
+            covered = descendants(wid)
+            kids = [r for r in leaf_rows
+                    if str(task_to_wbs.get(str(r.get("uid"))) or "") in covered]
+            starts = [k["start"] for k in kids if k.get("start")]
+            finishes = [k["finish"] for k in kids if k.get("finish")]
+            tot = sum((k.get("duration_days") or 1) for k in kids) or 1
+            pc = (sum((k.get("percent_complete") or 0) *
+                      (k.get("duration_days") or 1) for k in kids) / tot) if kids else 0
+            db.insert("wbs_nodes", {
+                "project_id": project_id, "snapshot_id": snapshot_id,
+                "code": n.get("code") or wid, "name": n.get("name") or wid,
+                "parent_code": n.get("parent_code"), "level": n.get("level") or 1,
+                "uid": int(wid) if wid.isdigit() else None,
+                "start": min(starts) if starts else None,
+                "finish": max(finishes) if finishes else None,
+                "percent_complete": round(pc, 1),
+                "activity_count": len(kids),
+                "critical_count": sum(1 for k in kids if k.get("critical")),
+                "late_count": sum(1 for k in kids
+                                  if (k.get("finish_variance_days") or 0) > 0),
+                "provenance": "MCP_FACT",
+            })
+        return
+
+    # Non-XER / adapter fallback: summary rows describe the hierarchy.
     summaries = [r for r in rows if r["is_summary"]]
     leaves = [r for r in rows if not r["is_summary"]]
     for s in summaries:

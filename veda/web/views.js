@@ -101,8 +101,16 @@ VIEWS.overview = async (pid) => {
         '</div><p><button class="btn primary" onclick="go(\'files\')">' +
         'Go to files</button></p></div>');
   }
-  const late = s.forecast_finish && s.baseline_finish &&
+  const lateFinish = s.forecast_finish && s.baseline_finish &&
     day(s.forecast_finish) > day(s.baseline_finish);
+  const forecastValue = s.forecast_finish ? day(s.forecast_finish) : 'N/E';
+  const forecastDetail = s.forecast_finish
+    ? (s.baseline_finish ? 'baseline ' + day(s.baseline_finish) : E(s.forecast_basis || 'current schedule'))
+    : 'current forecast unavailable in source';
+  const baselineFallback = String(s.baseline_basis || '').toLowerCase().includes('fallback');
+  const criticalDetail = (s.criticality_basis || 'Horizun critical flag') +
+    (s.criticality_threshold_days !== null && s.criticality_threshold_days !== undefined
+      ? ' · threshold ' + num(s.criticality_threshold_days, 2) + 'd' : '');
 
   return '<div class="head"><div><div class="eyebrow">Project overview</div>' +
     '<h1>' + E(o.project.name) + '</h1>' +
@@ -112,13 +120,13 @@ VIEWS.overview = async (pid) => {
     '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Forecast finish', day(s.forecast_finish),
-      s.baseline_finish ? 'baseline ' + day(s.baseline_finish) : 'no baseline',
-      late ? 'hot' : 'good') +
+    stat('Forecast finish', forecastValue, forecastDetail,
+      lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
     stat('Progress', num(s.percent_complete, 1) + '%',
-      ev && ev.spi ? 'SPI ' + num(ev.spi, 3) : 'schedule complete') +
-    stat('Critical', int(c.critical), 'of ' + int(c.activities) + ' activities',
-      'warm') +
+      ev && ev.spi ? 'SPI ' + num(ev.spi, 3) + (baselineFallback ? ' · fallback baseline' : '')
+        : 'schedule progress') +
+    stat('Critical', int(c.critical), 'of ' + int(c.activities) + ' activities · ' +
+      E(criticalDetail), 'warm') +
     stat('Schedule health', num(s.health_score, 1) + '%',
       o.quality.failed + ' of ' + (o.quality.passed + o.quality.failed) +
         ' evaluated checks failed' + (o.quality.not_evaluated
@@ -127,9 +135,15 @@ VIEWS.overview = async (pid) => {
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Late activities', int(c.late), 'past baseline finish',
-      c.late ? 'warm' : '') +
+    stat('Currently overdue', int(c.overdue), 'unfinished past planned/reference finish',
+      c.overdue ? 'warm' : '') +
+    stat('Completed late', int(c.completed_late), 'actual finish after baseline/reference finish',
+      c.completed_late ? 'warm' : '') +
     stat('Evidence', int(c.evidence), 'field records held') +
+    stat('WBS structure', int(c.wbs), 'nodes · not counted as activities') +
+    '</div>' +
+
+    '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Pending reviews', int(c.pending_reviews), 'need a human answer',
       c.pending_reviews ? 'warm' : 'good') +
     stat('Pending changes', int(c.pending_proposals), 'awaiting approval',
@@ -149,16 +163,24 @@ VIEWS.overview = async (pid) => {
       row('Schedule name', E(s.project_name)) +
       row('Data date', day(s.data_date)) +
       row('Planned start', day(s.planned_start)) +
-      row('Planned finish', day(s.planned_finish)) +
-      row('Forecast finish', day(s.forecast_finish)) +
-      row('Baseline finish', s.baseline_finish ? day(s.baseline_finish)
+      row('Latest planned activity finish', day(s.planned_finish)) +
+      (s.must_finish_by ? row('Must finish by', day(s.must_finish_by)) : '') +
+      row('Forecast finish', s.forecast_finish ? day(s.forecast_finish)
+        : '<span style="color:var(--ink-3)">N/E — current forecast unavailable</span>') +
+      (s.forecast_basis ? row('Forecast basis', E(s.forecast_basis)) : '') +
+      row('Baseline / reference finish', s.baseline_finish ? day(s.baseline_finish)
         : '<span style="color:var(--ink-3)">none stored</span>') +
+      (s.baseline_basis ? row('Baseline basis', E(s.baseline_basis)) : '') +
       row('Activities', int(s.task_count)) +
+      row('WBS nodes', int(s.wbs_count)) +
+      (s.summary_activity_count ? row('WBS Summary activities', int(s.summary_activity_count)) : '') +
+      (s.loe_count ? row('Level of Effort activities', int(s.loe_count)) : '') +
       row('Relationships', int(s.relationship_count)) +
       row('Resources', int(s.resource_count)) +
       '</dl><div style="margin-top:10px">' + prov('MCP_FACT') +
-      ' <span style="color:var(--ink-3);font-size:12px">Read from Horizun. ' +
-      'VEDA does not recompute schedule machinery.</span></div></div>') +
+      ' <span style="color:var(--ink-3);font-size:12px">Horizun performs schedule ' +
+      'analysis; VEDA source semantics keep WBS, planned, forecast and baseline ' +
+      'concepts separate.</span></div></div>') +
     panel('Earned value', ev
       ? '<div class="body"><dl class="kv">' +
         row('PV / BCWS', num(ev.pv, 2)) + row('EV / BCWP', num(ev.ev, 2)) +
@@ -167,13 +189,17 @@ VIEWS.overview = async (pid) => {
           num(ev.spi, 3) + '</b>') +
         row('CPI', num(ev.cpi, 3)) + row('EAC', num(ev.eac, 2)) +
         row('TCPI', num(ev.tcpi, 3)) +
-        '</dl><div class="note mcp" style="margin-top:10px">Basis: ' +
-        E(ev.basis || '') + '</div></div>'
+        '</dl><div class="note ' + (baselineFallback ? 'warn' : 'mcp') +
+        '" style="margin-top:10px">Basis: ' + E(ev.basis || '') +
+        (baselineFallback ? '<br>Source note: P6 is using the current project as ' +
+          'the fallback baseline; this is not an independently frozen/assigned baseline.' : '') +
+        '</div></div>'
       : '<div class="body"><div class="note warn">Earned value requires a ' +
-        'stored baseline. This schedule has none, so Horizun reports the ' +
-        'baseline checks as not evaluated rather than passing them.</div></div>') +
+        'usable baseline/reference. If the source cannot establish one, VEDA ' +
+        'leaves the metrics unavailable rather than inventing them.</div></div>') +
     '</div>';
 };
+
 const row = (k, v) => '<dt>' + E(k) + '</dt><dd>' + v + '</dd>';
 
 /* ===================================================== 2. EPS */
@@ -280,7 +306,7 @@ VIEWS.activities = async (pid, params) => {
     '<button class="btn sm' + (params.critical ? ' primary' : '') +
     '" id="fc">Critical only</button>' +
     '<button class="btn sm' + (params.late ? ' primary' : '') +
-    '" id="fl">Late only</button>' +
+    '" id="fl">Completed late</button>' +
     '<button class="btn sm' + (params.milestone ? ' primary' : '') +
     '" id="fm">Milestones</button>' +
     (params.wbs ? '<span class="tag blue">WBS ' + E(params.wbs) + '</span>' : '') +
@@ -523,11 +549,14 @@ VIEWS.critical = async (pid) => {
     '<div class="note mcp" style="margin-bottom:14px">' + E(r.basis) +
     '. VEDA does not run its own CPM engine.</div>' +
     '<div class="grid g3" style="margin-bottom:14px">' +
-    stat('Critical activities', int(r.critical.length), 'zero or negative float',
-      'warm') +
+    stat('Critical activities', int(r.critical.length),
+      E(r.criticality_basis || 'source/engine criticality method') +
+      (r.criticality_threshold_days !== null && r.criticality_threshold_days !== undefined
+        ? ' · threshold ' + num(r.criticality_threshold_days, 2) + 'd' : ''), 'warm') +
     stat('Negative float', int(fd.negative || 0), 'cannot meet constraints',
       fd.negative ? 'hot' : 'good') +
-    stat('Project finish', day(r.finish), 'forecast') +
+    stat('Project finish', r.finish ? day(r.finish) : 'N/E',
+      r.finish ? 'current forecast' : 'current forecast unavailable') +
     '</div>' +
     panel('Float distribution',
       '<div class="body"><dl class="kv">' +

@@ -91,13 +91,20 @@ def analysis_prompt(project: dict, snapshot: dict | None, files: list,
                      "recompute)")
         for k, label in (("project_name", "schedule name"), ("data_date", "data date"),
                          ("planned_start", "planned start"),
-                         ("planned_finish", "planned finish"),
-                         ("forecast_finish", "forecast finish"),
+                         ("planned_finish", "latest planned activity finish"),
+                         ("must_finish_by", "must finish by"),
+                         ("forecast_finish", "current forecast finish"),
+                         ("forecast_basis", "forecast basis"),
+                         ("baseline_finish", "baseline/reference finish"),
+                         ("baseline_basis", "baseline basis"),
                          ("task_count", "activities"),
+                         ("wbs_count", "WBS nodes (not activities)"),
                          ("relationship_count", "relationships"),
                          ("resource_count", "resources"),
                          ("critical_count", "critical activities"),
-                         ("late_count", "late activities"),
+                         ("criticality_basis", "criticality method"),
+                         ("overdue_count", "unfinished past planned/reference finish"),
+                         ("completed_late_count", "completed after baseline/reference finish"),
                          ("percent_complete", "percent complete"),
                          ("health_score", "schedule health score")):
             if snapshot.get(k) is not None:
@@ -229,10 +236,15 @@ def question_prompt(question: str, project: dict, snapshot: dict | None) -> str:
         "PROJECT: " + str(project.get("name")),
     ]
     if snapshot:
-        lines.append("Data date " + str(snapshot.get("data_date")) +
-                     ", forecast finish " + str(snapshot.get("forecast_finish")) +
-                     ", " + str(snapshot.get("critical_count")) +
-                     " critical activities.")
+        sched_line = "Data date " + str(snapshot.get("data_date"))
+        if snapshot.get("forecast_finish"):
+            sched_line += ", current forecast finish " + str(snapshot.get("forecast_finish"))
+        else:
+            sched_line += ", current forecast finish unavailable"
+        sched_line += ", " + str(snapshot.get("critical_count")) + " critical activities"
+        if snapshot.get("criticality_basis"):
+            sched_line += " by " + str(snapshot.get("criticality_basis"))
+        lines.append(sched_line + ".")
     lines.append("")
     lines.append("""Investigate before answering:
 - veda_activities to find the activities the question is about
