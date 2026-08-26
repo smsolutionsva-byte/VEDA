@@ -427,8 +427,16 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
     # Incremental v0.1.2 rule: evidence-only batches reuse the current MCP
     # snapshot. Re-reading a 5k-task MPP because someone pasted one WhatsApp
     # update is expensive and also creates fake schedule revisions.
-    latest_sched = db.q1("SELECT * FROM files WHERE project_id=? AND kind='schedule' "
-                         "ORDER BY created_at DESC LIMIT 1", [project_id])
+    selected_sched_id = payload.get("schedule_file_id") or project.get("schedule_file_id")
+    latest_sched = None
+    if selected_sched_id:
+        latest_sched = db.q1("SELECT * FROM files WHERE project_id=? AND id=? AND kind='schedule'",
+                             [project_id, selected_sched_id])
+    if not latest_sched:
+        all_scheds = db.q("SELECT * FROM files WHERE project_id=? AND kind='schedule' ORDER BY created_at DESC, id DESC",
+                          [project_id])
+        if len(all_scheds) == 1:
+            latest_sched = all_scheds[0]
     current_snap = db.q1("SELECT * FROM schedule_snapshots WHERE project_id=? "
                          "AND is_current=1 ORDER BY created_at DESC LIMIT 1",
                          [project_id])
@@ -440,6 +448,14 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
             "SELECT * FROM files WHERE project_id=? AND kind='schedule' "
             "AND id IN (" + marks + ") ORDER BY created_at ASC, id ASC",
             [project_id, *incoming_ids])
+        requested_schedule = payload.get("schedule_file_id")
+        if requested_schedule:
+            incoming_schedules = [f for f in incoming_schedules if f.get("id") == requested_schedule]
+        elif len(incoming_schedules) > 1:
+            # A mixed project folder can contain baseline/current/recovery/extended
+            # revisions. Never silently process all of them in filename/upload order.
+            chosen = project.get("schedule_file_id")
+            incoming_schedules = [f for f in incoming_schedules if f.get("id") == chosen] if chosen else []
 
     snap_summary: dict = {}
     if incoming_schedules:
@@ -478,8 +494,13 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
         db.update("files", latest_sched["id"], {"extract_state": "done",
                                                 "extract_error": None})
     else:
-        step(job_id, project_id, "schedule_detected",
-             "No schedule file uploaded yet", "failed")
+        candidate_count = (db.q1("SELECT COUNT(*) c FROM files WHERE project_id=? AND kind='schedule'", [project_id]) or {}).get("c", 0)
+        if candidate_count and int(candidate_count) > 1 and not project.get("schedule_file_id"):
+            step(job_id, project_id, "schedule_detected",
+                 "Multiple schedule candidates detected; authoritative schedule selection required", "failed")
+        else:
+            step(job_id, project_id, "schedule_detected",
+                 "No schedule file uploaded yet", "failed")
 
     # ---- 3. evidence extraction (spec 33, 34) ---------------------------
     ev_files = db.q("SELECT * FROM files WHERE project_id=? AND kind='evidence' "

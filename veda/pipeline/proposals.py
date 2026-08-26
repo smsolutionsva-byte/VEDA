@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import audit, config, db, events
-from ..mcpc import McpError, horizun, schedule_ops
+from ..mcpc import McpError, horizun, schedule_ops, tabular_schedule
 from . import validators
 
 FIELD_TO_OP = {
@@ -73,6 +73,31 @@ CREATE_TASK_FIELDS = {
 
 def _proposal_payload(p: dict) -> dict:
     return db.jloads(p.get("payload_json"), {}) or {}
+
+
+def _tabular_write_block(src: str) -> dict | None:
+    """Return a user-facing guard for adapted tabular schedules.
+
+    CSV/XLSX schedules are accepted for analysis through the semantic adapter,
+    but VEDA must never pretend the generated MSPDI analysis copy is the user's
+    writable source. Governed edits require a native schedule file.
+    """
+    try:
+        candidate = tabular_schedule.inspect_tabular_schedule(src, relative_path=Path(src).name)
+    except Exception:
+        return None
+    if candidate and candidate.get("is_schedule"):
+        return {
+            "ok": False,
+            "error": (
+                "This schedule was imported from a tabular CSV/XLSX source and is "
+                "read-only for governed schedule write-back. Export/use a native "
+                "Primavera XER/P6 XML or Microsoft Project XML schedule before "
+                "dry-run or execution."
+            ),
+            "code": "TABULAR_SCHEDULE_READ_ONLY",
+        }
+    return None
 
 
 def current_schedule_path(project_id: str) -> str | None:
@@ -238,6 +263,9 @@ def dry_run(proposal_id: str, job_id: str | None = None) -> dict:
     src = current_schedule_path(project_id)
     if not src:
         return {"ok": False, "error": "no schedule file is available"}
+    tabular_guard = _tabular_write_block(src)
+    if tabular_guard:
+        return tabular_guard
 
     scratch = Path(config.project_dir(project_id)) / "revisions" / "_dryrun"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -383,6 +411,9 @@ def execute(proposal_id: str, job_id: str | None = None,
     src = current_schedule_path(project_id)
     if not src:
         return {"ok": False, "error": "no schedule file is available"}
+    tabular_guard = _tabular_write_block(src)
+    if tabular_guard:
+        return tabular_guard
 
     from . import ingest
     dest = ingest.copy_for_edit(project_id, src, suffix="rev")

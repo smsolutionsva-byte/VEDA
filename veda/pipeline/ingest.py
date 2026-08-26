@@ -37,6 +37,43 @@ def classify(ext: str) -> str:
     return "unknown"
 
 
+def _classify_stored(path: str, ext: str, relative_path: str | None = None) -> tuple[str, dict | None]:
+    """Classify from both format and content.
+
+    CSV/XLSX are ambiguous in construction projects: they can be DPR evidence,
+    trackers, or an exported schedule.  Only promote a tabular file when its
+    column structure is confidently schedule-shaped; filenames alone never do it.
+    """
+    ext = ext.lower()
+    if ext == ".xml":
+        return ("schedule" if _looks_like_schedule_xml(path) else "evidence"), None
+    if ext in config.SCHEDULE_EXTS:
+        return "schedule", None
+    if ext in {".csv", ".tsv", ".xlsx", ".xlsm"}:
+        try:
+            from ..mcpc import tabular_schedule
+            meta = tabular_schedule.inspect(path, relative_path)
+            if meta.get("candidate"):
+                return "schedule", meta
+        except Exception:
+            pass
+        return "evidence", None
+    if ext in config.EVIDENCE_EXTS:
+        return "evidence", None
+    # Extensionless XER occasionally appears in exported project folders.
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(65536)
+        text = head.decode("utf-8-sig", errors="ignore")
+        if text.startswith("ERMHDR") and "%T\tPROJECT" in text and "%T\tTASK" in text:
+            return "schedule", {"detected_as": "xer_content"}
+        if "<Project" in text and ("mspdi" in text.lower() or "schemas.microsoft.com/project" in text.lower()):
+            return "schedule", {"detected_as": "mspdi_content"}
+    except Exception:
+        pass
+    return "unknown", None
+
+
 def _looks_like_schedule_xml(path: str) -> bool:
     """.xml is ambiguous: MSPDI is a schedule, arbitrary XML is not."""
     try:
@@ -52,7 +89,7 @@ def _looks_like_schedule_xml(path: str) -> bool:
 def store_upload(project_id: str, filename: str, data: bytes,
                  content_type: str | None = None, uploaded_by: str = "human",
                  batch_id: str | None = None, source_mode: str = "file",
-                 trusted_human: bool = False) -> dict:
+                 trusted_human: bool = False, relative_path: str | None = None) -> dict:
     """Persist one source immutably, classify it, and security-scan evidence.
 
     v0.1.2 makes ingestion idempotent per project: identical bytes already in
@@ -61,6 +98,7 @@ def store_upload(project_id: str, filename: str, data: bytes,
     """
     pdir = config.project_dir(project_id)
     name = safe_name(filename)
+    rel = str(relative_path or filename or name).replace("\\", "/").lstrip("/")[:1000]
     files_dir = pdir / "files"
 
     # Hash before allocating the final immutable path. This means repeated
@@ -75,14 +113,16 @@ def store_upload(project_id: str, filename: str, data: bytes,
                      entity_type="file", entity_id=dup["id"],
                      new_value=name, result="skipped",
                      detail={"sha256": digest, "duplicate_of": dup["id"],
-                             "batch_id": batch_id, "source_mode": source_mode})
+                             "batch_id": batch_id, "source_mode": source_mode,
+                         "relative_path": rel})
         return {"id": dup["id"], "filename": dup["filename"],
                 "path": dup.get("stored_path"), "ext": dup.get("ext"),
                 "kind": dup.get("kind"), "sha256": digest,
                 "size_bytes": dup.get("size_bytes") or len(data),
                 "security_state": dup.get("security_state") or "clean",
                 "duplicate_of": dup["id"], "skipped": True,
-                "source_mode": source_mode, "batch_id": batch_id}
+                "source_mode": source_mode, "batch_id": batch_id,
+                "relative_path": rel}
 
     dest = files_dir / name
     stem, ext = os.path.splitext(name)
@@ -93,9 +133,7 @@ def store_upload(project_id: str, filename: str, data: bytes,
     dest.write_bytes(data)
 
     ext = ext.lower()
-    kind = classify(ext)
-    if ext == ".xml":
-        kind = "schedule" if _looks_like_schedule_xml(str(dest)) else "evidence"
+    kind, candidate_meta = _classify_stored(str(dest), ext, rel)
 
     sec = {"state": "clean", "note": None, "findings": []}
     # Deliberate operator text is an instruction/evidence source by design. It
@@ -115,7 +153,7 @@ def store_upload(project_id: str, filename: str, data: bytes,
         "kind": kind, "content_type": content_type, "uploaded_by": uploaded_by,
         "security_state": sec["state"], "security_notes": sec.get("note"),
         "extract_state": "pending", "batch_id": batch_id,
-        "source_mode": source_mode or "file",
+        "source_mode": source_mode or "file", "relative_path": rel,
     })
 
     audit.record(project_id, actor=uploaded_by, actor_type="human",
@@ -125,7 +163,8 @@ def store_upload(project_id: str, filename: str, data: bytes,
                  detail={"sha256": digest, "kind": kind,
                          "bytes": dest.stat().st_size,
                          "security_state": sec["state"],
-                         "batch_id": batch_id, "source_mode": source_mode})
+                         "batch_id": batch_id, "source_mode": source_mode,
+                         "relative_path": rel})
 
     if sec["state"] != "clean":
         from .. import reviews as reviews_mod
@@ -149,7 +188,8 @@ def store_upload(project_id: str, filename: str, data: bytes,
     return {"id": fid, "filename": dest.name, "path": str(dest), "ext": ext,
             "kind": kind, "sha256": digest, "size_bytes": dest.stat().st_size,
             "security_state": sec["state"], "duplicate_of": None,
-            "skipped": False, "source_mode": source_mode, "batch_id": batch_id}
+            "skipped": False, "source_mode": source_mode, "batch_id": batch_id,
+            "relative_path": rel, "schedule_candidate": candidate_meta}
 
 
 def store_text_input(project_id: str, text: str, source_mode: str = "field_note",

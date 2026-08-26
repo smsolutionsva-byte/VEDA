@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS files (
   extract_error TEXT,
   batch_id TEXT,
   source_mode TEXT DEFAULT 'file',
+  relative_path TEXT,
   duplicate_of TEXT,
   created_at REAL
 );
@@ -536,6 +537,7 @@ def init_db() -> None:
         ("batch_id", "ALTER TABLE files ADD COLUMN batch_id TEXT"),
         ("source_mode", "ALTER TABLE files ADD COLUMN source_mode TEXT DEFAULT 'file'"),
         ("duplicate_of", "ALTER TABLE files ADD COLUMN duplicate_of TEXT"),
+        ("relative_path", "ALTER TABLE files ADD COLUMN relative_path TEXT"),
     ):
         if name not in cols:
             conn.execute(ddl)

@@ -205,7 +205,8 @@ def overview(pid: str):
 # =====================================================================
 async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
                                  text: str = "", text_mode: str = "field_note",
-                                 text_title: str = "") -> dict:
+                                 text_title: str = "",
+                                 relative_paths: list[str] | None = None) -> dict:
     """Store one user action as one ingestion batch and emit one analysis event."""
     _project_or_404(pid)
     incoming = list(files or [])
@@ -218,14 +219,16 @@ async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
     })
     results: list[dict] = []
     try:
-        for f in incoming:
+        rels = list(relative_paths or [])
+        for idx, f in enumerate(incoming):
             data = await f.read()
             if len(data) > config.MAX_UPLOAD_MB * 1024 * 1024:
                 raise HTTPException(413, (f.filename or "upload") + " exceeds " +
                                     str(config.MAX_UPLOAD_MB) + " MB")
+            rel = rels[idx] if idx < len(rels) and rels[idx].strip() else (f.filename or "upload")
             results.append(ingest.store_upload(
                 pid, f.filename or "upload", data, f.content_type,
-                batch_id=batch_id, source_mode="file"))
+                batch_id=batch_id, source_mode="file", relative_path=rel))
 
         if (text or "").strip():
             results.append(ingest.store_text_input(
@@ -244,22 +247,39 @@ async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
         })
 
         ev = None
-        if unique:
+        selection_required = len(schedules) > 1
+        if selection_required:
+            db.update("ingestion_batches", batch_id, {
+                "status": "awaiting_schedule",
+                "note": "multiple schedule candidates; authoritative selection required",
+            })
+        elif unique:
+            selected = schedules[0]["id"] if len(schedules) == 1 else None
+            if selected:
+                db.update("projects", pid, {"schedule_file_id": selected, "updated_at": db.now()})
             ev = events.emit(
                 events.DATASET_UPLOADED if schedules else events.FILES_ADDED,
                 pid, {"batch_id": batch_id,
                       "file_ids": [r["id"] for r in unique],
                       "filenames": [r["filename"] for r in unique],
                       "source_modes": [r.get("source_mode", "file") for r in unique],
+                      "schedule_file_id": selected,
                       "schedule_count": len(schedules),
                       "evidence_count": len(evidence)}, source="website")
 
         return {"batch_id": batch_id, "files": results,
                 "stored_count": len(unique), "duplicate_count": len(duplicates),
                 "schedule_count": len(schedules), "evidence_count": len(evidence),
+                "schedule_selection_required": selection_required,
+                "schedule_candidates": [{
+                    "id": r["id"], "filename": r["filename"],
+                    "relative_path": r.get("relative_path") or r["filename"],
+                    "alternate_hint": bool((r.get("schedule_candidate") or {}).get("alternate_hint")),
+                } for r in schedules],
                 "event": (ev or {}).get("id"),
-                "note": ("analysis job created; the agent wakes automatically"
-                         if ev else "all submitted sources were already present")}
+                "note": ("choose the authoritative schedule before analysis" if selection_required else
+                         ("analysis job created; the agent wakes automatically"
+                          if ev else "all submitted sources were already present"))}
     except Exception:
         db.update("ingestion_batches", batch_id, {"status": "failed"})
         raise
@@ -270,9 +290,32 @@ async def ingest_batch(pid: str,
                        files: list[UploadFile] | None = File(None),
                        text: str = Form(""),
                        text_mode: str = Form("field_note"),
-                       text_title: str = Form("")):
-    """v0.1.2 multi-source intake: many files + deliberate pasted text."""
-    return await _store_ingestion_batch(pid, files, text, text_mode, text_title)
+                       text_title: str = Form(""),
+                       relative_paths: list[str] | None = Form(None)):
+    """Multi-source intake, including recursively selected project folders."""
+    return await _store_ingestion_batch(pid, files, text, text_mode, text_title, relative_paths)
+
+
+@router.post("/projects/{pid}/ingest/{batch_id}/select-schedule")
+def select_batch_schedule(pid: str, batch_id: str, body: dict = Body(...)):
+    _project_or_404(pid)
+    fid = str(body.get("file_id") or "")
+    candidates = db.q("SELECT * FROM files WHERE project_id=? AND batch_id=? AND kind='schedule' ORDER BY created_at, id", [pid, batch_id])
+    chosen = next((f for f in candidates if f.get("id") == fid), None)
+    if not chosen:
+        raise HTTPException(400, "choose one of this batch's detected schedule candidates")
+    batch_files = db.q("SELECT * FROM files WHERE project_id=? AND batch_id=? ORDER BY created_at, id", [pid, batch_id])
+    db.update("projects", pid, {"schedule_file_id": fid, "updated_at": db.now()})
+    db.update("ingestion_batches", batch_id, {"status": "stored",
+              "note": "authoritative schedule selected: " + str(chosen.get("relative_path") or chosen.get("filename"))})
+    ev = events.emit(events.DATASET_UPLOADED, pid, {
+        "batch_id": batch_id, "file_ids": [f["id"] for f in batch_files],
+        "filenames": [f["filename"] for f in batch_files],
+        "schedule_file_id": fid, "schedule_count": len(candidates),
+        "evidence_count": sum(1 for f in batch_files if f.get("kind") == "evidence"),
+    }, source="website")
+    return {"ok": True, "schedule_file_id": fid, "event": ev.get("id"),
+            "selected": chosen.get("relative_path") or chosen.get("filename")}
 
 
 @router.post("/projects/{pid}/files")

@@ -14,9 +14,10 @@ import os
 import threading
 from typing import Any, Callable
 
-from .. import db
+from .. import config, db
 from .client import McpError, horizun
 from .source_semantics import inspect_source, raw_task_id, parse_dt
+from . import tabular_schedule
 
 _handles: dict = {}
 _hlock = threading.RLock()
@@ -156,7 +157,17 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     if not caps.get("read_schedule", True):
         raise McpError("Horizun reports read_schedule is unavailable on this machine")
 
-    handle = open_schedule(schedule_path, "readonly", project_id, job_id)
+    analysis_path = schedule_path
+    tabular_source = None
+    if os.path.splitext(schedule_path)[1].lower() in tabular_schedule.SUPPORTED:
+        try:
+            analysis_path, tabular_source = tabular_schedule.prepare_mspdi(
+                schedule_path, cache_dir=str(config.project_dir(project_id) / "adapted"))
+            step("schedule_adapted", "Tabular schedule normalized to Microsoft Project XML for Horizun")
+        except Exception as exc:
+            raise McpError("Tabular schedule could not be normalized: " + str(exc)) from exc
+
+    handle = open_schedule(analysis_path, "readonly", project_id, job_id)
     step("schedule_opened", "Schedule opened")
 
     info = horizun.call("project_info", {"handle": handle},
@@ -187,7 +198,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
     # XER is explicit about structure: PROJWBS rows are WBS nodes and TASK rows
     # are activities. Some adapters flatten both into tasks_query. Resolve the
     # source project first, then retain only rows that map to source TASK ids.
-    source = inspect_source(schedule_path, info=info,
+    source = tabular_source or inspect_source(schedule_path, info=info,
                             task_uid_hints=[t.get("uid") for t in tasks])
     raw_task_count = len(tasks)
     if source and source.get("source_guarded") and source.get("task_ids"):
@@ -226,6 +237,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             status = "not_started"
         bstart, bfin = t.get("baselineStart"), t.get("baselineFinish")
         raw = ((source or {}).get("task_by_id") or {}).get(raw_task_id(t), {})
+        tab = ((tabular_source or {}).get("by_uid") or {}).get(str(uid), {})
         raw_type = str(raw.get("task_type") or "")
         source_summary = raw_type in ("TT_WBS", "WBS Summary")
         source_milestone = raw_type in ("TT_Mile", "TT_FinMile",
@@ -233,9 +245,10 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         act_rows.append({
             "id": db.new_id("act_"), "project_id": project_id,
             "snapshot_id": snapshot_id,
-            "uid": uid, "display_id": str(t.get("id") or uid),
-            "name": t.get("name"),
-            "wbs": t.get("wbs"), "outline_level": t.get("outlineLevel"),
+            "uid": uid, "display_id": str(tab.get("source_id") or t.get("id") or uid),
+            "name": tab.get("name") or t.get("name"),
+            "wbs": tab.get("wbs") or t.get("wbs"),
+            "outline_level": tab.get("outline_level") or t.get("outlineLevel"),
             "parent_uid": t.get("parentUid"),
             "is_summary": 1 if (t.get("summary") or source_summary) else 0,
             "is_milestone": 1 if (t.get("milestone") or source_milestone) else 0,

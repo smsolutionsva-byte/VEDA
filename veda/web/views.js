@@ -1446,10 +1446,16 @@ VIEWS.files = async (pid) => {
     (VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' });
   const revs = r.schedule_revisions || [];
   const staged = st.files || [];
+  const pendingBatch = (r.batches || []).find(x => x.status === 'awaiting_schedule');
+  const pendingCandidates = pendingBatch ? (r.files || []).filter(f =>
+    f.batch_id === pendingBatch.id && f.kind === 'schedule').map(f => ({
+      id: f.id, filename: f.filename, relative_path: f.relative_path || f.filename,
+      alternate_hint: /extended|extension|recovery|alternate|alternative|draft|what[-_ ]?if/i.test(f.relative_path || f.filename)
+    })) : [];
   const stagedHtml = staged.length ? staged.map((f, i) =>
     '<div style="display:flex;gap:9px;align-items:center;padding:7px 0;' +
     'border-bottom:1px solid var(--line)"><span style="flex:1">' +
-    E(f.name) + ' <span class="mono" style="color:var(--ink-3)">' +
+    E(f._vedaRelativePath || f.webkitRelativePath || f.name) + ' <span class="mono" style="color:var(--ink-3)">' +
     int(f.size) + ' B</span></span><button class="btn sm" data-rmfile="' + i +
     '">remove</button></div>').join('')
     : '<div class="note">No files staged yet. You can browse repeatedly; ' +
@@ -1468,8 +1474,10 @@ VIEWS.files = async (pid) => {
       '<div style="color:var(--ink-3);font-size:12px;margin-bottom:11px">' +
       'Schedules + DPRs + spreadsheets + scanned PDFs/photos can arrive together. ' +
       'Focus this box and paste a screenshot too.</div>' +
-      '<button class="btn" id="pickfiles" type="button">Browse files</button>' +
+      '<button class="btn" id="pickfiles" type="button">Browse files</button> ' +
+      '<button class="btn" id="pickfolder" type="button">Browse project folder</button>' +
       '<input type="file" id="fileinput" multiple accept="' + accept + '" hidden>' +
+      '<input type="file" id="folderinput" multiple webkitdirectory directory hidden>' +
       '</div>' +
       '<div id="stagedfiles" style="margin-top:10px">' + stagedHtml + '</div>' +
       '<div style="margin:18px 0 8px;border-top:1px solid var(--line)"></div>' +
@@ -1500,6 +1508,9 @@ VIEWS.files = async (pid) => {
       '<span id="ingestsummary" style="color:var(--ink-3);font-size:12px">' +
       staged.length + ' file(s) staged' + (st.text ? ' + pasted text' : '') +
       '</span></div></div>') +
+    (pendingBatch ? panel('Schedule selection required <small>' + pendingCandidates.length + ' candidates</small>',
+      '<div class="body"><div class="note warn" style="margin-bottom:10px">This project folder contains multiple schedule revisions. VEDA has paused before choosing one.</div>' +
+      '<button class="btn primary" data-choose-schedule-batch="' + E(pendingBatch.id) + '">Choose authoritative schedule</button></div>') : '') +
     (revs.length ? panel('Schedule revisions <small>' + revs.length + '</small>',
       '<div class="note" style="margin:0 12px 10px">A new schedule is a new ' +
       'revision. VEDA compares activities by Horizun stable UID and keeps the ' +
@@ -1521,7 +1532,7 @@ VIEWS.files = async (pid) => {
       table([{ t: 'Name' }, { t: 'Kind' }, { t: 'Source mode' },
         { t: 'Size', r: true }, { t: 'SHA-256' }, { t: 'Extraction' },
         { t: 'Security' }, { t: 'Uploaded' }], r.files, f =>
-        '<tr><td>' + E(f.filename) + '</td>' +
+        '<tr><td>' + E(f.relative_path || f.filename) + '</td>' +
         '<td>' + tagFor(f.kind, { schedule: 'blue', evidence: 'grey',
           unknown: 'amber' }) + '</td>' +
         '<td>' + tagFor(f.source_mode || 'file', { file: 'grey', field_note: 'green',
@@ -1546,6 +1557,42 @@ VIEWS.files = async (pid) => {
             'the agent. Resolve it under Human review.</span></div>').join('') +
         '</div>') : '');
 };
+VIEWS.choose_schedule_candidate = (pid, batchId, candidates) => new Promise((resolve) => {
+  const old = document.getElementById('schedule-choice-scrim');
+  if (old) old.remove();
+  let selected = null;
+  const scrim = document.createElement('div');
+  scrim.className = 'scrim'; scrim.id = 'schedule-choice-scrim';
+  scrim.innerHTML = '<section class="modal" style="max-width:720px"><header>' +
+    '<div><div class="eyebrow">Schedule candidates</div><h2>Choose the authoritative schedule</h2></div></header>' +
+    '<div class="body"><div class="note warn" style="margin-bottom:12px">VEDA found multiple schedule-shaped files. It will not silently treat an EXTENDED / recovery / alternate revision as current.</div>' +
+    '<div id="schedule-choice-list"></div><div class="modal-actions"><button class="btn" id="schedule-choice-cancel">Cancel</button>' +
+    '<div class="spacer"></div><button class="btn primary" id="schedule-choice-go" disabled>Use selected schedule</button></div></div></section>';
+  document.body.appendChild(scrim);
+  const list = scrim.querySelector('#schedule-choice-list');
+  const draw = () => {
+    list.innerHTML = candidates.map(c => '<button class="delete-project-row' + (selected === c.id ? ' selected' : '') +
+      '" data-schedule-choice="' + E(c.id) + '"><span class="delete-radio">' + (selected === c.id ? '●' : '') +
+      '</span><span class="delete-project-copy"><b>' + E(c.relative_path || c.filename) + '</b><small>' +
+      (c.alternate_hint ? 'Looks like an alternate / extended / recovery revision' : 'Detected schedule candidate') +
+      '</small></span>' + (c.alternate_hint ? '<span class="tag amber">alternate?</span>' : '') + '</button>').join('');
+    list.querySelectorAll('[data-schedule-choice]').forEach(x => x.onclick = () => { selected = x.dataset.scheduleChoice; draw(); });
+    scrim.querySelector('#schedule-choice-go').disabled = !selected;
+  };
+  draw();
+  scrim.querySelector('#schedule-choice-cancel').onclick = () => { scrim.remove(); resolve(false); };
+  scrim.onclick = (e) => { if (e.target === scrim) { scrim.remove(); resolve(false); } };
+  scrim.querySelector('#schedule-choice-go').onclick = async () => {
+    const go = scrim.querySelector('#schedule-choice-go'); go.disabled = true; go.textContent = 'Starting analysis…';
+    try {
+      await P('/projects/' + pid + '/ingest/' + batchId + '/select-schedule', { file_id: selected });
+      const chosen = candidates.find(c => c.id === selected);
+      scrim.remove(); window.toast('Using ' + ((chosen && (chosen.relative_path || chosen.filename)) || 'selected schedule'), 'good');
+      window.render(); resolve(true);
+    } catch (e) { go.disabled = false; go.textContent = 'Use selected schedule'; window.toast(e.message, 'bad'); }
+  };
+});
+
 VIEWS.bind_files = (pid) => {
   VIEWS._ingestState = VIEWS._ingestState || {};
   const st = VIEWS._ingestState[pid] ||
@@ -1553,17 +1600,28 @@ VIEWS.bind_files = (pid) => {
   const inp = document.getElementById('fileinput');
   const dz = document.getElementById('ingestdrop');
   const pick = document.getElementById('pickfiles');
+  const pickFolder = document.getElementById('pickfolder');
+  const folderInp = document.getElementById('folderinput');
   const list = document.getElementById('stagedfiles');
   const text = document.getElementById('pastetext');
   const mode = document.getElementById('textmode');
   const title = document.getElementById('texttitle');
   const b = document.getElementById('up');
   if (!b || !inp) return;
+  document.querySelectorAll('[data-choose-schedule-batch]').forEach(x => x.onclick = async () => {
+    const batchId = x.dataset.chooseScheduleBatch;
+    const rr = await A('/projects/' + pid + '/files');
+    const candidates = (rr.files || []).filter(f => f.batch_id === batchId && f.kind === 'schedule').map(f => ({
+      id: f.id, filename: f.filename, relative_path: f.relative_path || f.filename,
+      alternate_hint: /extended|extension|recovery|alternate|alternative|draft|what[-_ ]?if/i.test(f.relative_path || f.filename)
+    }));
+    await VIEWS.choose_schedule_candidate(pid, batchId, candidates);
+  });
 
   const draw = () => {
     if (list) list.innerHTML = st.files.length ? st.files.map((f, i) =>
       '<div style="display:flex;gap:9px;align-items:center;padding:7px 0;' +
-      'border-bottom:1px solid var(--line)"><span style="flex:1">' + E(f.name) +
+      'border-bottom:1px solid var(--line)"><span style="flex:1">' + E(f._vedaRelativePath || f.webkitRelativePath || f.name) +
       ' <span class="mono" style="color:var(--ink-3)">' + int(f.size) +
       ' B</span></span><button class="btn sm" data-rmfile="' + i +
       '">remove</button></div>').join('') :
@@ -1577,21 +1635,53 @@ VIEWS.bind_files = (pid) => {
   };
   const addFiles = (fs) => {
     for (const f of Array.from(fs || [])) {
-      const key = [f.name, f.size, f.lastModified].join('|');
-      if (!st.files.some(x => [x.name, x.size, x.lastModified].join('|') === key))
-        st.files.push(f);
+      const rel = f._vedaRelativePath || f.webkitRelativePath || f.name;
+      const key = [rel, f.size, f.lastModified].join('|');
+      if (!st.files.some(x => [x._vedaRelativePath || x.webkitRelativePath || x.name,
+          x.size, x.lastModified].join('|') === key)) st.files.push(f);
     }
     draw();
   };
+  const readDirEntries = async (reader) => {
+    const out = [];
+    while (true) {
+      const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) return out;
+      out.push(...batch);
+    }
+  };
+  const filesFromEntry = async (entry) => {
+    if (!entry) return [];
+    if (entry.isFile) {
+      const f = await new Promise((resolve, reject) => entry.file(resolve, reject));
+      try { Object.defineProperty(f, '_vedaRelativePath', { value: entry.fullPath.replace(/^\//, ''), configurable: true }); }
+      catch (_) { f._vedaRelativePath = entry.fullPath.replace(/^\//, ''); }
+      return [f];
+    }
+    if (entry.isDirectory) {
+      const children = await readDirEntries(entry.createReader());
+      const nested = await Promise.all(children.map(filesFromEntry));
+      return nested.flat();
+    }
+    return [];
+  };
 
   if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
+  if (pickFolder && folderInp) pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
   inp.onchange = () => { addFiles(inp.files); inp.value = ''; };
+  if (folderInp) folderInp.onchange = () => { addFiles(folderInp.files); folderInp.value = ''; };
   if (dz) {
     dz.onclick = (e) => { if (!e.target.closest('button')) inp.click(); };
     dz.ondragover = (e) => { e.preventDefault(); dz.style.opacity = '.72'; };
     dz.ondragleave = () => { dz.style.opacity = '1'; };
-    dz.ondrop = (e) => {
-      e.preventDefault(); dz.style.opacity = '1'; addFiles(e.dataTransfer.files);
+    dz.ondrop = async (e) => {
+      e.preventDefault(); dz.style.opacity = '1';
+      const items = Array.from((e.dataTransfer && e.dataTransfer.items) || []);
+      const entries = items.map(x => x.webkitGetAsEntry ? x.webkitGetAsEntry() : null).filter(Boolean);
+      if (entries.some(x => x.isDirectory)) {
+        const nested = await Promise.all(entries.map(filesFromEntry));
+        addFiles(nested.flat());
+      } else addFiles(e.dataTransfer.files);
     };
     dz.onpaste = (e) => {
       const fs = e.clipboardData && e.clipboardData.files;
@@ -1610,7 +1700,10 @@ VIEWS.bind_files = (pid) => {
     if (!st.files.length && !String(st.text || '').trim())
       return window.toast('Add files or paste some text first');
     const fd = new FormData();
-    for (const f of st.files) fd.append('files', f);
+    for (const f of st.files) {
+      fd.append('files', f);
+      fd.append('relative_paths', f._vedaRelativePath || f.webkitRelativePath || f.name);
+    }
     if (String(st.text || '').trim()) {
       fd.append('text', st.text.trim());
       fd.append('text_mode', st.mode || 'field_note');
@@ -1623,6 +1716,11 @@ VIEWS.bind_files = (pid) => {
       if (!r.ok) throw new Error(await r.text());
       const j = await r.json();
       VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' };
+      if (j.schedule_selection_required) {
+        b.disabled = false; b.textContent = 'Ingest batch & analyse';
+        await VIEWS.choose_schedule_candidate(pid, j.batch_id, j.schedule_candidates || []);
+        return;
+      }
       let msg = j.stored_count + ' new source(s) stored';
       if (j.duplicate_count) msg += ', ' + j.duplicate_count + ' duplicate(s) skipped';
       if (j.schedule_count) msg += ', ' + j.schedule_count + ' schedule revision(s)';
