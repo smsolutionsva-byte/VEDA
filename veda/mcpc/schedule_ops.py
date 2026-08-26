@@ -372,7 +372,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
                     "count": len(f.get("uids") or []),
                     "percent": _num(f.get("measured")),
                     "task_uids_json": db.jdumps(f.get("uids") or []),
-                    "provenance": "MCP_FACT",
+                    "provenance": f.get("_veda_provenance") or "MCP_FACT",
                 })
             step("schedule_quality_assessed",
                  str(res.get("failed", 0)) + " of " + str(res.get("checks", 0)) +
@@ -403,6 +403,22 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
                 "basis": basis, "provenance": "MCP_FACT",
             })
         step("baseline_compared", "Earned value computed against stored baseline")
+    elif ok and isinstance(res, dict):
+        # Some importers expose planned/target dates through baseline-shaped
+        # task properties even when no P6 baseline is actually assigned.  Only
+        # clear them when baseline_compare successfully proves baselinePresent
+        # is false; a tool failure is "unknown", not proof of absence.
+        db.ex("UPDATE activities SET baseline_start=NULL, baseline_finish=NULL, "
+              "baseline_duration_days=NULL, start_variance_days=NULL, "
+              "finish_variance_days=NULL, duration_variance_days=NULL "
+              "WHERE project_id=?", [project_id])
+        for r in act_rows:
+            r["baseline_start"] = None
+            r["baseline_finish"] = None
+            r["baseline_duration_days"] = None
+            r["start_variance_days"] = None
+            r["finish_variance_days"] = None
+            r["duration_variance_days"] = None
 
     # ---- timephased S-curve (spec 27) ----------------------------------
     if caps.get("timephased", True):
@@ -458,7 +474,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         "planned_start": _iso(info.get("startDate")),
         "planned_finish": _iso(info.get("finishDate")),
         "forecast_finish": _iso(info.get("finishDate")),
-        "baseline_finish": _baseline_finish(act_rows),
+        "baseline_finish": _baseline_finish(act_rows) if bc else None,
         "task_count": len(act_rows), "milestone_count": info.get("milestones"),
         "relationship_count": len(seen), "resource_count": len(resources),
         "critical_count": crit, "late_count": late,
@@ -469,6 +485,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
             "checks": qa.get("checks"), "passed": qa.get("passed"),
             "failed": qa.get("failed"), "notEvaluated": qa.get("notEvaluated"),
             "notes": qa.get("notes"),
+            "semanticGuard": qa.get("vedaSemanticGuard"),
         }, "baseline": {"present": bool(bc), "project": bc.get("project")}}),
         "is_current": 1,
     })
@@ -600,7 +617,16 @@ def _health_score(qa: dict) -> float | None:
     if not checks:
         return None
     passed = qa.get("passed") or 0
-    return round(100.0 * passed / checks, 1)
+    not_evaluated = qa.get("notEvaluated")
+    if not_evaluated is None:
+        not_evaluated = qa.get("not_evaluated") or 0
+    evaluated = max(0, int(checks) - int(not_evaluated or 0))
+    if not evaluated:
+        return None
+    # A check that cannot be evaluated is reported separately; it must never
+    # count as a pass, but it also must not depress the pass rate as though it
+    # had failed.
+    return round(100.0 * passed / evaluated, 1)
 
 
 _QA_TITLES = {

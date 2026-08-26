@@ -571,7 +571,8 @@ def quality(pid: str):
     info = db.jloads((snap or {}).get("info_json"), {}) or {}
     return {"findings": rows, "summary": info.get("qa", {}),
             "health_score": (snap or {}).get("health_score"),
-            "basis": "Horizun schedule_qa (DCMA 14-point plus Horizun rules)"}
+            "basis": "Horizun schedule_qa plus VEDA source-semantic guards "
+                     "(DCMA 14-point plus Horizun rules)"}
 
 
 @router.get("/projects/{pid}/baselines")

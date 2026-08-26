@@ -120,8 +120,9 @@ VIEWS.overview = async (pid) => {
     stat('Critical', int(c.critical), 'of ' + int(c.activities) + ' activities',
       'warm') +
     stat('Schedule health', num(s.health_score, 1) + '%',
-      o.quality.failed + ' of ' + (o.quality.passed + o.quality.failed +
-        o.quality.not_evaluated) + ' checks failed',
+      o.quality.failed + ' of ' + (o.quality.passed + o.quality.failed) +
+        ' evaluated checks failed' + (o.quality.not_evaluated
+          ? ' · ' + o.quality.not_evaluated + ' n/e' : ''),
       s.health_score < 60 ? 'hot' : 'good') +
     '</div>' +
 
@@ -560,10 +561,11 @@ VIEWS.critical = async (pid) => {
 VIEWS.quality = async (pid) => {
   const r = await A('/projects/' + pid + '/quality');
   const s = r.summary || {};
+  const g = s.semanticGuard || {};
   return head('Schedule quality', 'DCMA 14-point and Horizun rules',
-    prov('MCP_FACT')) +
+    prov('MCP_FACT') + ' ' + prov('DETERMINISTIC_CALCULATION')) +
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Health', num(r.health_score, 1) + '%', 'checks passed',
+    stat('Health', num(r.health_score, 1) + '%', 'evaluated checks passed',
       r.health_score < 60 ? 'hot' : 'good') +
     stat('Passed', int(s.passed), '', 'good') +
     stat('Failed', int(s.failed), '', s.failed ? 'hot' : '') +
@@ -571,6 +573,13 @@ VIEWS.quality = async (pid) => {
       'reported honestly, never passed') +
     '</div>' +
     '<div class="note mcp" style="margin-bottom:14px">' + E(r.basis) + '</div>' +
+    (g.applied ? '<div class="note" style="margin-bottom:14px">' +
+      '<b>Source-semantic guard applied.</b> ' +
+      (g.sourceFormat ? E(String(g.sourceFormat).toUpperCase()) + ': ' : '') +
+      (g.forecastValuesAvailable ? 'current forecast dates available' :
+        'current forecast dates unavailable') + ' · ' +
+      (g.baselineAssigned ? 'assigned baseline present' : 'assigned baseline absent') +
+      (g.dataDate ? ' · data date ' + day(g.dataDate) : '') + '</div>' : '') +
     panel('Findings <small>' + r.findings.length + '</small>',
       '<div class="body">' + (r.findings.length ? r.findings.map(f =>
       '<div class="check"><span class="m ' +
@@ -582,7 +591,8 @@ VIEWS.quality = async (pid) => {
         ? '<br><span class="mono" style="font-size:11px;color:var(--ink-3)">' +
           'affects uid ' + f.task_uids.slice(0, 24).map(E).join(', ') +
           (f.task_uids.length > 24 ? ' …' : '') + '</span>' : '') +
-      '</span><span class="sev-' + E(String(f.severity || '').toLowerCase()) +
+      '</span>' + prov(f.provenance) + '<span class="sev-' +
+      E(String(f.severity || '').toLowerCase()) +
       '" style="font-family:var(--mono);font-size:11px">' + E(f.severity || '') +
       '</span></div>').join('')
       : empty('No quality findings', 'Analyse a schedule first.')) + '</div>');

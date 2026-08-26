@@ -231,7 +231,8 @@ def t_quality(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
     for r in rows:
         r["task_uids"] = db.jloads(r.pop("task_uids_json", None), [])
     return _ok({"count": len(rows), "findings": rows,
-                "note": "Produced by Horizun schedule_qa. Do not recompute."})
+                "note": "Produced by Horizun schedule_qa and source-semantic "
+                        "guards. Not-evaluated checks are intentionally not passed."})
 
 
 def t_files(_args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:

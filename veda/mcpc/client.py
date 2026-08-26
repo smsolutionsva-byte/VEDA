@@ -191,6 +191,13 @@ class HorizunClient:
                 res = self._rpc("tools/call", {"name": name, "arguments": args},
                                 timeout=timeout)
             result = _unwrap(res)
+            if name == "schedule_qa":
+                # Horizun owns the QA calculation, but VEDA verifies that an
+                # XER actually carries the forecast/baseline semantics required
+                # to support the returned claim.  This prevents planned dates
+                # from being silently treated as forecasts or baselines.
+                from .qa_guard import guard_schedule_qa
+                result = guard_schedule_qa(result, project_id=project_id)
             if isinstance(res, dict) and res.get("isError"):
                 state = "failed"
                 err = _text_of(result)[:2000]
