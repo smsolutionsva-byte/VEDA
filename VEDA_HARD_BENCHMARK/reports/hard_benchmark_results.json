@@ -1,0 +1,3130 @@
+{
+  "summary": {
+    "case_count": 54,
+    "match_cases": 48,
+    "embedding_backend": "bge-m3:BAAI/bge-m3",
+    "retrieval": {
+      "recall_at_1": 0.625,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.8125,
+      "top1_accuracy": 0.625
+    },
+    "production_pipeline": {
+      "outcome_accuracy": 0.2222,
+      "auto_link_precision": 0.0,
+      "auto_link_coverage": 0.0,
+      "unsafe_autolinks": 0,
+      "linked_count": 0
+    },
+    "latency_seconds": {
+      "retrieval_median": 24.029,
+      "retrieval_p95": 36.2991,
+      "pipeline_median": 0.0077
+    },
+    "categories": {
+      "terminology": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "asset_tags": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "location": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "wbs": {
+        "n": 6,
+        "retrieval_top1": 0,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 0.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "temporal": {
+        "n": 6,
+        "retrieval_top1": 0,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 0.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "graph": {
+        "n": 6,
+        "retrieval_top1": 0,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 0.0,
+        "pipeline_ok_rate": 0.0
+      },
+      "safety_reporting": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 6,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 1.0
+      },
+      "ambiguity": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 6,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 1.0
+      },
+      "metadata": {
+        "n": 6,
+        "retrieval_top1": 6,
+        "pipeline_ok": 0,
+        "unsafe": 0,
+        "retrieval_top1_rate": 1.0,
+        "pipeline_ok_rate": 0.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "OIL-HARD-0001",
+      "category": "terminology",
+      "edge_case_type": "erection",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1000,
+      "retrieval_top_score": 0.684029,
+      "retrieval_margin": 0.14215,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.541953,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0002",
+      "category": "terminology",
+      "edge_case_type": "erection",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1100,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1100,
+      "retrieval_top_score": 0.914029,
+      "retrieval_margin": 0.245447,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.855475,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 1100,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-1043",
+            "P1043"
+          ],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-1043, P1043",
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0003",
+      "category": "terminology",
+      "edge_case_type": "erection",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1200,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1200,
+      "retrieval_top_score": 0.684029,
+      "retrieval_margin": 0.089149,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.541953,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0004",
+      "category": "terminology",
+      "edge_case_type": "installation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1010,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1010,
+      "retrieval_top_score": 0.684029,
+      "retrieval_margin": 0.166714,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.541953,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "mechanical",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0005",
+      "category": "terminology",
+      "edge_case_type": "installation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1110,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1110,
+      "retrieval_top_score": 0.914029,
+      "retrieval_margin": 0.260452,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.855475,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 1110,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-101A",
+            "P101A"
+          ],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "mechanical",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-101A, P101A",
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0006",
+      "category": "terminology",
+      "edge_case_type": "installation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 1210,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 1210,
+      "retrieval_top_score": 0.684029,
+      "retrieval_margin": 0.132584,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.541953,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b"
+          ],
+          "discipline": "mechanical",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0043",
+      "category": "asset_tags",
+      "edge_case_type": "tag_0",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2000,
+      "retrieval_top_score": 0.88294,
+      "retrieval_margin": 0.230811,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.826437,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2000,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 8,
+            "exact": 3,
+            "after": 4
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P101A"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 4,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 4,
+        "reranked": 4
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P101A",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0044",
+      "category": "asset_tags",
+      "edge_case_type": "tag_1",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2200,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2200,
+      "retrieval_top_score": 0.910641,
+      "retrieval_margin": 0.177148,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.852518,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2203,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 8,
+            "exact": 3,
+            "after": 4
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-101A",
+            "P101A"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 4,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 4,
+        "reranked": 4
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-101A, P101A",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0045",
+      "category": "asset_tags",
+      "edge_case_type": "tag_2",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2400,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2400,
+      "retrieval_top_score": 0.684029,
+      "retrieval_margin": 0.089403,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.541953,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2400,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0046",
+      "category": "asset_tags",
+      "edge_case_type": "tag_3",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2600,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2600,
+      "retrieval_top_score": 0.80698,
+      "retrieval_margin": 0.092646,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.736695,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2600,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 8,
+            "exact": 4,
+            "after": 4
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-101A",
+            "P-101B",
+            "P101A",
+            "P101B"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 4,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 4,
+        "reranked": 4
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-101A, P101A",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0047",
+      "category": "asset_tags",
+      "edge_case_type": "tag_0",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2020,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2020,
+      "retrieval_top_score": 0.884029,
+      "retrieval_margin": 0.242799,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.827528,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2020,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 8,
+            "exact": 3,
+            "after": 4
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "V203"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 4,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 4,
+        "reranked": 4
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: V203",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0048",
+      "category": "asset_tags",
+      "edge_case_type": "tag_1",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 2220,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 2220,
+      "retrieval_top_score": 0.894607,
+      "retrieval_margin": 0.1584,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.83784,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 2223,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 8,
+            "exact": 3,
+            "after": 4
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "V-203",
+            "V203"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 4,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 4,
+        "reranked": 4
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: V-203, V203",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0083",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3000,
+      "retrieval_top_score": 0.883073,
+      "retrieval_margin": 0.203312,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.82657,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0084",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3300,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3300,
+      "retrieval_top_score": 0.883073,
+      "retrieval_margin": 0.187337,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.82657,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0085",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3600,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3600,
+      "retrieval_top_score": 0.883547,
+      "retrieval_margin": 0.276011,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.827045,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0086",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3900,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3900,
+      "retrieval_top_score": 0.883073,
+      "retrieval_margin": 0.312806,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.82657,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0087",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3030,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3030,
+      "retrieval_top_score": 0.880206,
+      "retrieval_margin": 0.188211,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.823674,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "unit:1"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: unit:1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0088",
+      "category": "location",
+      "edge_case_type": "location_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 3330,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 3330,
+      "retrieval_top_score": 0.880206,
+      "retrieval_margin": 0.182827,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.823674,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P1043"
+          ],
+          "location_tags": [
+            "unit:1"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P1043",
+        "location: unit:1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0127",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4000,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4002,
+      "retrieval_top_score": 0.687029,
+      "retrieval_margin": 0.025573,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.547161,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4000,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a",
+            "rack:ocess",
+            "unit:1"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a, rack:ocess, unit:1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0128",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4020,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4022,
+      "retrieval_top_score": 0.717029,
+      "retrieval_margin": 0.031278,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.598497,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4020,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b",
+            "unit:2"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b, unit:2"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0129",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4040,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4042,
+      "retrieval_top_score": 0.717029,
+      "retrieval_margin": 0.019428,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.598497,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4040,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:c",
+            "rack:ocess",
+            "unit:3"
+          ],
+          "discipline": "piping",
+          "event_type": "hydrotest",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:c, rack:ocess, unit:3"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0130",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4060,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4062,
+      "retrieval_top_score": 0.687029,
+      "retrieval_margin": 0.016321,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.547161,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4074,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:d",
+            "rack:ocess",
+            "unit:4"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:d, rack:ocess, unit:4"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0131",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4080,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4082,
+      "retrieval_top_score": 0.717029,
+      "retrieval_margin": 0.0274,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.598497,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4080,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a",
+            "unit:5"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a, unit:5"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0132",
+      "category": "wbs",
+      "edge_case_type": "identical_name_different_branch",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 4100,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 4102,
+      "retrieval_top_score": 0.717029,
+      "retrieval_margin": 0.02431,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.598497,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 4100,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 8,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:b",
+            "rack:ocess",
+            "unit:1"
+          ],
+          "discipline": "piping",
+          "event_type": "hydrotest",
+          "date": "2025-05-10"
+        },
+        "final": 8,
+        "index": {
+          "activities": 8,
+          "indexed": 8,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 8,
+        "reranked": 8
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:b, rack:ocess, unit:1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0157",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5000,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5002,
+      "retrieval_top_score": 0.831815,
+      "retrieval_margin": 0.184853,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.769005,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-500",
+            "P500"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-500, P500"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0158",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5020,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5022,
+      "retrieval_top_score": 0.821188,
+      "retrieval_margin": 0.248074,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.755528,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-501",
+            "P501"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-06-11"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-501, P501"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0159",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5040,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5042,
+      "retrieval_top_score": 0.830548,
+      "retrieval_margin": 0.21503,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.767426,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-502",
+            "P502"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-12"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-502, P502"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0160",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5060,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5062,
+      "retrieval_top_score": 0.820932,
+      "retrieval_margin": 0.205444,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.755197,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-503",
+            "P503"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-06-13"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-503, P503"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0161",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5080,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5082,
+      "retrieval_top_score": 0.829401,
+      "retrieval_margin": 0.207169,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.765991,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-504",
+            "P504"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-14"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-504, P504"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0162",
+      "category": "temporal",
+      "edge_case_type": "same_text_different_window",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 5100,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5102,
+      "retrieval_top_score": 0.820701,
+      "retrieval_margin": 0.272731,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.754898,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 7,
+            "exact": 3,
+            "after": 3
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-505",
+            "P505"
+          ],
+          "location_tags": [],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-06-15"
+        },
+        "final": 3,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 3,
+        "reranked": 3
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-505, P505"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0197",
+      "category": "graph",
+      "edge_case_type": "relationship_fs",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6000,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 5999,
+      "retrieval_top_score": 0.922652,
+      "retrieval_margin": 0.114979,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.862779,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-800",
+            "P800"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-800, P800",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0198",
+      "category": "graph",
+      "edge_case_type": "relationship_ss",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6030,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 6029,
+      "retrieval_top_score": 0.922652,
+      "retrieval_margin": 0.118788,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.862779,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-801",
+            "P801"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-801, P801",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0199",
+      "category": "graph",
+      "edge_case_type": "relationship_ff",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6060,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 6059,
+      "retrieval_top_score": 0.920939,
+      "retrieval_margin": 0.111829,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.861353,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-802",
+            "P802"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-802, P802",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0200",
+      "category": "graph",
+      "edge_case_type": "relationship_sf",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6090,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 6089,
+      "retrieval_top_score": 0.922652,
+      "retrieval_margin": 0.098648,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.862779,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-803",
+            "P803"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-803, P803",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0201",
+      "category": "graph",
+      "edge_case_type": "relationship_fs",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6120,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 6119,
+      "retrieval_top_score": 0.922652,
+      "retrieval_margin": 0.083728,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.862779,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-804",
+            "P804"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-804, P804",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0202",
+      "category": "graph",
+      "edge_case_type": "relationship_ss",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 6150,
+      "retrieval_rank": 2,
+      "retrieval_top_uid": 6149,
+      "retrieval_top_score": 0.922652,
+      "retrieval_margin": 0.072036,
+      "retrieval_top1_ok": false,
+      "calibrated_probability": 0.862779,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 9,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 9,
+            "exact": 5,
+            "after": 5
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-805",
+            "P805"
+          ],
+          "location_tags": [
+            "train:a"
+          ],
+          "discipline": "mechanical",
+          "event_type": "alignment",
+          "date": "2025-05-10"
+        },
+        "final": 5,
+        "index": {
+          "activities": 9,
+          "indexed": 9,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 5,
+        "reranked": 5
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-805, P805",
+        "location: train:a",
+        "event date close to actual boundary"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0241",
+      "category": "safety_reporting",
+      "edge_case_type": "not_started",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 8000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 8000,
+      "retrieval_top_score": 0.930529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.869178,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 8000,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-910",
+            "P910"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "",
+          "event_type": "welding",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-910, P910",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0242",
+      "category": "safety_reporting",
+      "edge_case_type": "not_started",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 8500,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 8500,
+      "retrieval_top_score": 0.930529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.869178,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 8500,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-910",
+            "P910"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "",
+          "event_type": "welding",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-910, P910",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0243",
+      "category": "safety_reporting",
+      "edge_case_type": "not_started",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 9000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 9000,
+      "retrieval_top_score": 0.930529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.869178,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 9000,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-910",
+            "P910"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "",
+          "event_type": "welding",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-910, P910",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0244",
+      "category": "safety_reporting",
+      "edge_case_type": "not_started",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 9500,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 9500,
+      "retrieval_top_score": 0.930529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.869178,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 9500,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-910",
+            "P910"
+          ],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "",
+          "event_type": "welding",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-910, P910",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0245",
+      "category": "safety_reporting",
+      "edge_case_type": "no_progress",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 8050,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 8050,
+      "retrieval_top_score": 0.900529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.843395,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-911",
+            "P911"
+          ],
+          "location_tags": [
+            "area:a",
+            "rack:ogress"
+          ],
+          "discipline": "",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-911, P911",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0246",
+      "category": "safety_reporting",
+      "edge_case_type": "no_progress",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": 8550,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 8550,
+      "retrieval_top_score": 0.900529,
+      "retrieval_margin": 0.68,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.843395,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 1,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-911",
+            "P911"
+          ],
+          "location_tags": [
+            "area:a",
+            "rack:ogress"
+          ],
+          "discipline": "",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-911, P911",
+        "location: area:a"
+      ],
+      "notes": "Must not be interpreted as completed progress."
+    },
+    {
+      "id": "OIL-HARD-0295",
+      "category": "ambiguity",
+      "edge_case_type": "missing_location_tie",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10001,
+      "retrieval_top_score": 0.850529,
+      "retrieval_margin": 0.34,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.791453,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 2,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-1000",
+            "P1000"
+          ],
+          "location_tags": [],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-1000, P1000"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0296",
+      "category": "ambiguity",
+      "edge_case_type": "missing_action_tie",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10021,
+      "retrieval_top_score": 0.804029,
+      "retrieval_margin": 0.06,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.732669,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 10020,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 2,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "IP-1",
+            "IP1"
+          ],
+          "location_tags": [
+            "unit:10"
+          ],
+          "discipline": "instrumentation",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: IP-1, IP1",
+        "location: unit:10"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0297",
+      "category": "ambiguity",
+      "edge_case_type": "unplanned_new_activity",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10041,
+      "retrieval_top_score": 0.620794,
+      "retrieval_margin": 0.116902,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.431817,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [],
+        "query": {
+          "asset_tags": [
+            "TB-2",
+            "TB2"
+          ],
+          "location_tags": [
+            "unit:10"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 6,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 6,
+        "reranked": 6
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: unit:10"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0298",
+      "category": "ambiguity",
+      "edge_case_type": "missing_location_tie",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10061,
+      "retrieval_top_score": 0.710529,
+      "retrieval_margin": 0.06,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.587516,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 2,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "P-1003",
+            "P1003"
+          ],
+          "location_tags": [],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: P-1003, P1003"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0299",
+      "category": "ambiguity",
+      "edge_case_type": "missing_action_tie",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10081,
+      "retrieval_top_score": 0.804029,
+      "retrieval_margin": 0.06,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.732669,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 10080,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [
+          {
+            "name": "asset_anchor_plus_graph_wbs",
+            "before": 6,
+            "exact": 2,
+            "after": 2
+          }
+        ],
+        "query": {
+          "asset_tags": [
+            "IP-4",
+            "IP4"
+          ],
+          "location_tags": [
+            "unit:10"
+          ],
+          "discipline": "instrumentation",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 2,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 2,
+        "reranked": 2
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "exact engineering tag: IP-4, IP4",
+        "location: unit:10"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0300",
+      "category": "ambiguity",
+      "edge_case_type": "unplanned_new_activity",
+      "difficulty": "hard",
+      "expected_outcome": "review",
+      "expected_uid": null,
+      "retrieval_rank": null,
+      "retrieval_top_uid": 10101,
+      "retrieval_top_score": 0.630511,
+      "retrieval_margin": 0.118665,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.448577,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": true,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 6,
+        "filters": [],
+        "query": {
+          "asset_tags": [
+            "TB-5",
+            "TB5"
+          ],
+          "location_tags": [
+            "unit:10"
+          ],
+          "discipline": "piping",
+          "event_type": "finish",
+          "date": "2025-05-10"
+        },
+        "final": 6,
+        "index": {
+          "activities": 6,
+          "indexed": 6,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 6,
+        "reranked": 6
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: unit:10"
+      ],
+      "notes": "System should abstain/request planner review."
+    },
+    {
+      "id": "OIL-HARD-0319",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11000,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11000,
+      "retrieval_top_score": 0.714029,
+      "retrieval_margin": 0.118401,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.59344,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 11000,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0320",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11031,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11031,
+      "retrieval_top_score": 0.663029,
+      "retrieval_margin": 0.125965,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.505301,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "fail",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a",
+            "elevation:ectrical"
+          ],
+          "discipline": "electrical",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a, elevation:ectrical"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0321",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11062,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11062,
+      "retrieval_top_score": 0.663029,
+      "retrieval_margin": 0.113374,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.505301,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "fail",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "instrumentation",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0322",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11090,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11090,
+      "retrieval_top_score": 0.714029,
+      "retrieval_margin": 0.105314,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.59344,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "warn",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": 11090,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "piping",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0323",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11121,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11121,
+      "retrieval_top_score": 0.663029,
+      "retrieval_margin": 0.128454,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.505301,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "fail",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a",
+            "elevation:ectrical"
+          ],
+          "discipline": "electrical",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a, elevation:ectrical"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "OIL-HARD-0324",
+      "category": "metadata",
+      "edge_case_type": "discipline_disambiguation",
+      "difficulty": "hard",
+      "expected_outcome": "match",
+      "expected_uid": 11152,
+      "retrieval_rank": 1,
+      "retrieval_top_uid": 11152,
+      "retrieval_top_score": 0.663029,
+      "retrieval_margin": 0.123102,
+      "retrieval_top1_ok": true,
+      "calibrated_probability": 0.505301,
+      "calibration_mode": "conservative_prior",
+      "validator_result": "fail",
+      "pipeline_state": "needs_review",
+      "pipeline_uid": null,
+      "pipeline_ok": false,
+      "unsafe_autolink": false,
+      "pipeline_error": null,
+      "hybrid_diagnostics": {
+        "initial": 7,
+        "filters": [],
+        "query": {
+          "asset_tags": [],
+          "location_tags": [
+            "area:a"
+          ],
+          "discipline": "instrumentation",
+          "event_type": "erection",
+          "date": "2025-05-10"
+        },
+        "final": 7,
+        "index": {
+          "activities": 7,
+          "indexed": 7,
+          "removed": 0,
+          "embedding_backend": "bge-m3:BAAI/bge-m3"
+        },
+        "embedding_backend": "bge-m3:BAAI/bge-m3",
+        "retrieved_pool": 7,
+        "reranked": 7
+      },
+      "top_conflicts": [],
+      "top_supporting": [
+        "location: area:a"
+      ],
+      "notes": ""
+    }
+  ]
+}

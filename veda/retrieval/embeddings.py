@@ -71,10 +71,18 @@ class HashEmbeddingBackend:
         s = re.sub(r"\s+", " ", str(text or "").lower()).strip()
         words = re.findall(r"[a-z0-9][a-z0-9_./:-]*", s)
         feats = list(words)
-        compact = re.sub(r"[^a-z0-9]", "", s)
-        # Character ngrams make owner codes and minor spelling variants useful.
-        for n in (3, 4, 5):
-            feats.extend(compact[i:i+n] for i in range(max(0, len(compact)-n+1)))
+        # Character ngrams are most useful on engineering identifiers. Applying
+        # them to the entire multi-line activity document is expensive and adds
+        # mostly noise. Keep all lexical words, plus identifier-focused ngrams
+        # and lightweight word bigrams.
+        for a,b in zip(words,words[1:]):
+            feats.append(a+"::"+b)
+        for token in words:
+            compact=re.sub(r"[^a-z0-9]","",token)
+            if len(compact)<3 or len(compact)>40 or not any(ch.isdigit() for ch in compact):
+                continue
+            for n in (3,4,5):
+                feats.extend(compact[i:i+n] for i in range(max(0,len(compact)-n+1)))
         return feats
 
     def encode(self, texts: list[str]) -> list[list[float]]:

@@ -1,0 +1,18 @@
+{
+  "benchmark": "VEDA OIL/SIH26122 Hard Entity Resolution Benchmark",
+  "version": "1.0",
+  "seed": 26122,
+  "case_count": 382,
+  "categories": {
+    "terminology": 42,
+    "asset_tags": 52,
+    "location": 44,
+    "wbs": 30,
+    "temporal": 40,
+    "graph": 44,
+    "safety_reporting": 54,
+    "ambiguity": 36,
+    "metadata": 40
+  },
+  "warning": "Synthetic benchmark. It validates architecture and regressions; it is not a substitute for NDA OIL data."
+}

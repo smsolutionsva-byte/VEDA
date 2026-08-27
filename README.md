@@ -31,6 +31,15 @@ as a schedule fact.
 
 ---
 
+
+## v0.3.0 — Adaptive ExecutionRank
+
+VEDA now keeps **EngineeringRank** and **WorkfrontRank** as separate resolver experts and uses a learned query-level gate to decide which expert should have authority for each observation. The gate uses evidence completeness, candidate ambiguity, WBS/location/temporal discrimination, frontier concentration, graph coherence and expert disagreement. It does **not** use benchmark category labels or hardcoded rules such as `if WBS -> disable graph`.
+
+If the gate model is unavailable, VEDA safely falls back to EngineeringRank. See `V0.3.0_RELEASE_NOTES.md` and `VEDA_GOOSE_BENCHMARK/adaptive_holdout_shards/ADAPTIVE_HOLDOUT_REPORT.md` for the frozen DEV training and fresh 13,436-activity holdout results.
+
+---
+
 ## v0.1.2 — multi-source incremental intake
 
 The Files page is now a **source inbox**, not a one-file uploader. One ingestion

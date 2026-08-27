@@ -13,6 +13,10 @@ from typing import Any
 # Canonical executable actions.  Longer/more specific expressions are checked
 # first so "hydrotest" does not collapse into generic "test".
 ACTION_ALIASES: dict[str, tuple[str, ...]] = {
+    "replacement": ("replace", "replaced", "replacement", "substitute", "substituted", "swapped"),
+    "reinstallation": ("reinstall", "reinstalled", "re-install", "re-installed", "installed again", "put back", "re-erected"),
+    "removal": ("remove", "removed", "removal", "dismantle", "dismantled", "taken out", "pulled out", "de-installed"),
+    "repair": ("repair", "repaired", "rectify", "rectified", "rework", "reworked", "fixed after failure"),
     "hydrotest": ("hydrotest", "hydro test", "hydro testing", "hydro-testing", "hydrotest line", "water pressure test"),
     "pneumatic_test": ("pneumatic test", "air pressure test", "nitrogen pressure test"),
     "flushing": ("flush", "flushing", "flushed", "line flush", "chemical flush"),

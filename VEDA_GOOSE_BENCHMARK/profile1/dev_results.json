@@ -1,0 +1,4425 @@
+{
+  "summary": {
+    "split": "dev",
+    "activities": 12940,
+    "relationships": 10056,
+    "resolver_cases": 1,
+    "backend": "hash-ngram-v2",
+    "index_seconds": 9.521703363000029,
+    "variants": {
+      "semantic_rank": {
+        "n": 1,
+        "top1": 0.0,
+        "r3": 0.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 0.25
+      },
+      "veda_rank": {
+        "n": 1,
+        "top1": 0.0,
+        "r3": 0.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 0.25
+      },
+      "workfront_rank": {
+        "n": 1,
+        "top1": 0.0,
+        "r3": 0.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 0.25
+      }
+    },
+    "categories": {
+      "wbs": {
+        "n": 1,
+        "semantic_rank": 0.0,
+        "veda_rank": 0.0,
+        "workfront_rank": 0.0
+      }
+    },
+    "relation_accuracy": 0.0,
+    "relation_cases": 0,
+    "reality_stream_accuracy": 0.3125,
+    "reality_streams": 16,
+    "latency_ms": {
+      "base_median": 3220.1334810000617,
+      "base_p95": 3220.1334810000617,
+      "workfront_extra_median": 15.733321999960026,
+      "workfront_extra_p95": 15.733321999960026
+    }
+  },
+  "records": [
+    {
+      "id": "DEV-0001",
+      "category": "wbs",
+      "edge_case": "same_name_different_wbs",
+      "expected_uid": 800001,
+      "expected_uids": [
+        800001
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 4,
+      "veda_rank": 4,
+      "workfront_rank": 4,
+      "semantic_top": 800021,
+      "veda_top": 800021,
+      "workfront_top": 800021,
+      "relation": "AMBIGUOUS",
+      "relation_uids": [
+        800021,
+        800025,
+        800029
+      ],
+      "relation_ok": false,
+      "workfront_features": {
+        "dense": 0.9094768153548856,
+        "dense_cosine": 0.3311363458633423,
+        "sparse": 1.0,
+        "sparse_bm25": 25.58525560416782,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.03128054740957967,
+        "rerank": 1.0,
+        "asset_exact": 0.0,
+        "asset_alias": 0.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 0.0,
+        "asset_coverage": 0.5,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 0.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 1.0,
+        "chainage": 0.5,
+        "temporal": 0.766326458650367,
+        "actual_date": 0.5,
+        "current_date": 0.8464817248906141,
+        "baseline_date": 0.9231163463866358,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.766326458650367,
+          "basis": "current_early_baseline",
+          "distance_days": 6,
+          "actual": 0.5,
+          "current": 0.8464817248906141,
+          "early": 0.5,
+          "baseline": 0.9231163463866358,
+          "data_date_relation": 0.35819896934863205,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 5 > Area A > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "alignment",
+          "action_matches": [
+            {
+              "action": "alignment",
+              "phrase": "align"
+            }
+          ],
+          "phase": "field_execution",
+          "phase_phrase": "execution_action",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.6886998124956988,
+        "engineering_rank_score": 0.6125987535874504,
+        "rank_margin": 0.012802921468065165,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.6125987535874504,
+        "execution_frontier": 0.641038762557066,
+        "workfront_ppr": 1.0,
+        "workfront_rank_score": 0.6772501426123445,
+        "workfront_detail": {
+          "score": 0.641038762557066,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.5,
+            "wbs": 0.5,
+            "location": 0.5,
+            "event": 0.5,
+            "samples": 0,
+            "recent_events": 0
+          },
+          "temporal": 0.766326458650367,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    }
+  ],
+  "reality_streams": [
+    {
+      "id": "dev-replacement-0",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-0-1",
+          "key": "05:00,C-05,P-500A|installation|observation|area:c,unit:2|2026-02-01",
+          "observation_id": "dev-rep-0-1",
+          "date": "2026-02-01",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-500A",
+            "P500A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-500A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-0-2",
+          "key": "P-500A|installation|observation|area:c,unit:2|2026-02-01",
+          "observation_id": "dev-rep-0-2",
+          "date": "2026-02-01",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P500A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-500A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-0-3",
+          "key": "P-500A|removal|observation|area:c,unit:2|2026-02-03",
+          "observation_id": "dev-rep-0-3",
+          "date": "2026-02-03",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P500A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-500A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-0-4",
+          "key": "P-500A,P-500B|replacement|mixed|area:c,unit:2|2026-02-21",
+          "observation_id": "dev-rep-0-4",
+          "date": "2026-02-21",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            },
+            {
+              "tag": "P-500B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500B",
+                "P500B"
+              ],
+              "ocr_aliases": [
+                "P-5008",
+                "P-50OB",
+                "P5008",
+                "P50OB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P-500B",
+            "P500A",
+            "P500B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-500A",
+            "new_asset": "P-500B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-500A was replaced with P-500B again; notified on WhatsApp because P-500A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-0-3",
+          "to": "rg:dev-rep-0-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-0-4",
+          "to": "rg:dev-rep-0-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-1",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-1-1",
+          "key": "05:00,C-05,P-501A|installation|observation|area:c,unit:2|2026-02-06",
+          "observation_id": "dev-rep-1-1",
+          "date": "2026-02-06",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-501A",
+            "P501A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-501A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-1-2",
+          "key": "P-501A|installation|observation|area:c,unit:2|2026-02-06",
+          "observation_id": "dev-rep-1-2",
+          "date": "2026-02-06",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P501A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-501A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-1-3",
+          "key": "P-501A|removal|observation|area:c,unit:2|2026-02-08",
+          "observation_id": "dev-rep-1-3",
+          "date": "2026-02-08",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P501A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-501A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-1-4",
+          "key": "P-501A,P-501B|replacement|mixed|area:c,unit:2|2026-02-26",
+          "observation_id": "dev-rep-1-4",
+          "date": "2026-02-26",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            },
+            {
+              "tag": "P-501B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501B",
+                "P501B"
+              ],
+              "ocr_aliases": [
+                "P-5018",
+                "P-50IB",
+                "P5018",
+                "P50IB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P-501B",
+            "P501A",
+            "P501B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-501A",
+            "new_asset": "P-501B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-501A was replaced with P-501B again; notified on WhatsApp because P-501A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-1-3",
+          "to": "rg:dev-rep-1-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-1-4",
+          "to": "rg:dev-rep-1-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-2",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-2-1",
+          "key": "05:00,C-05,P-502A|installation|observation|area:c,unit:2|2026-02-11",
+          "observation_id": "dev-rep-2-1",
+          "date": "2026-02-11",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-502A",
+            "P502A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-502A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-2-2",
+          "key": "P-502A|installation|observation|area:c,unit:2|2026-02-11",
+          "observation_id": "dev-rep-2-2",
+          "date": "2026-02-11",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P502A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-502A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-2-3",
+          "key": "P-502A|removal|observation|area:c,unit:2|2026-02-13",
+          "observation_id": "dev-rep-2-3",
+          "date": "2026-02-13",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P502A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-502A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-2-4",
+          "key": "P-502A,P-502B|replacement|mixed|area:c,unit:2|2026-03-03",
+          "observation_id": "dev-rep-2-4",
+          "date": "2026-03-03",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-502B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502B",
+                "P502B"
+              ],
+              "ocr_aliases": [
+                "P-5028",
+                "P5028"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P-502B",
+            "P502A",
+            "P502B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-502A",
+            "new_asset": "P-502B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-502A was replaced with P-502B again; notified on WhatsApp because P-502A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-2-3",
+          "to": "rg:dev-rep-2-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-2-4",
+          "to": "rg:dev-rep-2-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-3",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-3-1",
+          "key": "05:00,C-05,P-503A|installation|observation|area:c,unit:2|2026-02-16",
+          "observation_id": "dev-rep-3-1",
+          "date": "2026-02-16",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-503A",
+            "P503A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-503A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-3-2",
+          "key": "P-503A|installation|observation|area:c,unit:2|2026-02-16",
+          "observation_id": "dev-rep-3-2",
+          "date": "2026-02-16",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P503A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-503A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-3-3",
+          "key": "P-503A|removal|observation|area:c,unit:2|2026-02-18",
+          "observation_id": "dev-rep-3-3",
+          "date": "2026-02-18",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P503A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-503A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-3-4",
+          "key": "P-503A,P-503B|replacement|mixed|area:c,unit:2|2026-03-08",
+          "observation_id": "dev-rep-3-4",
+          "date": "2026-03-08",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-503B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503B",
+                "P503B"
+              ],
+              "ocr_aliases": [
+                "P-5038",
+                "P5038"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P-503B",
+            "P503A",
+            "P503B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-503A",
+            "new_asset": "P-503B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-503A was replaced with P-503B again; notified on WhatsApp because P-503A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-3-3",
+          "to": "rg:dev-rep-3-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-3-4",
+          "to": "rg:dev-rep-3-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-4",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-4-1",
+          "key": "05:00,C-05,P-504A|installation|observation|area:c,unit:2|2026-02-21",
+          "observation_id": "dev-rep-4-1",
+          "date": "2026-02-21",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-504A",
+            "P504A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-504A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-4-2",
+          "key": "P-504A|installation|observation|area:c,unit:2|2026-02-21",
+          "observation_id": "dev-rep-4-2",
+          "date": "2026-02-21",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P504A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-504A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-4-3",
+          "key": "P-504A|removal|observation|area:c,unit:2|2026-02-23",
+          "observation_id": "dev-rep-4-3",
+          "date": "2026-02-23",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P504A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-504A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-4-4",
+          "key": "P-504A,P-504B|replacement|mixed|area:c,unit:2|2026-03-13",
+          "observation_id": "dev-rep-4-4",
+          "date": "2026-03-13",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-504B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504B",
+                "P504B"
+              ],
+              "ocr_aliases": [
+                "P-5048",
+                "P5048"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P-504B",
+            "P504A",
+            "P504B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-504A",
+            "new_asset": "P-504B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-504A was replaced with P-504B again; notified on WhatsApp because P-504A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-4-3",
+          "to": "rg:dev-rep-4-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-4-4",
+          "to": "rg:dev-rep-4-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-5",
+      "kind": "replacement_monthly_correction",
+      "ok": false,
+      "reasons": [
+        "corroboration"
+      ],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-5-1",
+          "key": "05:00,C-05,P-505A|installation|observation|area:c,unit:2|2026-02-26",
+          "observation_id": "dev-rep-5-1",
+          "date": "2026-02-26",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "05:00",
+              "type": "asset",
+              "class": null,
+              "source": "text",
+              "aliases": [
+                "0500",
+                "05:00"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "C-05",
+              "type": "asset",
+              "class": "compressor",
+              "source": "text",
+              "aliases": [
+                "C-05",
+                "C05"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "0500",
+            "05:00",
+            "C-05",
+            "C05",
+            "P-505A",
+            "P505A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-505A installed at Unit 2 Area C 05:00   DPR.xlsx",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rep-5-2",
+          "key": "P-505A|installation|observation|area:c,unit:2|2026-02-26",
+          "observation_id": "dev-rep-5-2",
+          "date": "2026-02-26",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P505A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": true,
+          "raw_text": "P-505A installed at Unit 2 Area C   WHATSAPP.txt",
+          "source_file": "WHATSAPP.txt",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-5-3",
+          "key": "P-505A|removal|observation|area:c,unit:2|2026-02-28",
+          "observation_id": "dev-rep-5-3",
+          "date": "2026-02-28",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P505A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-505A failed and was removed after bearing damage   SITE_DIARY.pdf",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-5-4",
+          "key": "P-505A,P-505B|replacement|mixed|area:c,unit:2|2026-03-18",
+          "observation_id": "dev-rep-5-4",
+          "date": "2026-03-18",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            },
+            {
+              "tag": "P-505B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505B",
+                "P505B"
+              ],
+              "ocr_aliases": [
+                "P-5058",
+                "P-50SB",
+                "P5058",
+                "P50SB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P-505B",
+            "P505A",
+            "P505B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-505A",
+            "new_asset": "P-505B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-505A was replaced with P-505B again; notified on WhatsApp because P-505A broke   MONTHLY_REPORT.xlsx",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-5-3",
+          "to": "rg:dev-rep-5-2",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-5-4",
+          "to": "rg:dev-rep-5-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-0",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-0-1",
+          "key": "CBL-8800|cable_pull|finish|area:a,elevation:ec,unit:4|2026-03-10",
+          "observation_id": "dev-rw-0-1",
+          "date": "2026-03-10",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:a",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 cable pulled and completed in Unit 4 Area A   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-0-2",
+          "key": "CBL-8800|removal|observation|area:a,unit:4|2026-03-11",
+          "observation_id": "dev-rw-0-2",
+          "date": "2026-03-11",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 removed after insulation test failed   QC_LOG.pdf",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-0-3",
+          "key": "CBL-8800|reinstallation|observation|area:b,elevation:ec,unit:4|2026-03-13",
+          "observation_id": "dev-rw-0-3",
+          "date": "2026-03-13",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:b",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 reinstalled again after repair at Unit 4 Area B   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-0-4",
+          "key": "CBL-8800|repair|finish|area:b,unit:4|2026-03-14",
+          "observation_id": "dev-rw-0-4",
+          "date": "2026-03-14",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 cable pull completed after rework at Unit 4 Area B   QC_CLOSEOUT.pdf",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-0-2",
+          "to": "rg:dev-rw-0-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-0-3",
+          "to": "rg:dev-rw-0-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-1",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-1-1",
+          "key": "CBL-8801|cable_pull|finish|area:a,elevation:ec,unit:4|2026-03-14",
+          "observation_id": "dev-rw-1-1",
+          "date": "2026-03-14",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:a",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 cable pulled and completed in Unit 4 Area A   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-1-2",
+          "key": "CBL-8801|removal|observation|area:a,unit:4|2026-03-15",
+          "observation_id": "dev-rw-1-2",
+          "date": "2026-03-15",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 removed after insulation test failed   QC_LOG.pdf",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-1-3",
+          "key": "CBL-8801|reinstallation|observation|area:b,elevation:ec,unit:4|2026-03-17",
+          "observation_id": "dev-rw-1-3",
+          "date": "2026-03-17",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:b",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 reinstalled again after repair at Unit 4 Area B   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-1-4",
+          "key": "CBL-8801|repair|finish|area:b,unit:4|2026-03-18",
+          "observation_id": "dev-rw-1-4",
+          "date": "2026-03-18",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 cable pull completed after rework at Unit 4 Area B   QC_CLOSEOUT.pdf",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-1-2",
+          "to": "rg:dev-rw-1-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-1-3",
+          "to": "rg:dev-rw-1-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-2",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-2-1",
+          "key": "CBL-8802|cable_pull|finish|area:a,elevation:ec,unit:4|2026-03-18",
+          "observation_id": "dev-rw-2-1",
+          "date": "2026-03-18",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:a",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 cable pulled and completed in Unit 4 Area A   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-2-2",
+          "key": "CBL-8802|removal|observation|area:a,unit:4|2026-03-19",
+          "observation_id": "dev-rw-2-2",
+          "date": "2026-03-19",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 removed after insulation test failed   QC_LOG.pdf",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-2-3",
+          "key": "CBL-8802|reinstallation|observation|area:b,elevation:ec,unit:4|2026-03-21",
+          "observation_id": "dev-rw-2-3",
+          "date": "2026-03-21",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:b",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 reinstalled again after repair at Unit 4 Area B   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-2-4",
+          "key": "CBL-8802|repair|finish|area:b,unit:4|2026-03-22",
+          "observation_id": "dev-rw-2-4",
+          "date": "2026-03-22",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 cable pull completed after rework at Unit 4 Area B   QC_CLOSEOUT.pdf",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-2-2",
+          "to": "rg:dev-rw-2-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-2-3",
+          "to": "rg:dev-rw-2-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-3",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-3-1",
+          "key": "CBL-8803|cable_pull|finish|area:a,elevation:ec,unit:4|2026-03-22",
+          "observation_id": "dev-rw-3-1",
+          "date": "2026-03-22",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:a",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 cable pulled and completed in Unit 4 Area A   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-3-2",
+          "key": "CBL-8803|removal|observation|area:a,unit:4|2026-03-23",
+          "observation_id": "dev-rw-3-2",
+          "date": "2026-03-23",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 removed after insulation test failed   QC_LOG.pdf",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-3-3",
+          "key": "CBL-8803|reinstallation|observation|area:b,elevation:ec,unit:4|2026-03-25",
+          "observation_id": "dev-rw-3-3",
+          "date": "2026-03-25",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:b",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 reinstalled again after repair at Unit 4 Area B   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-3-4",
+          "key": "CBL-8803|repair|finish|area:b,unit:4|2026-03-26",
+          "observation_id": "dev-rw-3-4",
+          "date": "2026-03-26",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 cable pull completed after rework at Unit 4 Area B   QC_CLOSEOUT.pdf",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-3-2",
+          "to": "rg:dev-rw-3-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-3-3",
+          "to": "rg:dev-rw-3-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-4",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-4-1",
+          "key": "CBL-8804|cable_pull|finish|area:a,elevation:ec,unit:4|2026-03-26",
+          "observation_id": "dev-rw-4-1",
+          "date": "2026-03-26",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:a",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 cable pulled and completed in Unit 4 Area A   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-4-2",
+          "key": "CBL-8804|removal|observation|area:a,unit:4|2026-03-27",
+          "observation_id": "dev-rw-4-2",
+          "date": "2026-03-27",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 removed after insulation test failed   QC_LOG.pdf",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-4-3",
+          "key": "CBL-8804|reinstallation|observation|area:b,elevation:ec,unit:4|2026-03-29",
+          "observation_id": "dev-rw-4-3",
+          "date": "2026-03-29",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:b",
+            "elevation:ec",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 reinstalled again after repair at Unit 4 Area B   ELEC_DPR.xlsx",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-4-4",
+          "key": "CBL-8804|repair|finish|area:b,unit:4|2026-03-30",
+          "observation_id": "dev-rw-4-4",
+          "date": "2026-03-30",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 cable pull completed after rework at Unit 4 Area B   QC_CLOSEOUT.pdf",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-4-2",
+          "to": "rg:dev-rw-4-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-4-3",
+          "to": "rg:dev-rw-4-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-0",
+      "kind": "same_day_source_contradiction",
+      "ok": false,
+      "reasons": [
+        "contradiction"
+      ],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-0-1",
+          "key": "PT-1600|calibration|finish|NO_LOC|2026-04-15",
+          "observation_id": "dev-ct-0-1",
+          "date": "2026-04-15",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1600",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1600",
+                "PT1600"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1600",
+            "PT1600"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1600 calibration completed and accepted   INST_DPR.xlsx",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-0-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-ct-0-2",
+          "key": "PT-1600|calibration|mixed|NO_LOC|2026-04-15",
+          "observation_id": "dev-ct-0-2",
+          "date": "2026-04-15",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1600",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1600",
+                "PT1600"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1600",
+            "PT1600"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1600 calibration not completed; QC rejected due zero drift   QC_NOTE.pdf",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-0-2"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "dev-contradict-1",
+      "kind": "same_day_source_contradiction",
+      "ok": false,
+      "reasons": [
+        "contradiction"
+      ],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-1-1",
+          "key": "PT-1601|calibration|finish|NO_LOC|2026-04-16",
+          "observation_id": "dev-ct-1-1",
+          "date": "2026-04-16",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1601",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1601",
+                "PT1601"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1601",
+            "PT1601"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1601 calibration completed and accepted   INST_DPR.xlsx",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-1-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-ct-1-2",
+          "key": "PT-1601|calibration|mixed|NO_LOC|2026-04-16",
+          "observation_id": "dev-ct-1-2",
+          "date": "2026-04-16",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1601",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1601",
+                "PT1601"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1601",
+            "PT1601"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1601 calibration not completed; QC rejected due zero drift   QC_NOTE.pdf",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-1-2"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "dev-contradict-2",
+      "kind": "same_day_source_contradiction",
+      "ok": false,
+      "reasons": [
+        "contradiction"
+      ],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-2-1",
+          "key": "PT-1602|calibration|finish|NO_LOC|2026-04-17",
+          "observation_id": "dev-ct-2-1",
+          "date": "2026-04-17",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1602",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1602",
+                "PT1602"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1602",
+            "PT1602"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1602 calibration completed and accepted   INST_DPR.xlsx",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-2-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-ct-2-2",
+          "key": "PT-1602|calibration|mixed|NO_LOC|2026-04-17",
+          "observation_id": "dev-ct-2-2",
+          "date": "2026-04-17",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1602",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1602",
+                "PT1602"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1602",
+            "PT1602"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1602 calibration not completed; QC rejected due zero drift   QC_NOTE.pdf",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-2-2"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "dev-contradict-3",
+      "kind": "same_day_source_contradiction",
+      "ok": false,
+      "reasons": [
+        "contradiction"
+      ],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-3-1",
+          "key": "PT-1603|calibration|finish|NO_LOC|2026-04-18",
+          "observation_id": "dev-ct-3-1",
+          "date": "2026-04-18",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1603",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1603",
+                "PT1603"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1603",
+            "PT1603"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1603 calibration completed and accepted   INST_DPR.xlsx",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-3-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-ct-3-2",
+          "key": "PT-1603|calibration|mixed|NO_LOC|2026-04-18",
+          "observation_id": "dev-ct-3-2",
+          "date": "2026-04-18",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1603",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1603",
+                "PT1603"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1603",
+            "PT1603"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1603 calibration not completed; QC rejected due zero drift   QC_NOTE.pdf",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-3-2"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "dev-contradict-4",
+      "kind": "same_day_source_contradiction",
+      "ok": false,
+      "reasons": [
+        "contradiction"
+      ],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-4-1",
+          "key": "PT-1604|calibration|finish|NO_LOC|2026-04-19",
+          "observation_id": "dev-ct-4-1",
+          "date": "2026-04-19",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1604",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1604",
+                "PT1604"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1604",
+            "PT1604"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1604 calibration completed and accepted   INST_DPR.xlsx",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-4-1"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-ct-4-2",
+          "key": "PT-1604|calibration|mixed|NO_LOC|2026-04-19",
+          "observation_id": "dev-ct-4-2",
+          "date": "2026-04-19",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1604",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1604",
+                "PT1604"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1604",
+            "PT1604"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1604 calibration not completed; QC rejected due zero drift   QC_NOTE.pdf",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-4-2"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": []
+    }
+  ]
+}

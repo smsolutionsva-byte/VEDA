@@ -1,0 +1,98 @@
+{
+  "dev": {
+    "seed": 8101,
+    "activities": 12940,
+    "relationships": 10056,
+    "resolver_cases": 116,
+    "reality_streams": 16
+  },
+  "test": {
+    "seed": 9207,
+    "activities": 12940,
+    "relationships": 10056,
+    "resolver_cases": 116,
+    "reality_streams": 16
+  },
+  "files": [
+    {
+      "file": "data/dev/cases.jsonl",
+      "sha256": "91ae37ca284c9844b82bd41b5fcddccfa6834e1ed7f5d5abc21317c5b5387cda",
+      "bytes": 47468
+    },
+    {
+      "file": "data/dev/daily_reports.csv",
+      "sha256": "b73cd506c6c3f70d9845292a80f908efb12e75c5ff63bf4abda2f9ba7d748169",
+      "bytes": 10565
+    },
+    {
+      "file": "data/dev/history_events.csv",
+      "sha256": "e57940eda09681f030cc467c2ca621b52b51797a3da2b296111cd47e737546e7",
+      "bytes": 6900
+    },
+    {
+      "file": "data/dev/lineage.csv",
+      "sha256": "28d93e0f56fc9619cdd4d40bc2bb8fcb8c0fb102f1675c5f6937daa36e422f56",
+      "bytes": 608
+    },
+    {
+      "file": "data/dev/monthly_corrections.csv",
+      "sha256": "6d1f2b76b61f9fa58b88c62b19fa4bf9ac35cf97d8e048514bf630b050af6da4",
+      "bytes": 2327
+    },
+    {
+      "file": "data/dev/reality_streams.jsonl",
+      "sha256": "d7d348b7ffbca7d0326d9d5cdd4177768e945b2efa75d3ff87d858a4e9bec68a",
+      "bytes": 12662
+    },
+    {
+      "file": "data/dev/relationships.csv",
+      "sha256": "cfca349846f1c3f8c94d340c48b6d51a75ddfbe50b2dfced53963945be1985de",
+      "bytes": 186873
+    },
+    {
+      "file": "data/dev/schedule.csv",
+      "sha256": "6798dc7d5c4ccc90595b5beba6c31bf962cec60d638128b6a1a73d5478abda6b",
+      "bytes": 3247098
+    },
+    {
+      "file": "data/test/cases.jsonl",
+      "sha256": "e47d5ba99b488bd2f984b79333b7358704dd1a8544d23bd87b64ea1c86637e64",
+      "bytes": 47584
+    },
+    {
+      "file": "data/test/daily_reports.csv",
+      "sha256": "f294fa0e258564fcbd6dd1ee5304a4512a7d6bbe51c60785b0fba53f3ff2e2fd",
+      "bytes": 10681
+    },
+    {
+      "file": "data/test/history_events.csv",
+      "sha256": "c1d351223d1c020e70cd310e5174feacddfac45d9832256f30800be2da081b76",
+      "bytes": 7012
+    },
+    {
+      "file": "data/test/lineage.csv",
+      "sha256": "d3edfdc756c510379dc4c56beadeff23de2c7dac2d41626773243a774cfb7dc4",
+      "bytes": 608
+    },
+    {
+      "file": "data/test/monthly_corrections.csv",
+      "sha256": "6153c5938bbd058146189bdb4a185ce947eec96be6e86e1c5a97fc93d9f7279a",
+      "bytes": 2348
+    },
+    {
+      "file": "data/test/reality_streams.jsonl",
+      "sha256": "41ac174c856213b813606e9eac1e6d1fa130f4b6d91cc414f3cd39365fcbee77",
+      "bytes": 12732
+    },
+    {
+      "file": "data/test/relationships.csv",
+      "sha256": "f4afb5999bb1a64a5ff71f7cb63072b1ba6bc795674beb26fbc5f8a7b00edf2a",
+      "bytes": 186873
+    },
+    {
+      "file": "data/test/schedule.csv",
+      "sha256": "0db59dc684fdb8892b8d2f94c98bf83cba92ad8ca4b3b1445799be2b3bd76cc1",
+      "bytes": 3247098
+    }
+  ]
+}

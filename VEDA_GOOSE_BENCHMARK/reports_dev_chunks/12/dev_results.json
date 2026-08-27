@@ -1,0 +1,5657 @@
+{
+  "summary": {
+    "split": "dev",
+    "activities": 12940,
+    "relationships": 10056,
+    "resolver_cases": 12,
+    "backend": "hash-ngram-v2",
+    "index_seconds": 7.596138999999994,
+    "variants": {
+      "semantic_rank": {
+        "n": 12,
+        "top1": 0.8333333333333334,
+        "r3": 1.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 0.9166666666666666
+      },
+      "veda_rank": {
+        "n": 12,
+        "top1": 1.0,
+        "r3": 1.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 1.0
+      },
+      "workfront_rank": {
+        "n": 12,
+        "top1": 0.9166666666666666,
+        "r3": 1.0,
+        "r5": 1.0,
+        "r10": 1.0,
+        "mrr": 0.9583333333333334
+      }
+    },
+    "categories": {
+      "phase": {
+        "n": 12,
+        "semantic_rank": 0.8333333333333334,
+        "veda_rank": 1.0,
+        "workfront_rank": 0.9166666666666666
+      }
+    },
+    "relation_accuracy": 0.0,
+    "relation_cases": 0,
+    "reality_stream_accuracy": 1.0,
+    "reality_streams": 16,
+    "latency_ms": {
+      "combined_query_median": 244.90870849990642,
+      "combined_query_p95": 1864.5869500001027
+    }
+  },
+  "records": [
+    {
+      "id": "DEV-0013",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800050,
+      "expected_uids": [
+        800050
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800050,
+      "veda_top": 800050,
+      "workfront_top": 800050,
+      "relation": "EXACT",
+      "relation_uids": [
+        800050
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5482730269432068,
+        "sparse": 1.0,
+        "sparse_bm25": 38.19525924093695,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.47394373509371884,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08327161975733832,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0014",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800052,
+      "expected_uids": [
+        800052
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800052,
+      "veda_top": 800052,
+      "workfront_top": 800052,
+      "relation": "EXACT",
+      "relation_uids": [
+        800052
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5682986974716187,
+        "sparse": 1.0,
+        "sparse_bm25": 41.906304525448945,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.4803053010897994,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.086437949609942,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0015",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800054,
+      "expected_uids": [
+        800054
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800054,
+      "veda_top": 800054,
+      "workfront_top": 800054,
+      "relation": "EXACT",
+      "relation_uids": [
+        800054
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5080538988113403,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544896,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.4867522559599717,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08442503412650537,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0016",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800056,
+      "expected_uids": [
+        800056
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800056,
+      "veda_top": 800056,
+      "workfront_top": 800056,
+      "relation": "EXACT",
+      "relation_uids": [
+        800056
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5755395293235779,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544895,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.4932857458465257,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.0835689547793318,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0017",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800058,
+      "expected_uids": [
+        800058
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800058,
+      "veda_top": 800058,
+      "workfront_top": 800058,
+      "relation": "EXACT",
+      "relation_uids": [
+        800058
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.6222073435783386,
+        "sparse": 1.0,
+        "sparse_bm25": 41.906304525448945,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.4999069322759822,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08674684417839806,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0018",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800060,
+      "expected_uids": [
+        800060
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800060,
+      "veda_top": 800060,
+      "workfront_top": 800060,
+      "relation": "EXACT",
+      "relation_uids": [
+        800060
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.567575216293335,
+        "sparse": 1.0,
+        "sparse_bm25": 38.195259240936956,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.5066169923655895,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08411178796780383,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6775059794050668,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0019",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800062,
+      "expected_uids": [
+        800062
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 2,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800061,
+      "veda_top": 800062,
+      "workfront_top": 800062,
+      "relation": "EXACT",
+      "relation_uids": [
+        800062
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 0.9233478428702132,
+        "dense_cosine": 0.5216370224952698,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544896,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.048651507139079855,
+        "rerank": 0.9788028313338479,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.513417119032592,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.8894847992348299,
+        "engineering_rank_score": 0.752557356235993,
+        "rank_margin": 0.07818331748949248,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.752557356235993,
+        "execution_frontier": 0.5799099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6747091039327647,
+        "workfront_detail": {
+          "score": 0.5799099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.08333333333333333,
+            "wbs": 0.0,
+            "location": 0.3333333333333333,
+            "event": 0.0,
+            "samples": 6,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0020",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800064,
+      "expected_uids": [
+        800064
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800064,
+      "veda_top": 800064,
+      "workfront_top": 800064,
+      "relation": "EXACT",
+      "relation_uids": [
+        800064
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5329561829566956,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544896,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.5203085212063069,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08612630763550766,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5649099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6740559794050669,
+        "workfront_detail": {
+          "score": 0.5649099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.0,
+            "wbs": 0.0,
+            "location": 0.0,
+            "event": 0.0,
+            "samples": 4,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0021",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800066,
+      "expected_uids": [
+        800066
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800066,
+      "veda_top": 800066,
+      "workfront_top": 800066,
+      "relation": "EXACT",
+      "relation_uids": [
+        800066
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.49395468831062317,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544895,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.5272924240430485,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08472526092538646,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5649099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6740559794050669,
+        "workfront_detail": {
+          "score": 0.5649099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.0,
+            "wbs": 0.0,
+            "location": 0.0,
+            "event": 0.0,
+            "samples": 4,
+            "recent_events": 4
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0022",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800068,
+      "expected_uids": [
+        800068
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800068,
+      "veda_top": 800068,
+      "workfront_top": 800068,
+      "relation": "EXACT",
+      "relation_uids": [
+        800068
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5079013109207153,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544896,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.5343700691439376,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08471949328763329,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5649099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6740559794050669,
+        "workfront_detail": {
+          "score": 0.5649099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.0,
+            "wbs": 0.0,
+            "location": 0.0,
+            "event": 0.0,
+            "samples": 3,
+            "recent_events": 3
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0023",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800070,
+      "expected_uids": [
+        800070
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 2,
+      "veda_rank": 1,
+      "workfront_rank": 2,
+      "semantic_top": 4400,
+      "veda_top": 800070,
+      "workfront_top": 4400,
+      "relation": "EXACT",
+      "relation_uids": [
+        4400
+      ],
+      "relation_ok": false,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.6144658327102661,
+        "sparse": 0.8677789780025151,
+        "sparse_bm25": 33.62255888537436,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04865990111891752,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 1.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.37762787057581837,
+        "actual_date": 0.5,
+        "current_date": 0.24935220877729622,
+        "baseline_date": 0.513417119032592,
+        "date_corroboration": 0.5,
+        "graph": 0.7375,
+        "pred_ready": 0.75,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.7375,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 1,
+          "predecessors": 0,
+          "predecessor_readiness": 0.75,
+          "successors": 1,
+          "successors_advanced": 0,
+          "driving_predecessors": 0,
+          "out_of_sequence_mode": "Progress Override"
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.37762787057581837,
+          "basis": "current_early_baseline",
+          "distance_days": 50,
+          "actual": 0.5,
+          "current": 0.24935220877729622,
+          "early": 0.5,
+          "baseline": 0.513417119032592,
+          "data_date_relation": 0.5415427147756329,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 1 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.8807808024033095,
+        "engineering_rank_score": 0.6392724967130239,
+        "rank_margin": 0.003894325203688598,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.6392724967130239,
+        "execution_frontier": 0.5790730167036473,
+        "workfront_ppr": 0.8926127057406474,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.5995003979937085,
+        "workfront_detail": {
+          "score": 0.5790730167036473,
+          "readiness": {
+            "score": 0.8375,
+            "pred_ready": 0.75,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.0,
+            "wbs": 0.0,
+            "location": 0.0,
+            "event": 0.0,
+            "samples": 2,
+            "recent_events": 2
+          },
+          "temporal": 0.37762787057581837,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    },
+    {
+      "id": "DEV-0024",
+      "category": "phase",
+      "edge_case": "same_asset_action_different_phase",
+      "expected_uid": 800072,
+      "expected_uids": [
+        800072
+      ],
+      "expected_relation": "EXACT",
+      "semantic_rank": 1,
+      "veda_rank": 1,
+      "workfront_rank": 1,
+      "semantic_top": 800072,
+      "veda_top": 800072,
+      "workfront_top": 800072,
+      "relation": "EXACT",
+      "relation_uids": [
+        800072
+      ],
+      "relation_ok": true,
+      "workfront_features": {
+        "dense": 1.0,
+        "dense_cosine": 0.5510388016700745,
+        "sparse": 1.0,
+        "sparse_bm25": 41.90630452544895,
+        "bge_sparse": 0.0,
+        "bge_sparse_raw": 0.0,
+        "rrf": 0.04891591750396616,
+        "rerank": 1.0,
+        "asset_exact": 1.0,
+        "asset_alias": 1.0,
+        "asset_negative": 0.0,
+        "evidence_asset_count": 1.0,
+        "asset_coverage": 1.0,
+        "asset_ocr": 0.0,
+        "asset_conflict": 0.0,
+        "asset_overlap_count": 1.0,
+        "action": 1.0,
+        "action_conflict": 0.0,
+        "phase": 1.0,
+        "phase_conflict": 0.0,
+        "event_state_non_progress": 0.0,
+        "location": 1.0,
+        "location_conflict": 0.0,
+        "discipline": 0.5,
+        "chainage": 0.5,
+        "temporal": 0.8433883741557573,
+        "actual_date": 0.5,
+        "current_date": 0.9726044771163483,
+        "baseline_date": 0.9867551618071957,
+        "date_corroboration": 0.5,
+        "graph": 0.5,
+        "pred_ready": 0.5,
+        "driving_pred_ready": 0.5,
+        "successor_progress": 0.0,
+        "relationship_consistency": 0.5,
+        "historical_sequence": 0.5,
+        "wbs": 0.762,
+        "wbs_ancestor": 0.6,
+        "wbs_code": 0.0,
+        "source_trust": 0.8,
+        "graph_detail": {
+          "relationship_count": 0
+        },
+        "date_detail": {
+          "independent_sources": 0,
+          "related_records": 0,
+          "nearest_other_date_days": null
+        },
+        "temporal_detail": {
+          "score": 0.8433883741557573,
+          "basis": "current_early_baseline",
+          "distance_days": 1,
+          "actual": 0.5,
+          "current": 0.9726044771163483,
+          "early": 0.5,
+          "baseline": 0.9867551618071957,
+          "data_date_relation": 0.5488116360940264,
+          "calendar": null,
+          "note": "Calendar-aware working-day distance requires calendar detail from the schedule engine; calendar name is retained but no fake weekday assumption is made."
+        },
+        "wbs_detail": {
+          "score": 0.762,
+          "path_overlap": 0.375,
+          "ancestor_match": 0.6,
+          "location_match": 1.0,
+          "location_conflict": 0.0,
+          "exact_code": 0.0,
+          "code_prefix": 0.0,
+          "matched_tokens": [
+            "area",
+            "mechanical",
+            "unit"
+          ],
+          "path": "Project > Unit 3 > Area B > Construction > Mechanical"
+        },
+        "historical_sequence_detail": {
+          "score": 0.5,
+          "available": false,
+          "support": [],
+          "stats": {
+            "projects": 1,
+            "edges": 10056,
+            "nodes": 12940,
+            "edge_node_ratio": 0.7771
+          }
+        },
+        "event_detail": {
+          "state": "finish",
+          "action": "installation",
+          "action_matches": [
+            {
+              "action": "installation",
+              "phrase": "install"
+            }
+          ],
+          "phase": "construction",
+          "phase_phrase": "site installation",
+          "progress": null,
+          "non_progress": false,
+          "update_effect": "actual_finish",
+          "state_phrase": "completed",
+          "clause_states": [],
+          "confidence": 0.98
+        },
+        "agent_agreement": 0.0,
+        "agent_confidence": 0.0,
+        "raw_score": 0.9044555349662303,
+        "engineering_rank_score": 0.7579359629134971,
+        "rank_margin": 0.08248245615908245,
+        "rank_position": 1.0,
+        "pre_workfront_score": 0.7579359629134971,
+        "execution_frontier": 0.5649099073480364,
+        "workfront_ppr": 1.0,
+        "frontier_channel": 0.0,
+        "workfront_rank_score": 0.6740559794050669,
+        "workfront_detail": {
+          "score": 0.5649099073480364,
+          "readiness": {
+            "score": 0.675,
+            "pred_ready": 0.5,
+            "succ_advanced": 0.0,
+            "count": 0
+          },
+          "recent": {
+            "score": 0.0,
+            "wbs": 0.0,
+            "location": 0.0,
+            "event": 0.0,
+            "samples": 1,
+            "recent_events": 1
+          },
+          "temporal": 0.8433883741557573,
+          "status": 0.78
+        }
+      },
+      "notes": ""
+    }
+  ],
+  "reality_streams": [
+    {
+      "id": "dev-replacement-0",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-0-1",
+          "key": "P-500A|installation|observation|area:c,unit:2|2026-02-01",
+          "observation_id": "dev-rep-0-1",
+          "date": "2026-02-01",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P500A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-500A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-1",
+            "dev-rep-0-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-0-3",
+          "key": "P-500A|removal|observation|area:c,unit:2|2026-02-03",
+          "observation_id": "dev-rep-0-3",
+          "date": "2026-02-03",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P500A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-500A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-0-4",
+          "key": "P-500A,P-500B|replacement|mixed|area:c,unit:2|2026-02-21",
+          "observation_id": "dev-rep-0-4",
+          "date": "2026-02-21",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-500A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500A",
+                "P500A"
+              ],
+              "ocr_aliases": [
+                "P-50OA",
+                "P50OA"
+              ]
+            },
+            {
+              "tag": "P-500B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-500B",
+                "P500B"
+              ],
+              "ocr_aliases": [
+                "P-5008",
+                "P-50OB",
+                "P5008",
+                "P50OB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-500A",
+            "P-500B",
+            "P500A",
+            "P500B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-500A",
+            "new_asset": "P-500B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-500A was replaced with P-500B again; notified on WhatsApp because P-500A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-0-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-0-2",
+          "to": "rg:dev-rep-0-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-0-3",
+          "to": "rg:dev-rep-0-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-0-4",
+          "to": "rg:dev-rep-0-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-1",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-1-1",
+          "key": "P-501A|installation|observation|area:c,unit:2|2026-02-06",
+          "observation_id": "dev-rep-1-1",
+          "date": "2026-02-06",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P501A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-501A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-1",
+            "dev-rep-1-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-1-3",
+          "key": "P-501A|removal|observation|area:c,unit:2|2026-02-08",
+          "observation_id": "dev-rep-1-3",
+          "date": "2026-02-08",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P501A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-501A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-1-4",
+          "key": "P-501A,P-501B|replacement|mixed|area:c,unit:2|2026-02-26",
+          "observation_id": "dev-rep-1-4",
+          "date": "2026-02-26",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-501A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501A",
+                "P501A"
+              ],
+              "ocr_aliases": [
+                "P-50IA",
+                "P50IA"
+              ]
+            },
+            {
+              "tag": "P-501B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-501B",
+                "P501B"
+              ],
+              "ocr_aliases": [
+                "P-5018",
+                "P-50IB",
+                "P5018",
+                "P50IB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-501A",
+            "P-501B",
+            "P501A",
+            "P501B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-501A",
+            "new_asset": "P-501B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-501A was replaced with P-501B again; notified on WhatsApp because P-501A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-1-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-1-2",
+          "to": "rg:dev-rep-1-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-1-3",
+          "to": "rg:dev-rep-1-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-1-4",
+          "to": "rg:dev-rep-1-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-2",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-2-1",
+          "key": "P-502A|installation|observation|area:c,unit:2|2026-02-11",
+          "observation_id": "dev-rep-2-1",
+          "date": "2026-02-11",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P502A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-502A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-1",
+            "dev-rep-2-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-2-3",
+          "key": "P-502A|removal|observation|area:c,unit:2|2026-02-13",
+          "observation_id": "dev-rep-2-3",
+          "date": "2026-02-13",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P502A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-502A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-2-4",
+          "key": "P-502A,P-502B|replacement|mixed|area:c,unit:2|2026-03-03",
+          "observation_id": "dev-rep-2-4",
+          "date": "2026-03-03",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-502A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502A",
+                "P502A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-502B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-502B",
+                "P502B"
+              ],
+              "ocr_aliases": [
+                "P-5028",
+                "P5028"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-502A",
+            "P-502B",
+            "P502A",
+            "P502B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-502A",
+            "new_asset": "P-502B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-502A was replaced with P-502B again; notified on WhatsApp because P-502A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-2-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-2-2",
+          "to": "rg:dev-rep-2-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-2-3",
+          "to": "rg:dev-rep-2-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-2-4",
+          "to": "rg:dev-rep-2-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-3",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-3-1",
+          "key": "P-503A|installation|observation|area:c,unit:2|2026-02-16",
+          "observation_id": "dev-rep-3-1",
+          "date": "2026-02-16",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P503A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-503A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-1",
+            "dev-rep-3-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-3-3",
+          "key": "P-503A|removal|observation|area:c,unit:2|2026-02-18",
+          "observation_id": "dev-rep-3-3",
+          "date": "2026-02-18",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P503A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-503A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-3-4",
+          "key": "P-503A,P-503B|replacement|mixed|area:c,unit:2|2026-03-08",
+          "observation_id": "dev-rep-3-4",
+          "date": "2026-03-08",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-503A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503A",
+                "P503A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-503B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-503B",
+                "P503B"
+              ],
+              "ocr_aliases": [
+                "P-5038",
+                "P5038"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-503A",
+            "P-503B",
+            "P503A",
+            "P503B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-503A",
+            "new_asset": "P-503B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-503A was replaced with P-503B again; notified on WhatsApp because P-503A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-3-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-3-2",
+          "to": "rg:dev-rep-3-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-3-3",
+          "to": "rg:dev-rep-3-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-3-4",
+          "to": "rg:dev-rep-3-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-4",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-4-1",
+          "key": "P-504A|installation|observation|area:c,unit:2|2026-02-21",
+          "observation_id": "dev-rep-4-1",
+          "date": "2026-02-21",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P504A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-504A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-1",
+            "dev-rep-4-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-4-3",
+          "key": "P-504A|removal|observation|area:c,unit:2|2026-02-23",
+          "observation_id": "dev-rep-4-3",
+          "date": "2026-02-23",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P504A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-504A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-4-4",
+          "key": "P-504A,P-504B|replacement|mixed|area:c,unit:2|2026-03-13",
+          "observation_id": "dev-rep-4-4",
+          "date": "2026-03-13",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-504A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504A",
+                "P504A"
+              ],
+              "ocr_aliases": []
+            },
+            {
+              "tag": "P-504B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-504B",
+                "P504B"
+              ],
+              "ocr_aliases": [
+                "P-5048",
+                "P5048"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-504A",
+            "P-504B",
+            "P504A",
+            "P504B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-504A",
+            "new_asset": "P-504B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-504A was replaced with P-504B again; notified on WhatsApp because P-504A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-4-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-4-2",
+          "to": "rg:dev-rep-4-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-4-3",
+          "to": "rg:dev-rep-4-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-4-4",
+          "to": "rg:dev-rep-4-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-replacement-5",
+      "kind": "replacement_monthly_correction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 3,
+        "corroborations": 1,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rep-5-1",
+          "key": "P-505A|installation|observation|area:c,unit:2|2026-02-26",
+          "observation_id": "dev-rep-5-1",
+          "date": "2026-02-26",
+          "action": "installation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "installation",
+            "action_matches": [
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P505A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-505A installed at Unit 2 Area C 05:00",
+          "source_file": "DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-1",
+            "dev-rep-5-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-5-3",
+          "key": "P-505A|removal|observation|area:c,unit:2|2026-02-28",
+          "observation_id": "dev-rep-5-3",
+          "date": "2026-02-28",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P505A"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "P-505A failed and was removed after bearing damage",
+          "source_file": "SITE_DIARY.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-3"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rep-5-4",
+          "key": "P-505A,P-505B|replacement|mixed|area:c,unit:2|2026-03-18",
+          "observation_id": "dev-rep-5-4",
+          "date": "2026-03-18",
+          "action": "replacement",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "replacement",
+            "action_matches": [
+              {
+                "action": "replacement",
+                "phrase": "replace"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "correction",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "P-505A",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505A",
+                "P505A"
+              ],
+              "ocr_aliases": [
+                "P-50SA",
+                "P50SA"
+              ]
+            },
+            {
+              "tag": "P-505B",
+              "type": "asset",
+              "class": "pump",
+              "source": "text",
+              "aliases": [
+                "P-505B",
+                "P505B"
+              ],
+              "ocr_aliases": [
+                "P-5058",
+                "P-50SB",
+                "P5058",
+                "P50SB"
+              ]
+            }
+          ],
+          "asset_aliases": [
+            "P-505A",
+            "P-505B",
+            "P505A",
+            "P505B"
+          ],
+          "locations": [
+            "area:c",
+            "unit:2"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "replacement",
+          "replacement": {
+            "old_asset": "P-505A",
+            "new_asset": "P-505B"
+          },
+          "failure_or_rejection": true,
+          "is_correction": true,
+          "informal_channel": true,
+          "raw_text": "Correction: P-505A was replaced with P-505B again; notified on WhatsApp because P-505A broke",
+          "source_file": "MONTHLY_REPORT.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rep-5-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CORROBORATES",
+          "from": "dev-rep-5-2",
+          "to": "rg:dev-rep-5-1"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-5-3",
+          "to": "rg:dev-rep-5-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rep-5-4",
+          "to": "rg:dev-rep-5-3",
+          "reason": "replacement"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-0",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-0-1",
+          "key": "CBL-8800|cable_pull|finish|area:a,unit:4|2026-03-10",
+          "observation_id": "dev-rw-0-1",
+          "date": "2026-03-10",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 cable pulled and completed in Unit 4 Area A",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-0-2",
+          "key": "CBL-8800|removal|observation|area:a,unit:4|2026-03-11",
+          "observation_id": "dev-rw-0-2",
+          "date": "2026-03-11",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 removed after insulation test failed",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-0-3",
+          "key": "CBL-8800|reinstallation|observation|area:b,unit:4|2026-03-13",
+          "observation_id": "dev-rw-0-3",
+          "date": "2026-03-13",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 reinstalled again after repair at Unit 4 Area B",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-0-4",
+          "key": "CBL-8800|repair|finish|area:b,unit:4|2026-03-14",
+          "observation_id": "dev-rw-0-4",
+          "date": "2026-03-14",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8800",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8800",
+                "CBL8800"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8800",
+            "CBL8800"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8800 cable pull completed after rework at Unit 4 Area B",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-0-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-0-2",
+          "to": "rg:dev-rw-0-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-0-3",
+          "to": "rg:dev-rw-0-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-1",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-1-1",
+          "key": "CBL-8801|cable_pull|finish|area:a,unit:4|2026-03-14",
+          "observation_id": "dev-rw-1-1",
+          "date": "2026-03-14",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 cable pulled and completed in Unit 4 Area A",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-1-2",
+          "key": "CBL-8801|removal|observation|area:a,unit:4|2026-03-15",
+          "observation_id": "dev-rw-1-2",
+          "date": "2026-03-15",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 removed after insulation test failed",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-1-3",
+          "key": "CBL-8801|reinstallation|observation|area:b,unit:4|2026-03-17",
+          "observation_id": "dev-rw-1-3",
+          "date": "2026-03-17",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 reinstalled again after repair at Unit 4 Area B",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-1-4",
+          "key": "CBL-8801|repair|finish|area:b,unit:4|2026-03-18",
+          "observation_id": "dev-rw-1-4",
+          "date": "2026-03-18",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8801",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8801",
+                "CBL8801"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8801",
+            "CBL8801"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8801 cable pull completed after rework at Unit 4 Area B",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-1-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-1-2",
+          "to": "rg:dev-rw-1-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-1-3",
+          "to": "rg:dev-rw-1-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-2",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-2-1",
+          "key": "CBL-8802|cable_pull|finish|area:a,unit:4|2026-03-18",
+          "observation_id": "dev-rw-2-1",
+          "date": "2026-03-18",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 cable pulled and completed in Unit 4 Area A",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-2-2",
+          "key": "CBL-8802|removal|observation|area:a,unit:4|2026-03-19",
+          "observation_id": "dev-rw-2-2",
+          "date": "2026-03-19",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 removed after insulation test failed",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-2-3",
+          "key": "CBL-8802|reinstallation|observation|area:b,unit:4|2026-03-21",
+          "observation_id": "dev-rw-2-3",
+          "date": "2026-03-21",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 reinstalled again after repair at Unit 4 Area B",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-2-4",
+          "key": "CBL-8802|repair|finish|area:b,unit:4|2026-03-22",
+          "observation_id": "dev-rw-2-4",
+          "date": "2026-03-22",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8802",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8802",
+                "CBL8802"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8802",
+            "CBL8802"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8802 cable pull completed after rework at Unit 4 Area B",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-2-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-2-2",
+          "to": "rg:dev-rw-2-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-2-3",
+          "to": "rg:dev-rw-2-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-3",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-3-1",
+          "key": "CBL-8803|cable_pull|finish|area:a,unit:4|2026-03-22",
+          "observation_id": "dev-rw-3-1",
+          "date": "2026-03-22",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 cable pulled and completed in Unit 4 Area A",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-3-2",
+          "key": "CBL-8803|removal|observation|area:a,unit:4|2026-03-23",
+          "observation_id": "dev-rw-3-2",
+          "date": "2026-03-23",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 removed after insulation test failed",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-3-3",
+          "key": "CBL-8803|reinstallation|observation|area:b,unit:4|2026-03-25",
+          "observation_id": "dev-rw-3-3",
+          "date": "2026-03-25",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 reinstalled again after repair at Unit 4 Area B",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-3-4",
+          "key": "CBL-8803|repair|finish|area:b,unit:4|2026-03-26",
+          "observation_id": "dev-rw-3-4",
+          "date": "2026-03-26",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8803",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8803",
+                "CBL8803"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8803",
+            "CBL8803"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8803 cable pull completed after rework at Unit 4 Area B",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-3-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-3-2",
+          "to": "rg:dev-rw-3-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-3-3",
+          "to": "rg:dev-rw-3-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-rework-4",
+      "kind": "remove_reinstall_different_zone",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 4,
+        "canonical_events": 4,
+        "corroborations": 0,
+        "contradictions": 0,
+        "supersessions": 2
+      },
+      "events": [
+        {
+          "id": "rg:dev-rw-4-1",
+          "key": "CBL-8804|cable_pull|finish|area:a,unit:4|2026-03-26",
+          "observation_id": "dev-rw-4-1",
+          "date": "2026-03-26",
+          "action": "cable_pull",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "cable_pull",
+            "action_matches": [
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": "field_execution",
+            "phase_phrase": "execution_action",
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 cable pulled and completed in Unit 4 Area A",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-1"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-4-2",
+          "key": "CBL-8804|removal|observation|area:a,unit:4|2026-03-27",
+          "observation_id": "dev-rw-4-2",
+          "date": "2026-03-27",
+          "action": "removal",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "removal",
+            "action_matches": [
+              {
+                "action": "removal",
+                "phrase": "remove"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:a",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "removal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 removed after insulation test failed",
+          "source_file": "QC_LOG.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-2"
+          ],
+          "status": "superseded"
+        },
+        {
+          "id": "rg:dev-rw-4-3",
+          "key": "CBL-8804|reinstallation|observation|area:b,unit:4|2026-03-29",
+          "observation_id": "dev-rw-4-3",
+          "date": "2026-03-29",
+          "action": "reinstallation",
+          "state": "observation",
+          "event_info": {
+            "state": "observation",
+            "action": "reinstallation",
+            "action_matches": [
+              {
+                "action": "reinstallation",
+                "phrase": "reinstall"
+              },
+              {
+                "action": "repair",
+                "phrase": "repair"
+              },
+              {
+                "action": "installation",
+                "phrase": "install"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": null,
+            "clause_states": [],
+            "confidence": 0.55
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "reinstallation",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 reinstalled again after repair at Unit 4 Area B",
+          "source_file": "ELEC_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-3"
+          ],
+          "status": "observed"
+        },
+        {
+          "id": "rg:dev-rw-4-4",
+          "key": "CBL-8804|repair|finish|area:b,unit:4|2026-03-30",
+          "observation_id": "dev-rw-4-4",
+          "date": "2026-03-30",
+          "action": "repair",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "repair",
+            "action_matches": [
+              {
+                "action": "repair",
+                "phrase": "rework"
+              },
+              {
+                "action": "cable_pull",
+                "phrase": "cable pull"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "CBL-8804",
+              "type": "electrical",
+              "class": "cable",
+              "source": "text",
+              "aliases": [
+                "CBL-8804",
+                "CBL8804"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "CBL-8804",
+            "CBL8804"
+          ],
+          "locations": [
+            "area:b",
+            "unit:4"
+          ],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "CBL-8804 cable pull completed after rework at Unit 4 Area B",
+          "source_file": "QC_CLOSEOUT.pdf",
+          "locator": null,
+          "sources": [
+            "dev-rw-4-4"
+          ],
+          "status": "observed"
+        }
+      ],
+      "edges": [
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-4-2",
+          "to": "rg:dev-rw-4-1",
+          "reason": "removal"
+        },
+        {
+          "type": "SUPERSEDES",
+          "from": "rg:dev-rw-4-3",
+          "to": "rg:dev-rw-4-2",
+          "reason": "reinstallation"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-0",
+      "kind": "same_day_source_contradiction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 1,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-0-1",
+          "key": "PT-1600|calibration|finish|NO_LOC|2026-04-15",
+          "observation_id": "dev-ct-0-1",
+          "date": "2026-04-15",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1600",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1600",
+                "PT1600"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1600",
+            "PT1600"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1600 calibration completed and accepted",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-0-1"
+          ],
+          "status": "conflicting"
+        },
+        {
+          "id": "rg:dev-ct-0-2",
+          "key": "PT-1600|calibration|mixed|NO_LOC|2026-04-15",
+          "observation_id": "dev-ct-0-2",
+          "date": "2026-04-15",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1600",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1600",
+                "PT1600"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1600",
+            "PT1600"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1600 calibration not completed; QC rejected due zero drift",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-0-2"
+          ],
+          "status": "conflicting"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CONTRADICTS",
+          "from": "rg:dev-ct-0-2",
+          "to": "rg:dev-ct-0-1"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-1",
+      "kind": "same_day_source_contradiction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 1,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-1-1",
+          "key": "PT-1601|calibration|finish|NO_LOC|2026-04-16",
+          "observation_id": "dev-ct-1-1",
+          "date": "2026-04-16",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1601",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1601",
+                "PT1601"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1601",
+            "PT1601"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1601 calibration completed and accepted",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-1-1"
+          ],
+          "status": "conflicting"
+        },
+        {
+          "id": "rg:dev-ct-1-2",
+          "key": "PT-1601|calibration|mixed|NO_LOC|2026-04-16",
+          "observation_id": "dev-ct-1-2",
+          "date": "2026-04-16",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1601",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1601",
+                "PT1601"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1601",
+            "PT1601"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1601 calibration not completed; QC rejected due zero drift",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-1-2"
+          ],
+          "status": "conflicting"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CONTRADICTS",
+          "from": "rg:dev-ct-1-2",
+          "to": "rg:dev-ct-1-1"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-2",
+      "kind": "same_day_source_contradiction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 1,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-2-1",
+          "key": "PT-1602|calibration|finish|NO_LOC|2026-04-17",
+          "observation_id": "dev-ct-2-1",
+          "date": "2026-04-17",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1602",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1602",
+                "PT1602"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1602",
+            "PT1602"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1602 calibration completed and accepted",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-2-1"
+          ],
+          "status": "conflicting"
+        },
+        {
+          "id": "rg:dev-ct-2-2",
+          "key": "PT-1602|calibration|mixed|NO_LOC|2026-04-17",
+          "observation_id": "dev-ct-2-2",
+          "date": "2026-04-17",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1602",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1602",
+                "PT1602"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1602",
+            "PT1602"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1602 calibration not completed; QC rejected due zero drift",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-2-2"
+          ],
+          "status": "conflicting"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CONTRADICTS",
+          "from": "rg:dev-ct-2-2",
+          "to": "rg:dev-ct-2-1"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-3",
+      "kind": "same_day_source_contradiction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 1,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-3-1",
+          "key": "PT-1603|calibration|finish|NO_LOC|2026-04-18",
+          "observation_id": "dev-ct-3-1",
+          "date": "2026-04-18",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1603",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1603",
+                "PT1603"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1603",
+            "PT1603"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1603 calibration completed and accepted",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-3-1"
+          ],
+          "status": "conflicting"
+        },
+        {
+          "id": "rg:dev-ct-3-2",
+          "key": "PT-1603|calibration|mixed|NO_LOC|2026-04-18",
+          "observation_id": "dev-ct-3-2",
+          "date": "2026-04-18",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1603",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1603",
+                "PT1603"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1603",
+            "PT1603"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1603 calibration not completed; QC rejected due zero drift",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-3-2"
+          ],
+          "status": "conflicting"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CONTRADICTS",
+          "from": "rg:dev-ct-3-2",
+          "to": "rg:dev-ct-3-1"
+        }
+      ]
+    },
+    {
+      "id": "dev-contradict-4",
+      "kind": "same_day_source_contradiction",
+      "ok": true,
+      "reasons": [],
+      "summary": {
+        "observations": 2,
+        "canonical_events": 2,
+        "corroborations": 0,
+        "contradictions": 1,
+        "supersessions": 0
+      },
+      "events": [
+        {
+          "id": "rg:dev-ct-4-1",
+          "key": "PT-1604|calibration|finish|NO_LOC|2026-04-19",
+          "observation_id": "dev-ct-4-1",
+          "date": "2026-04-19",
+          "action": "calibration",
+          "state": "finish",
+          "event_info": {
+            "state": "finish",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": "actual_finish",
+            "state_phrase": "completed",
+            "clause_states": [],
+            "confidence": 0.98
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1604",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1604",
+                "PT1604"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1604",
+            "PT1604"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": false,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1604 calibration completed and accepted",
+          "source_file": "INST_DPR.xlsx",
+          "locator": null,
+          "sources": [
+            "dev-ct-4-1"
+          ],
+          "status": "conflicting"
+        },
+        {
+          "id": "rg:dev-ct-4-2",
+          "key": "PT-1604|calibration|mixed|NO_LOC|2026-04-19",
+          "observation_id": "dev-ct-4-2",
+          "date": "2026-04-19",
+          "action": "calibration",
+          "state": "mixed",
+          "event_info": {
+            "state": "mixed",
+            "action": "calibration",
+            "action_matches": [
+              {
+                "action": "calibration",
+                "phrase": "calibration"
+              }
+            ],
+            "phase": null,
+            "phase_phrase": null,
+            "progress": null,
+            "non_progress": false,
+            "update_effect": null,
+            "state_phrase": "mixed_clause_states",
+            "clause_states": [
+              "no_progress",
+              "observation"
+            ],
+            "confidence": 0.88
+          },
+          "asset_tags": [
+            {
+              "tag": "PT-1604",
+              "type": "instrument",
+              "class": "instrument",
+              "source": "text",
+              "aliases": [
+                "PT-1604",
+                "PT1604"
+              ],
+              "ocr_aliases": []
+            }
+          ],
+          "asset_aliases": [
+            "PT-1604",
+            "PT1604"
+          ],
+          "locations": [],
+          "discipline": null,
+          "quantity": null,
+          "unit": null,
+          "progress": null,
+          "semantic_kind": "normal",
+          "replacement": null,
+          "failure_or_rejection": true,
+          "is_correction": false,
+          "informal_channel": false,
+          "raw_text": "PT-1604 calibration not completed; QC rejected due zero drift",
+          "source_file": "QC_NOTE.pdf",
+          "locator": null,
+          "sources": [
+            "dev-ct-4-2"
+          ],
+          "status": "conflicting"
+        }
+      ],
+      "edges": [
+        {
+          "type": "CONTRADICTS",
+          "from": "rg:dev-ct-4-2",
+          "to": "rg:dev-ct-4-1"
+        }
+      ]
+    }
+  ]
+}

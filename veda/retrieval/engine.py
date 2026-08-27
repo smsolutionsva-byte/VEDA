@@ -10,9 +10,11 @@ remain the authority for accepting a link.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
+import os
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
@@ -29,6 +31,8 @@ from ..resolution import sequence as sequence_model
 from ..resolution import ranker as engineering_ranker
 
 _SEARCH_CACHE: dict[str, tuple[tuple[int, float], list[dict]]] = {}
+_VECTOR_MATRIX_CACHE: dict[str, tuple[tuple[int, float], object]] = {}
+_BM25_CACHE: dict[str, tuple[tuple[int, float], dict]] = {}
 
 STOP = {"the", "and", "for", "with", "of", "to", "in", "on", "at", "a", "an",
         "works", "work", "site", "no", "nos", "shift", "day", "daily", "progress",
@@ -190,20 +194,42 @@ def _cached_documents(project_id: str) -> list[dict]:
         "SELECT d.*,a.* FROM retrieval_documents d JOIN activities a "
         "ON a.project_id=d.project_id AND a.uid=d.activity_uid "
         "WHERE d.project_id=? AND a.is_summary=0", [project_id])
-    for row in rows:
+    for pos,row in enumerate(rows):
         row["_dense_vec"] = embeddings.unpack_vector(row.get("embedding_blob"))
         row["_doc_tokens"] = _tokens(row.get("search_text"))
         row["_sparse_obj"] = _json(row.get("sparse_json"), {})
         row["_meta_obj"] = _json(row.get("metadata_json"), {})
+        row["_cache_pos"] = pos
     _SEARCH_CACHE[project_id] = (sig, rows)
+    # Optional NumPy matrix turns large-pool dense retrieval from millions of
+    # Python scalar ops into one vectorized matrix multiplication.
+    try:
+        import numpy as np
+        mat=np.asarray([r.get("_dense_vec") or [] for r in rows],dtype=np.float32)
+        if mat.ndim==2 and mat.shape[0]==len(rows) and mat.shape[1]>0:
+            norms=np.linalg.norm(mat,axis=1,keepdims=True); norms[norms==0]=1.0
+            mat=mat/norms
+            _VECTOR_MATRIX_CACHE[project_id]=(sig,mat)
+    except Exception:
+        _VECTOR_MATRIX_CACHE.pop(project_id,None)
+    # Revision-scoped BM25 inverted index. Query-time work is proportional to
+    # postings for query terms rather than re-counting every document.
+    try:
+        postings=defaultdict(list); lens=[]
+        for pos,row in enumerate(rows):
+            toks=row.get("_doc_tokens") or []; lens.append(len(toks)); tf=Counter(toks)
+            for term,count in tf.items(): postings[term].append((pos,count))
+        _BM25_CACHE[project_id]=(sig,{"postings":dict(postings),"lens":lens,"avgdl":sum(lens)/max(1,len(lens)),"n":len(rows)})
+    except Exception:
+        _BM25_CACHE.pop(project_id,None)
     return rows
 
 
 def invalidate_search_cache(project_id: str | None = None) -> None:
     if project_id is None:
-        _SEARCH_CACHE.clear()
+        _SEARCH_CACHE.clear(); _VECTOR_MATRIX_CACHE.clear(); _BM25_CACHE.clear()
     else:
-        _SEARCH_CACHE.pop(project_id, None)
+        _SEARCH_CACHE.pop(project_id, None); _VECTOR_MATRIX_CACHE.pop(project_id,None); _BM25_CACHE.pop(project_id,None)
 
 
 def index_project(project_id: str, force: bool = False) -> dict:
@@ -242,22 +268,31 @@ def index_project(project_id: str, force: bool = False) -> dict:
             payload = backend.encode_payload([x[1] for x in chunk]) if hasattr(backend, "encode_payload") else {"dense": backend.encode([x[1] for x in chunk]), "sparse": [None for _ in chunk]}
             vecs = payload.get("dense") or []
             sparse_payload = payload.get("sparse") or [None for _ in chunk]
+            # Bulk upsert per embedding chunk.  Large schedules can contain tens
+            # of thousands of L5/L6 activities; committing one SQLite write per
+            # activity dominated index time and distorted the old benchmark.
+            now = db.now()
+            batch_rows = []
             for (act, text, meta, fp), vec, sparse in zip(chunk, vecs, sparse_payload):
                 old = existing.get(int(act["uid"]))
-                row = {"project_id": project_id, "activity_uid": int(act["uid"]),
-                       "fingerprint": fp, "search_text": text,
-                       "embedding_model": backend.name, "embedding_dim": len(vec),
-                       "embedding_blob": embeddings.pack_vector(vec),
-                       "sparse_json": db.jdumps(sparse) if sparse else None,
-                       "metadata_json": db.jdumps(meta), "updated_at": db.now()}
-                if old:
-                    db.ex("UPDATE retrieval_documents SET fingerprint=?,search_text=?,embedding_model=?,"
-                          "embedding_dim=?,embedding_blob=?,sparse_json=?,metadata_json=?,updated_at=? WHERE id=?",
-                          [row["fingerprint"], row["search_text"], row["embedding_model"],
-                           row["embedding_dim"], row["embedding_blob"], row["sparse_json"], row["metadata_json"],
-                           row["updated_at"], old["id"]])
-                else:
-                    db.insert("retrieval_documents", row)
+                batch_rows.append((
+                    (old or {}).get("id") or db.new_id("rd_"), project_id, int(act["uid"]),
+                    fp, text, backend.name, len(vec), embeddings.pack_vector(vec),
+                    db.jdumps(sparse) if sparse else None, db.jdumps(meta), now,
+                    (old or {}).get("created_at") or now,
+                ))
+            conn = db.connect()
+            conn.executemany(
+                "INSERT INTO retrieval_documents "
+                "(id,project_id,activity_uid,fingerprint,search_text,embedding_model,embedding_dim,embedding_blob,sparse_json,metadata_json,updated_at,created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(project_id,activity_uid) DO UPDATE SET "
+                "fingerprint=excluded.fingerprint,search_text=excluded.search_text,embedding_model=excluded.embedding_model,"
+                "embedding_dim=excluded.embedding_dim,embedding_blob=excluded.embedding_blob,sparse_json=excluded.sparse_json,"
+                "metadata_json=excluded.metadata_json,updated_at=excluded.updated_at",
+                batch_rows,
+            )
+            conn.commit()
     stale = [uid for uid in existing if uid not in keep]
     if stale:
         ph = ",".join("?" for _ in stale)
@@ -456,6 +491,25 @@ def _bm25(query_tokens: list[str], docs_tokens: list[list[str]]) -> list[float]:
             s += idf * (f * (k1 + 1) / denom)
         scores.append(s)
     return scores
+
+
+def _bm25_cached(project_id: str, query_tokens: list[str], pool: list[dict]) -> list[float] | None:
+    cache=_BM25_CACHE.get(project_id)
+    if not cache: return None
+    data=cache[1]; n=int(data.get("n") or 0); avgdl=float(data.get("avgdl") or 1.0)
+    if not n: return None
+    wanted={int(d.get("_cache_pos")) for d in pool}; scores={p:0.0 for p in wanted}
+    k1,b=1.5,.72; postings=data.get("postings") or {}; lens=data.get("lens") or []
+    for term in set(query_tokens):
+        plist=postings.get(term) or []; df=len(plist)
+        if not df: continue
+        idf=math.log(1.0+(n-df+.5)/(df+.5))
+        for pos,tf in plist:
+            if pos not in scores: continue
+            dl=lens[pos] if pos<len(lens) else avgdl
+            denom=tf+k1*(1-b+b*dl/max(avgdl,1e-6))
+            scores[pos]+=idf*(tf*(k1+1)/denom)
+    return [scores.get(int(d.get("_cache_pos")),0.0) for d in pool]
 
 
 def _rank(values: list[float], reverse: bool = True) -> dict[int, int]:
@@ -841,24 +895,46 @@ def _raw_score(f: dict) -> float:
 
 
 def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
-                  agent_links: list[dict] | None = None, *, ensure_index: bool = True) -> dict:
+                  agent_links: list[dict] | None = None, *, ensure_index: bool = True,
+                  use_workfront: bool | None = None,
+                  use_adaptive_gate: bool | None = None) -> dict:
     index_info = index_project(project_id) if ensure_index else {"activities": None, "indexed": 0, "embedding_backend": embeddings.get_backend().name, "preindexed": True}
     docs = _cached_documents(project_id)
     if not docs:
         return {"candidates": [], "diagnostics": {"index": index_info}}
     q = _evidence_query(ev)
+    if use_workfront is None:
+        use_workfront = str(os.getenv("VEDA_WORKFRONT_RANK", "1")).strip().lower() not in {"0","false","off","no"}
+    if use_adaptive_gate is None:
+        use_adaptive_gate = str(os.getenv("VEDA_ADAPTIVE_EXECUTION_GATE", "1")).strip().lower() not in {"0","false","off","no"}
     pool, diagnostics = _metadata_candidates(project_id, ev, docs)
     if not pool:
         pool = docs
+    frontier_info = None
     backend = embeddings.get_backend()
     qpayload = backend.encode_payload([q["text"]]) if hasattr(backend, "encode_payload") else {"dense": backend.encode([q["text"]]), "sparse": [None]}
     qvec = qpayload["dense"][0]
     q_sparse = (qpayload.get("sparse") or [None])[0]
-    dense_raw = [embeddings.cosine(qvec, d.get("_dense_vec") or embeddings.unpack_vector(d.get("embedding_blob"))) for d in pool]
+    dense_raw = None
+    try:
+        import numpy as np
+        sigrow = db.q1("SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) u FROM retrieval_documents WHERE project_id=?", [project_id]) or {"c":0,"u":0}
+        sig=(int(sigrow.get("c") or 0),float(sigrow.get("u") or 0.0))
+        cached_mat=_VECTOR_MATRIX_CACHE.get(project_id)
+        if cached_mat and cached_mat[0]==sig:
+            qn=np.asarray(qvec,dtype=np.float32); qnorm=float(np.linalg.norm(qn)) or 1.0; qn=qn/qnorm
+            idx=np.asarray([int(d.get("_cache_pos")) for d in pool],dtype=np.int64)
+            dense_raw=(cached_mat[1][idx] @ qn).astype(float).tolist()
+    except Exception:
+        dense_raw=None
+    if dense_raw is None:
+        dense_raw = [embeddings.cosine(qvec, d.get("_dense_vec") or embeddings.unpack_vector(d.get("embedding_blob"))) for d in pool]
     dense_norm = _normalize(dense_raw)
     query_tokens = _tokens(q["text"])
     doc_tokens = [d.get("_doc_tokens") or _tokens(d.get("search_text")) for d in pool]
-    sparse_raw = _bm25(query_tokens, doc_tokens)
+    sparse_raw = _bm25_cached(project_id, query_tokens, pool)
+    if sparse_raw is None:
+        sparse_raw = _bm25(query_tokens, doc_tokens)
     sparse_norm = _normalize(sparse_raw)
     bge_sparse_raw = [embeddings.sparse_dot(q_sparse, d.get("_sparse_obj") or _json(d.get("sparse_json"), {})) for d in pool] if q_sparse else [0.0 for _ in pool]
     bge_sparse_norm = _normalize(bge_sparse_raw)
@@ -937,14 +1013,94 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
                            "supporting": list(ap.get("supporting_signals") or []),
                            "conflicting": list(ap.get("conflicting_signals") or []),
                            "from_agent": True})
-    ranked = engineering_ranker.rank(project_id, candidates)
-    candidates = ranked["candidates"]
+    # Preserve the production VEDA ordering before the experimental workfront
+    # channel is allowed to add graph-only candidates.  This lets evaluation
+    # compare both variants in ONE semantic retrieval pass, which is important
+    # at 10k+ activities and prevents benchmarking cache/warmup artifacts.
+    base_ranked = engineering_ranker.rank(project_id, copy.deepcopy(candidates))
+    pre_workfront_candidates = base_ranked["candidates"]
+
+    # Independent execution-frontier candidate channel.  This runs after the
+    # semantic Top-K is built, so missing-asset/missing-location observations can
+    # still surface graph-plausible activities without expanding the expensive
+    # dense/BM25 scan pool.
+    if use_workfront:
+        from ..resolution import workfront as workfront_model
+        frontier_info = workfront_model.frontier_uids(project_id, ev, limit=48)
+        existing_uids={int(c["activity"]["uid"]) for c in candidates}
+        frontier_scores={int(k):float(v) for k,v in (frontier_info.get("scores") or {}).items()}
+        extras_uids=[int(u) for u in frontier_info.get("uids") or [] if int(u) not in existing_uids][:28]
+        if extras_uids:
+            docs_by_uid={int(d["uid"]):d for d in docs if d.get("uid") is not None}
+            extra_docs=[docs_by_uid[u] for u in extras_uids if u in docs_by_uid]
+            edense=[embeddings.cosine(qvec,d.get("_dense_vec") or []) for d in extra_docs]
+            esparse=_bm25(query_tokens,[d.get("_doc_tokens") or _tokens(d.get("search_text")) for d in extra_docs]) if extra_docs else []
+            # Normalize against the main semantic pool's range so frontier and
+            # semantic candidates share approximately comparable feature scales.
+            dlo,dhi=(min(dense_raw),max(dense_raw)) if dense_raw else (0.0,1.0)
+            slo,shi=(min(sparse_raw),max(sparse_raw)) if sparse_raw else (0.0,1.0)
+            def scale(v,lo,hi): return 0.5 if hi-lo<1e-9 else max(0.0,min(1.0,(v-lo)/(hi-lo)))
+            epairs=[(q["text"],d.get("search_text") or "") for d in extra_docs]
+            try: err=backend.pair_scores(epairs)
+            except Exception: err=None
+            ern=_normalize(err) if err else [0.0 for _ in extra_docs]
+            for j,act in enumerate(extra_docs):
+                meta=act.get("_meta_obj") or _json(act.get("metadata_json"),{})
+                sf=_signal_features(project_id,ev,act,meta,q)
+                dn=scale(edense[j],dlo,dhi); sn=scale(esparse[j],slo,shi)
+                feat={"dense":dn,"dense_cosine":edense[j],"sparse":sn,"sparse_bm25":esparse[j],
+                      "bge_sparse":0.0,"bge_sparse_raw":0.0,"rrf":0.0,"rerank":ern[j] if j<len(ern) else 0.0,**sf,
+                      "agent_agreement":0.0,"agent_confidence":0.0,
+                      "frontier_channel":frontier_scores.get(int(act["uid"]),0.0)}
+                feat["raw_score"]=_raw_score(feat)
+                candidates.append({"activity":act,"score":feat["raw_score"],"features":feat,
+                                   "supporting":list(dict.fromkeys(feat.pop("supports")))+["dynamic execution frontier candidate"],
+                                   "conflicting":list(dict.fromkeys(feat.pop("conflicts"))),"from_agent":False})
+            diagnostics["frontier_candidates_added"]=len(extra_docs)
+
+    # If workfront is disabled, the preserved base ordering is the final result.
+    # If enabled, rerank the union of semantic + execution-frontier candidates.
+    if use_workfront:
+        ranked = engineering_ranker.rank(project_id, candidates)
+        candidates = ranked["candidates"]
+    else:
+        ranked = base_ranked
+        candidates = pre_workfront_candidates
+    workfront_diag = None
+    adaptive_diag = None
+    workfront_candidates = []
+    if use_workfront and candidates:
+        from ..resolution import workfront as workfront_model
+        # WorkfrontRank mutates scores/ranking, so preserve a separate expert output.
+        wf = workfront_model.rerank(project_id, ev, copy.deepcopy(candidates))
+        workfront_candidates = wf["candidates"]
+        workfront_diag = wf.get("diagnostics")
+        if use_adaptive_gate:
+            from ..resolution import adaptive_gate
+            adaptive_diag = adaptive_gate.route(ev, pre_workfront_candidates, workfront_candidates, frontier_info)
+            candidates = workfront_candidates if adaptive_diag.get("route") == "workfront" else pre_workfront_candidates
+        else:
+            candidates = workfront_candidates
+    elif not use_workfront:
+        candidates = pre_workfront_candidates
+
     diagnostics.update({"index": index_info, "embedding_backend": backend.name,
                         "embedding_diagnostics": backend.diagnostics() if hasattr(backend, "diagnostics") else {},
                         "retrieved_pool": len(pool), "reranked": len(first),
                         "channels": {"dense": True, "bm25": True, "bge_sparse": bool(q_sparse), "exact_tag": any(tag_hits)},
-                        "engineering_ranker": ranked.get("diagnostics")})
-    return {"candidates": candidates[:max(top_k, 1)], "diagnostics": diagnostics}
+                        "engineering_ranker": ranked.get("diagnostics"),
+                        "workfront_rank": workfront_diag,
+                        "workfront_frontier": frontier_info,
+                        "workfront_enabled": bool(use_workfront),
+                        "adaptive_execution_gate": adaptive_diag,
+                        "adaptive_gate_enabled": bool(use_adaptive_gate)})
+    return {
+        "candidates": candidates[:max(top_k, 1)],
+        "pre_workfront_candidates": pre_workfront_candidates[:max(top_k, 1)],
+        "workfront_candidates": workfront_candidates[:max(top_k, 1)],
+        "adaptive_candidates": candidates[:max(top_k, 1)],
+        "diagnostics": diagnostics,
+    }
 
 
 def activity_context(project_id: str, uid: int) -> dict:
