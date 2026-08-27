@@ -32,6 +32,16 @@ as a schedule fact.
 ---
 
 
+## v0.3.2 — Contextual Multi-Expert MetaRank
+
+v0.3.2 promotes the four-expert resolver into the normal VEDA retrieval path. Semantic retrieval remains a shared candidate floor; EngineeringRank, TreeRank and the reality-first Rescheduler v2 independently contribute candidates and structured evidence. A learned utility layer estimates expert usefulness from observation/candidate geometry, and an XGBoost LambdaMART MetaRank model fuses candidate-level signals instead of hardcoding rules such as `if WBS -> Tree` or `if OOS -> Rescheduler`.
+
+MetaRank scores are ranking margins, **not probabilities**. VEDA preserves raw MetaRank margins separately from bounded ranking scores, and calibrated match probability plus deterministic validators/risk policy remain downstream. If the MetaRank model is unavailable or incompatible, VEDA falls back to utility-weighted RRF; explicit legacy routing flags preserve older benchmark behavior.
+
+On the frozen v0.3.2 unseen holdout (170 exact-identity cases against 13,412 activities), standalone Top-1 was Semantic 39.41%, Engineering 53.53%, Tree 59.41%, Rescheduler v2 47.65%; hard expert routing reached 77.65% and **MetaRank reached 85.88% Top-1, 94.12% R@3, 96.47% R@5, and 97.06% R@10**, with 100% correct-activity recall in the four-expert candidate union. See `V0.3.2_RELEASE_NOTES.md` and `VEDA_GOOSE_BENCHMARK/meta_v032/`.
+
+---
+
 ## v0.3.1 — TreeRank + Rescheduler challengers
 
 v0.3.1 adds two structural resolver/planning challengers without replacing the established Adaptive ExecutionRank path. **TreeRank** models parent/child/sibling/ancestor schedule structure and granularity; **Rescheduler** performs opportunistic counterfactual rolling-horizon planning over a small disputed candidate set.

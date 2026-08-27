@@ -320,8 +320,11 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
             _add_cluster(clusters, ev, cands)
 
         best_features = dict(best.get("features") or {})
-        # Keep raw retrieval diagnostics distinct from engineering rank score.
-        retrieval_score = float(best_features.get("raw_score") or 0.0)
+        # Keep pre-Meta retrieval diagnostics distinct from final MetaRank score.
+        # MetaRank's public score is deliberately a bounded ranking margin, not
+        # the original retrieval score and not a probability.
+        retrieval_score = float(best_features.get("pre_meta_raw_score",
+                                                  best_features.get("raw_score") or 0.0) or 0.0)
         rank_score = float(best.get("score") or 0.0)
         committed_uid = best["activity"]["uid"] if state == "linked" else None
         db.insert("evidence_links", {
@@ -350,7 +353,8 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
             db.insert("evidence_links", {
                 "project_id": project_id, "evidence_id": ev["id"],
                 "activity_uid": alt["activity"]["uid"], "activity_name": alt["activity"]["name"],
-                "confidence": None, "retrieval_score": float(alt.get("features",{}).get("raw_score") or 0),
+                "confidence": None, "retrieval_score": float(alt.get("features",{}).get("pre_meta_raw_score",
+                                                           alt.get("features",{}).get("raw_score") or 0) or 0),
                 "rank_score": float(alt.get("score") or 0),
                 "feature_json": db.jdumps(alt.get("features") or {}),
                 "relation": "unresolved", "supporting_signals": db.jdumps(alt["supporting"]),

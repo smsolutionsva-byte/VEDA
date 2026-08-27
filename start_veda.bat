@@ -24,7 +24,7 @@ rem v0.1.2 added adaptive OCR. Existing v0.1.1 environments need the new
 rem packages too, so do a cheap import probe rather than assuming .venv means
 rem requirements.txt is already satisfied.
 if "%VEDA_INSTALL_DEPS%"=="0" (
-    ".venv\Scripts\python.exe" -c "import pymupdf, rapidocr, onnxruntime" >nul 2>&1
+    ".venv\Scripts\python.exe" -c "import pymupdf, rapidocr, onnxruntime, xgboost, numpy" >nul 2>&1
     if errorlevel 1 set "VEDA_INSTALL_DEPS=1"
 )
 
@@ -33,7 +33,14 @@ if "%VEDA_INSTALL_DEPS%"=="1" (
     ".venv\Scripts\python.exe" -m pip install --upgrade pip -q
     ".venv\Scripts\python.exe" -m pip install -r requirements.txt
     if errorlevel 1 (
-        echo  [error] Dependency installation failed.
+        echo  [error] Base dependency installation failed.
+        pause
+        exit /b 1
+    )
+    echo  [setup] Installing MetaRank routing dependencies...
+    ".venv\Scripts\python.exe" -m pip install -r requirements-routing.txt
+    if errorlevel 1 (
+        echo  [error] MetaRank routing dependency installation failed.
         pause
         exit /b 1
     )

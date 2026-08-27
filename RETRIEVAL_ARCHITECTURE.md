@@ -1,4 +1,4 @@
-# VEDA Hybrid Schedule Entity Resolution (v0.3.1)
+# VEDA Hybrid Schedule Entity Resolution (v0.3.2)
 
 VEDA resolves messy field evidence to L5/L6 schedule activities using independent,
 explainable signals. Horizun remains the schedule truth/CPM engine; retrieval never
@@ -71,3 +71,23 @@ labels, organization-wide labels, or the conservative cold-start prior.
 - **TreeRank** maintains parent/child/sibling/ancestor schedule context and an independent hierarchy candidate channel. Its current strongest role is hierarchical identity and granularity; it is not a live-workfront model.
 - **Rescheduler** performs evidence-directed candidate screening followed by counterfactual local state updates and bounded rolling-horizon beam search. It is experimental and should be treated as planning/state-transition evidence rather than schedule truth.
 - **Current production principle:** do not globally sum all expert scores. Expert authority should be learned from query context, uncertainty and discriminative power; deterministic validators and human review remain downstream safety gates.
+
+
+## v0.3.2 contextual multi-expert MetaRank
+
+The default retrieval path now keeps four complementary experts alive long enough to fuse their evidence rather than selecting one through fixed rules:
+
+1. **Semantic** — shared lexical/embedding candidate floor.
+2. **EngineeringRank** — asset/action/location/WBS/date/graph identity evidence.
+3. **TreeRank** — parent/child/sibling/ancestor hierarchy and granularity context.
+4. **Rescheduler v2** — reality-first changed-world / opportunistic planning evidence, including OOS-aware state semantics.
+
+The candidate union is deduplicated by stable activity UID. Query-level expert-utility models and an XGBoost LambdaMART candidate MetaRank model then combine expert ranks, scores, margins, agreement/disagreement and expert-specific features. Benchmark category labels are never provided to the router.
+
+`meta_rank_raw` is retained as the model margin. The public bounded rank score is a monotonic ranking transform and is explicitly **not** calibrated probability. Existing calibration, deterministic validation, review and schedule-write policy remain separate downstream gates.
+
+Failure containment:
+- missing/incompatible MetaRank model -> utility-weighted RRF fallback;
+- one expert exception -> remaining experts still resolve and diagnostics record the failure;
+- duplicate UIDs -> one fused candidate with all expert evidence preserved;
+- explicit legacy flags -> old Engineering/Workfront/Adaptive path for reproducibility.

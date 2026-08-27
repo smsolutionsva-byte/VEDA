@@ -897,16 +897,32 @@ def _raw_score(f: dict) -> float:
 def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
                   agent_links: list[dict] | None = None, *, ensure_index: bool = True,
                   use_workfront: bool | None = None,
-                  use_adaptive_gate: bool | None = None) -> dict:
+                  use_adaptive_gate: bool | None = None,
+                  use_metarank: bool | None = None) -> dict:
     index_info = index_project(project_id) if ensure_index else {"activities": None, "indexed": 0, "embedding_backend": embeddings.get_backend().name, "preindexed": True}
     docs = _cached_documents(project_id)
     if not docs:
         return {"candidates": [], "diagnostics": {"index": index_info}}
     q = _evidence_query(ev)
+    # v0.3.2 production default is the four-expert MetaRank resolver.  Explicit
+    # legacy routing flags opt into the historical engineering/workfront path so
+    # old benchmark harnesses and compatibility callers remain reproducible.
+    legacy_flags_explicit = use_workfront is not None or use_adaptive_gate is not None
+    if use_metarank is None:
+        env_meta = str(os.getenv("VEDA_METARANK", "1")).strip().lower() not in {"0","false","off","no"}
+        use_metarank = bool(env_meta and not legacy_flags_explicit)
+    requested_workfront = use_workfront
+    requested_adaptive_gate = use_adaptive_gate
     if use_workfront is None:
         use_workfront = str(os.getenv("VEDA_WORKFRONT_RANK", "1")).strip().lower() not in {"0","false","off","no"}
     if use_adaptive_gate is None:
         use_adaptive_gate = str(os.getenv("VEDA_ADAPTIVE_EXECUTION_GATE", "1")).strip().lower() not in {"0","false","off","no"}
+    if use_metarank:
+        # WorkfrontRank is retained as a compatibility expert path, but the
+        # v0.3.2 model was trained on Semantic + Engineering + Tree +
+        # Rescheduler-v2.  Do not stack the old adaptive gate on MetaRank.
+        use_workfront = False
+        use_adaptive_gate = False
     pool, diagnostics = _metadata_candidates(project_id, ev, docs)
     if not pool:
         pool = docs
@@ -1084,6 +1100,63 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     elif not use_workfront:
         candidates = pre_workfront_candidates
 
+    # v0.3.2 accuracy-first four-expert fusion.  This deliberately mirrors the
+    # frozen benchmark contract used to train the utility models + LambdaMART:
+    # Semantic ordering over the engineering candidate floor, independent Tree
+    # candidate generation, independent reality-first Rescheduler-v2 seeds, then
+    # candidate-level MetaRank fusion.  Expert failures are isolated and exposed
+    # in diagnostics instead of taking down retrieval.
+    semantic_candidates = []
+    engineering_candidates = pre_workfront_candidates[:24]
+    tree_candidates = []
+    rescheduler_candidates = []
+    metarank_diag = None
+    expert_errors = {}
+    if use_metarank and engineering_candidates:
+        semantic_candidates = copy.deepcopy(engineering_candidates)
+        for c in semantic_candidates:
+            f = c.get("features") or {}
+            sem_score = (0.55 * float(f.get("rerank") or 0.0) +
+                         0.25 * float(f.get("dense") or 0.0) +
+                         0.12 * float(f.get("sparse") or 0.0) +
+                         0.08 * float(f.get("bge_sparse") or 0.0))
+            c["score"] = sem_score
+            c.setdefault("features", {})["semantic_rank_score"] = sem_score
+        semantic_candidates.sort(key=lambda c: float(c.get("score") or 0.0), reverse=True)
+        semantic_candidates = semantic_candidates[:24]
+
+        try:
+            from ..resolution import tree_resolver
+            tree_candidates = (tree_resolver.rerank(project_id, ev, [], limit=24).get("candidates") or [])[:24]
+        except Exception as ex:
+            expert_errors["tree"] = f"{type(ex).__name__}: {ex}"
+            tree_candidates = []
+        try:
+            from ..resolution import rescheduler
+            rescheduler_candidates = (rescheduler.standalone_rank(project_id, ev, limit=24).get("candidates") or [])[:24]
+        except Exception as ex:
+            expert_errors["rescheduler"] = f"{type(ex).__name__}: {ex}"
+            rescheduler_candidates = []
+
+        experts = {
+            "semantic": semantic_candidates,
+            "engineering": engineering_candidates,
+            "tree": tree_candidates,
+            "rescheduler": rescheduler_candidates,
+        }
+        try:
+            from ..resolution import meta_router
+            meta = meta_router.rank(ev, experts, limit=max(24, int(top_k or 8)))
+            if meta.get("candidates"):
+                candidates = meta["candidates"]
+            metarank_diag = meta.get("diagnostics") or {}
+        except Exception as ex:
+            expert_errors["metarank"] = f"{type(ex).__name__}: {ex}"
+            # Fail closed to the established EngineeringRank ordering rather
+            # than silently trusting a partially initialized learned router.
+            candidates = engineering_candidates
+            metarank_diag = {"mode": "engineering_fail_closed", "error": expert_errors["metarank"]}
+
     diagnostics.update({"index": index_info, "embedding_backend": backend.name,
                         "embedding_diagnostics": backend.diagnostics() if hasattr(backend, "diagnostics") else {},
                         "retrieved_pool": len(pool), "reranked": len(first),
@@ -1093,9 +1166,27 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
                         "workfront_frontier": frontier_info,
                         "workfront_enabled": bool(use_workfront),
                         "adaptive_execution_gate": adaptive_diag,
-                        "adaptive_gate_enabled": bool(use_adaptive_gate)})
+                        "adaptive_gate_enabled": bool(use_adaptive_gate),
+                        "metarank_enabled": bool(use_metarank),
+                        "metarank": metarank_diag,
+                        "expert_errors": expert_errors,
+                        "expert_candidate_counts": {
+                            "semantic": len(semantic_candidates),
+                            "engineering": len(engineering_candidates),
+                            "tree": len(tree_candidates),
+                            "rescheduler": len(rescheduler_candidates),
+                        },
+                        "legacy_routing_requested": {
+                            "workfront": requested_workfront,
+                            "adaptive_gate": requested_adaptive_gate,
+                        }})
     return {
         "candidates": candidates[:max(top_k, 1)],
+        "semantic_candidates": semantic_candidates[:max(top_k, 1)],
+        "engineering_candidates": engineering_candidates[:max(top_k, 1)],
+        "tree_candidates": tree_candidates[:max(top_k, 1)],
+        "rescheduler_candidates": rescheduler_candidates[:max(top_k, 1)],
+        "metarank_candidates": candidates[:max(top_k, 1)] if use_metarank else [],
         "pre_workfront_candidates": pre_workfront_candidates[:max(top_k, 1)],
         "workfront_candidates": workfront_candidates[:max(top_k, 1)],
         "adaptive_candidates": candidates[:max(top_k, 1)],
