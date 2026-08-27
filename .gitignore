@@ -31,4 +31,5 @@ dist/
 Thumbs.db
 
 # Logs
-*.log
+*.logVEDA_HARD_BENCHMARK/
+VEDA_GOOSE_BENCHMARK/
