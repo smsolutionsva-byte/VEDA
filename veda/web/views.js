@@ -136,14 +136,49 @@ VIEWS.overview = async (pid) => {
       o.quality.not_evaluated + ' not evaluated')
     : (o.quality.not_evaluated + ' checks not evaluated');
   const latestFieldDate = f.latest_date ? day(f.latest_date) : 'none';
+  const decisionCount = Number(c.pending_reviews || 0) + Number(c.pending_proposals || 0);
+  const reportingLag = (() => {
+    if (!f.latest_date || !s.data_date) return null;
+    const gap = Math.floor((new Date(day(s.data_date) + 'T00:00:00Z') -
+      new Date(day(f.latest_date) + 'T00:00:00Z')) / 86400000);
+    return Number.isFinite(gap) ? Math.max(0, gap) : null;
+  })();
+  const interventions = [];
+  if (decisionCount) interventions.push('<button onclick="go(\'attention\')"><b>' +
+    int(decisionCount) + ' decision' + (decisionCount === 1 ? '' : 's') +
+    ' waiting</b><span>Review evidence matches and governed changes</span><i>Open inbox →</i></button>');
+  if (Number(f.unresolved_record_count || 0)) interventions.push('<button onclick="go(\'evidence\',{state:\'needs_review\'})"><b>' +
+    int(f.unresolved_record_count) + ' evidence rows unresolved</b><span>Inspect records without a settled activity identity</span><i>Open evidence →</i></button>');
+  if (Number(c.open_issues || 0) + Number(c.open_risks || 0)) interventions.push('<button onclick="go(\'issues\')"><b>' +
+    int(Number(c.open_issues || 0) + Number(c.open_risks || 0)) +
+    ' open issue/risk records</b><span>Review execution conditions that may need intervention</span><i>Investigate →</i></button>');
 
-  return '<div class="head"><div><div class="eyebrow">Project overview</div>' +
+  return '<div class="head"><div><div class="eyebrow">Control room</div>' +
     '<h1>' + E(o.project.name) + '</h1>' +
     '<div class="sub">Authoritative schedule: ' + E(s.project_name || '') +
     (o.project.location ? ' · ' + E(o.project.location) : '') +
     ' · data/status date ' + (s.data_date ? day(s.data_date) : 'N/E') +
     ' · schedule revision ' + E(s.revision) +
     '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
+
+    '<div class="control-strip">' +
+      '<div><span>Decisions</span><b class="' + (decisionCount ? 'warm' : 'good') + '">' +
+        int(decisionCount) + '</b><small>' + (decisionCount ? 'require a person' : 'nothing waiting') + '</small></div>' +
+      '<div><span>Unresolved evidence</span><b class="' + (f.unresolved_record_count ? 'warm' : 'good') + '">' +
+        int(f.unresolved_record_count || 0) + '</b><small>without settled identity</small></div>' +
+      '<div><span>Reporting freshness</span><b class="' +
+        (reportingLag === null ? 'muted' : reportingLag > 2 ? 'warm' : 'good') + '">' +
+        (reportingLag === null ? 'N/E' : reportingLag + 'd') + '</b><small>' +
+        (reportingLag === null ? 'no comparable field/status dates' : 'behind schedule status date') + '</small></div>' +
+      '<div><span>Validated actuals coverage</span><b>' + int(f.validated_activity_count || 0) +
+        '</b><small>activities with trusted evidence</small></div>' +
+    '</div>' +
+    '<section class="intervention-panel"><header><div><div class="eyebrow">Intervention queue</div>' +
+      '<h2>' + (interventions.length ? 'What needs attention now' : 'No immediate intervention') +
+      '</h2></div><span>' + latestFieldDate + ' latest field date</span></header>' +
+      '<div class="intervention-list">' + (interventions.length ? interventions.join('') :
+        '<div class="control-clear"><b>Project inputs are reconciled.</b><span>New evidence will appear here when it creates an exception.</span></div>') +
+      '</div></section>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Current forecast finish', forecastValue, E(forecastDetail),
@@ -1291,39 +1326,138 @@ VIEWS.bind_reviews = (pid) => {
 };
 
 /* ================================================ Needs Attention */
-function attentionReviewCard(v) {
-  const options = v.options || [];
-  return '<div class="review"><div class="h"><h3>' + E(v.title) + '</h3>' +
-    '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">' +
-    '<span class="tag ' + (v.kind === 'security_review' ? 'red' : 'blue') + '">' +
-    E((v.kind || 'decision').replace(/_/g, ' ')) + '</span>' +
-    (v.affected_count > 1 ? '<span class="count-pill">' + int(v.affected_count) + ' records</span>' : '') +
-    '</div></div><div class="q">' + E(v.question) + '</div>' +
-    (v.detail ? '<div class="samples"><div class="note">' + E(v.detail) + '</div></div>' : '') +
-    (v.affected_sample && v.affected_sample.length ? '<div class="samples"><div class="eyebrow">Affected records</div>' +
-      table([{t:'Source'},{t:'Date'},{t:'Description'}], v.affected_sample, s =>
-        '<tr><td class="mono">' + E(s.source_file) + '</td><td class="mono">' + day(s.date) + '</td><td>' + E(s.description) + '</td></tr>') + '</div>' : '') +
-    '<div class="opts">' + options.map(o => '<button class="btn" data-attention-answer="' + E(o) + '" data-rid="' + E(v.id) + '">' + E(o) + '</button>').join('') +
-    (!options.length ? '<input class="inp" data-attention-free="' + E(v.id) + '" placeholder="Type your answer"><button class="btn primary" data-attention-free-go="' + E(v.id) + '">Apply</button>' : '') +
-    '</div></div>';
+function reviewKindLabel(kind) {
+  return ({ clarification: 'Activity match', security_review: 'Source security',
+    failed_validation: 'Processing failure' })[kind] ||
+    String(kind || 'Decision').replace(/_/g, ' ');
 }
 
-VIEWS.attention = async (pid) => {
+function candidateExplanation(c, rid) {
+  const probability = c.probability === null || c.probability === undefined
+    ? null : Math.max(0, Math.min(100, Number(c.probability) * 100));
+  const confidence = probability === null
+    ? (c.rank_score === null || c.rank_score === undefined
+      ? '<span class="match-score neutral">Not scored</span>'
+      : '<span class="match-score neutral">Rank ' + num(c.rank_score, 3) + '</span>')
+    : '<span class="match-score ' + (probability >= 90 ? 'strong' : probability >= 70 ? 'review' : 'weak') + '">' +
+      num(probability, 0) + '% ' + (c.calibration_is_empirical ? 'calibrated' : 'cold-start estimate') + '</span>';
+  const support = (c.supporting_signals || []).length
+    ? '<div class="signal-list supports">' + (c.supporting_signals || []).map(s =>
+        '<span><i>+</i>' + E(s) + '</span>').join('') + '</div>'
+    : '<div class="signal-empty">No positive signal explanation was stored.</div>';
+  const conflict = (c.conflicting_signals || []).length
+    ? '<div class="signal-list conflicts">' + (c.conflicting_signals || []).map(s =>
+        '<span><i>!</i>' + E(s) + '</span>').join('') + '</div>' : '';
+  const option = c.option_label || '';
+  return '<article class="candidate-card">' +
+    '<div class="candidate-head"><div><div class="candidate-id">' +
+      E(c.display_id || ('UID ' + c.uid)) + (c.critical ? ' · CRITICAL' : '') +
+      '</div><h4>' + E(c.name || 'Unnamed schedule activity') + '</h4></div>' +
+      confidence + '</div>' +
+    '<div class="candidate-meta">' +
+      (c.wbs ? '<span>' + E(c.wbs) + '</span>' : '') +
+      '<span>' + day(c.planned_start) + ' → ' + day(c.planned_finish) + '</span>' +
+      (c.status ? '<span>' + E(c.status.replace(/_/g, ' ')) + '</span>' : '') +
+      (c.matched_records ? '<span>' + int(c.matched_records) + ' record(s)</span>' : '') +
+    '</div><div class="candidate-signals"><div><b>Why it fits</b>' + support +
+      '</div>' + (conflict ? '<div><b>What conflicts</b>' + conflict + '</div>' : '') +
+    '</div>' +
+    (option ? '<button class="btn primary choose-match" data-attention-answer="' +
+      E(option) + '" data-rid="' + E(rid) + '">Confirm this activity</button>' : '') +
+    '</article>';
+}
+
+function attentionReviewCard(v) {
+  const options = v.options || [];
+  const candidates = v.candidate_explanations || [];
+  const leave = options.find(o => o === 'Leave unassigned for now');
+  const samples = v.affected_sample || [];
+  return '<article class="inbox-item"><header><div><div class="eyebrow">' +
+    E(reviewKindLabel(v.kind)) + '</div><h2>' + E(v.title) + '</h2></div>' +
+    '<div class="inbox-item-meta">' +
+      (v.priority === 'high' ? '<span class="tag amber">High priority</span>' : '') +
+      '<span class="count-pill">' + int(v.affected_count || 1) +
+      ' record' + (Number(v.affected_count || 1) === 1 ? '' : 's') + '</span>' +
+    '</div></header><div class="inbox-question">' + E(v.question) + '</div>' +
+    '<div class="review-workspace"><section class="evidence-pane">' +
+      '<div class="pane-label"><span>Field evidence</span><small>What was reported</small></div>' +
+      (samples.length ? samples.map(s => '<button class="evidence-quote" data-open-evidence="' +
+        E(s.id) + '"><span>“' + E(s.description) + '”</span><small>' +
+        E(s.source_file || 'Source') + (s.locator ? ' · ' + E(s.locator) : '') +
+        ' · ' + day(s.date) + (s.discipline ? ' · ' + E(s.discipline) : '') +
+        '</small></button>').join('') : '<div class="signal-empty">No sample rows available.</div>') +
+      (v.detail ? '<div class="review-note">' + E(v.detail) + '</div>' : '') +
+    '</section><section class="candidate-pane">' +
+      '<div class="pane-label"><span>Schedule candidates</span><small>Why VEDA suggested them</small></div>' +
+      (candidates.length ? candidates.map(c => candidateExplanation(c, v.id)).join('') :
+        '<div class="generic-options">' + options.filter(o => o !== leave).map(o =>
+          '<button class="btn" data-attention-answer="' + E(o) + '" data-rid="' +
+          E(v.id) + '">' + E(o) + '</button>').join('') + '</div>') +
+    '</section></div>' +
+    '<footer class="inbox-actions"><span>No official schedule value changes here. ' +
+      'This decision only settles the evidence-to-activity identity.</span><div class="spacer"></div>' +
+      (leave ? '<button class="btn" data-attention-answer="' + E(leave) +
+        '" data-rid="' + E(v.id) + '">Leave unassigned</button>' : '') +
+      (!options.length ? '<input class="inp" data-attention-free="' + E(v.id) +
+        '" placeholder="Type your answer"><button class="btn primary" data-attention-free-go="' +
+        E(v.id) + '">Apply</button>' : '') + '</footer></article>';
+}
+
+function inboxFilterCard(id, label, count, detail, current, tone) {
+  return '<button class="inbox-filter ' + (tone || '') + (current === id ? ' active' : '') +
+    '" data-inbox-focus="' + E(id) + '"><span>' + E(label) + '</span><b>' +
+    int(count || 0) + '</b><small>' + E(detail) + '</small></button>';
+}
+
+VIEWS.attention = async (pid, params) => {
   const r = await A('/projects/' + pid + '/attention');
   const ps = r.state || {};
+  const counts = r.inbox_counts || {};
+  const focus = params.focus || 'all';
+  const reviews = (r.reviews || []).filter(v => focus === 'all' ||
+    (focus === 'matches' && v.kind === 'clarification') ||
+    (focus === 'security' && v.kind === 'security_review') ||
+    (focus === 'failures' && v.kind === 'failed_validation'));
+  const proposals = focus === 'all' || focus === 'changes' ? (r.proposals || []) : [];
   const stateNote = '<div class="note ' + (ps.code === 'retry' ? 'danger' : ps.code === 'needs_input' || ps.code === 'choose_schedule' ? 'warn' : '') + '" style="margin-bottom:14px"><b>' + E(ps.label || 'Project state') + '</b><br>' + E(ps.detail || '') + '</div>';
-  const reviewHtml = r.reviews.length ? r.reviews.map(attentionReviewCard).join('') : '';
-  const proposalHtml = r.proposals.length ? '<div class="eyebrow" style="margin:18px 0 8px">Schedule changes awaiting approval</div>' + r.proposals.map(proposalCard).join('') : '';
+  const reviewHtml = reviews.length ? reviews.map(attentionReviewCard).join('') : '';
+  const proposalHtml = proposals.length ? '<div class="section-divider"><span>Governed schedule changes</span><small>Dry-run and approval required</small></div>' + proposals.map(proposalCard).join('') : '';
   const deferred = r.deferred_evidence ? '<div class="note" style="margin-top:12px"><b>' + int(r.deferred_evidence) + ' evidence record(s) deliberately left unassigned.</b><br>These are deferred by a human choice, not unresolved by the system.</div>' : '';
-  const recent = (r.recent_decisions || []).length ? '<div class="eyebrow" style="margin:18px 0 8px">Recent evidence decisions</div>' + (r.recent_decisions || []).map(v =>
+  const recent = (r.recent_decisions || []).length ? '<details class="recent-decisions"><summary>Recent evidence decisions <span>' + int((r.recent_decisions || []).length) + '</span></summary>' + (r.recent_decisions || []).map(v =>
     '<div class="review"><div class="h"><h3>' + E(v.title) + '</h3><span class="tag green">' + E(v.status) + '</span></div>' +
-    '<div class="q"><b>' + E(v.answer || '') + '</b></div><div class="opts"><button class="btn" data-change-decision="' + E(v.id) + '">Change decision</button></div></div>').join('') : '';
-  return head('Needs Attention', 'Only decisions that require you — no worker queue') + stateNote +
+    '<div class="q"><b>' + E(v.answer || '') + '</b></div><div class="opts"><button class="btn" data-change-decision="' + E(v.id) + '">Change decision</button></div></div>').join('') + '</details>' : '';
+  const noReviewException = r.unresolved_evidence && !r.reviews.length
+    ? '<div class="note warn"><b>' + int(r.unresolved_evidence) +
+      ' unresolved evidence row(s) have no open review question.</b><br>' +
+      'Open the evidence workbench to inspect them individually. ' +
+      '<button class="btn sm" onclick="go(\'evidence\',{state:\'needs_review\'})">Open evidence</button></div>' : '';
+  return head('Review Inbox', 'Resolve exceptions, not spreadsheets',
+      '<span class="tag grey">Evidence identity layer</span>') +
+    '<div class="review-brief"><div><div class="eyebrow">Decision brief</div>' +
+      '<h2>' + (r.attention_count ? int(r.attention_count) + ' item' +
+        (Number(r.attention_count) === 1 ? '' : 's') + ' need a person' : 'No decisions waiting') +
+      '</h2><p>Every match shows its source, schedule candidate, supporting evidence, ' +
+      'contradictions, and confidence basis before you act.</p></div>' +
+      '<div class="safety-rule"><b>Write safety</b><span>Confirming a match never writes to the schedule. ' +
+      'Actuals still require validation, dry-run, approval, and verification.</span></div></div>' +
+    '<div class="inbox-filters">' +
+      inboxFilterCard('all', 'All open', r.attention_count, 'everything requiring action', focus, 'primary') +
+      inboxFilterCard('matches', 'Activity matches', counts.matches, 'semantic links to confirm', focus) +
+      inboxFilterCard('changes', 'Schedule changes', counts.changes, 'governed write proposals', focus, 'warn') +
+      inboxFilterCard('security', 'Source security', counts.security, 'quarantined-file decisions', focus, 'danger') +
+      inboxFilterCard('failures', 'Processing failures', counts.failures, 'retry or keep safe fallback', focus) +
+    '</div>' + stateNote + noReviewException +
     (reviewHtml || proposalHtml ? reviewHtml + proposalHtml + deferred + recent :
-      panel('Nothing waiting on you', empty('Up to date', 'New uploads and completed decisions flow into the project automatically.')) + recent + deferred);
+      panel('Nothing in this queue', empty('Up to date', focus === 'all'
+        ? 'New uploads and completed decisions flow into the project automatically.'
+        : 'Choose another inbox category or return when new evidence arrives.')) + recent + deferred);
 };
 
 VIEWS.bind_attention = (pid) => {
+  document.querySelectorAll('[data-inbox-focus]').forEach(b => b.onclick = () =>
+    go('attention', { focus: b.dataset.inboxFocus }));
+  document.querySelectorAll('[data-open-evidence]').forEach(b => b.onclick = () =>
+    go('evidence-detail', { id: b.dataset.openEvidence }));
   const send = async (rid, answer) => {
     if (!answer) return;
     try {
@@ -1509,7 +1643,151 @@ VIEWS.bind_ask = (pid) => {
   };
 };
 
-/* =============================================== 21. Agent activity */
+/* =============================================== 21. Execution intelligence */
+const RUN_PHASE_ORDER = {
+  queued: 0, files_received: 0,
+  mcp_health: 1, schedule_detected: 1, schedule_reused: 1,
+  schedule_parsed: 1, schedule_loaded: 1, schedule_snapshot: 1,
+  evidence_quarantined: 2, evidence_processed: 2,
+  agent_invoked: 3, agent_status: 3, agent_unavailable: 3,
+  agent_error: 3, agent_failed: 3, tool_call: 3,
+  structured_output_rejected: 3, structured_output_partial: 3,
+  provider_selected: 3, fallback_analysis: 3,
+  output_ready: 4, dry_run_complete: 5,
+  associations_validated: 6, human_review_required: 7,
+};
+
+function runContext(job, activity) {
+  const names = new Set((activity || []).map(a => a.step));
+  let phase = job ? String(job.phase || 'queued') : 'queued';
+  let ordinal = RUN_PHASE_ORDER[phase];
+  if (ordinal === undefined) {
+    if (names.has('human_review_required')) ordinal = 7;
+    else if (names.has('associations_validated')) ordinal = 6;
+    else if (names.has('output_ready')) ordinal = 4;
+    else if (names.has('agent_invoked')) ordinal = 3;
+    else if (names.has('evidence_processed')) ordinal = 2;
+    else if (names.has('mcp_health')) ordinal = 1;
+    else ordinal = 0;
+  }
+  const status = job ? String(job.status || 'queued') : 'empty';
+  const latest = (activity || [])[0] || null;
+  return { phase, ordinal, status, latest, names };
+}
+
+function runState(level, ctx, guarded) {
+  if (guarded) return 'guarded';
+  if (ctx.status === 'empty') return 'pending';
+  if (ctx.status === 'failed' || ctx.status === 'cancelled') {
+    if (level < ctx.ordinal) return 'done';
+    if (level === ctx.ordinal) return 'failed';
+    return 'pending';
+  }
+  if (ctx.status === 'done') return 'done';
+  if (level < ctx.ordinal) return 'done';
+  if (level === ctx.ordinal) return 'active';
+  return 'pending';
+}
+
+function runNode(level, ctx, title, question, meta, delay, guarded) {
+  const state = runState(level, ctx, guarded);
+  const marker = state === 'done' ? '✓' : state === 'failed' ? '!' :
+    state === 'guarded' ? '◇' : '•';
+  return '<div class="arch-node ' + state + '" style="--delay:' +
+    Math.round(Number(delay) || 0) + 'ms"><span class="arch-marker" aria-hidden="true">' +
+    marker + '</span><div><b>' + E(title) + '</b>' +
+    (question ? '<em>' + E(question) + '</em>' : '') +
+    (meta ? '<small>' + E(meta) + '</small>' : '') + '</div></div>';
+}
+
+function runConnector(level, ctx) {
+  return '<div class="arch-connector ' + runState(level, ctx, false) +
+    '" aria-hidden="true"><i></i></div>';
+}
+
+function runDuration(job) {
+  if (!job) return 'Awaiting a run';
+  const start = Number(job.started_at || job.created_at || 0);
+  const end = Number(job.finished_at || Date.now() / 1000);
+  if (!start) return 'Duration unavailable';
+  const seconds = Math.max(0, Math.round(end - start));
+  if (seconds < 60) return seconds + 's elapsed';
+  return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's elapsed';
+}
+
+function executionMap(job, activity) {
+  const ctx = runContext(job, activity);
+  const phaseLabel = String(ctx.phase || 'queued').replace(/_/g, ' ');
+  const needsReview = ctx.names.has('human_review_required');
+  const statusLabel = ctx.status === 'done' ? 'Analysis complete' :
+    ctx.status === 'failed' ? 'Run stopped safely' :
+    ctx.status === 'cancelled' ? 'Run cancelled' :
+    ctx.status === 'empty' ? 'Ready for sources' : 'Live execution';
+  const statusClass = ctx.status === 'done' ? 'done' :
+    (ctx.status === 'failed' || ctx.status === 'cancelled') ? 'failed' :
+    ctx.status === 'empty' ? 'idle' : 'running';
+  const milestones = [
+    [0, 'Sources'], [1, 'Schedule'], [2, 'Evidence'], [3, 'Reasoning'],
+    [4, 'Resolver'], [6, 'Controls'], [7, 'Decision'],
+  ];
+
+  return '<section class="intelligence-run ' + statusClass + '">' +
+    '<header class="run-header"><div class="run-title">' +
+      '<div class="eyebrow">Persisted execution intelligence</div>' +
+      '<h2>Field truth → governed schedule decision</h2>' +
+      '<p>Every highlight is derived from the latest stored job phase. ' +
+      'The resolver ensemble is shown as one governed execution stage.</p></div>' +
+      '<div class="run-status"><span class="run-beacon" aria-hidden="true"></span>' +
+      '<div><b>' + E(statusLabel) + '</b><small>' + E(phaseLabel) + ' · ' +
+      E(runDuration(job)) + '</small></div></div></header>' +
+    '<div class="run-milestones">' + milestones.map(([level, label]) =>
+      '<div class="run-milestone ' + runState(level, ctx, false) + '">' +
+      '<i></i><span>' + E(label) + '</span></div>').join('') + '</div>' +
+    '<div class="architecture-map">' +
+      '<div class="map-caption"><span>Live architecture</span>' +
+      '<small>WHAT × WHERE × CHANGED WORLD</small></div>' +
+      runNode(0, ctx, 'Field observation', 'What changed on site?',
+        'DPR · note · report · image', 0, false) +
+      runConnector(1, ctx) +
+      runNode(4, ctx, 'Semantic candidate floor', 'Which activities are plausible?',
+        'Candidate retrieval · no forced match', 80, false) +
+      '<div class="arch-fork ' + runState(4, ctx, false) + '">' +
+        runNode(4, ctx, 'Engineering', 'WHAT?', 'Scope and workface semantics', 150, false) +
+        runNode(4, ctx, 'Tree', 'WHERE?', 'WBS · location · hierarchy', 230, false) +
+        runNode(4, ctx, 'Rescheduler v2', 'CHANGED WORLD?', 'Revision-aware candidate lists', 310, false) +
+      '</div>' +
+      runConnector(4, ctx) +
+      runNode(4, ctx, 'Candidate union', 'Four candidate lists converge',
+        'Stable activity identity retained', 390, false) +
+      '<div class="arch-split ' + runState(4, ctx, false) + '">' +
+        runNode(4, ctx, 'Expert utility predictors', '', 'Specialist ranking signals', 470, false) +
+        runNode(4, ctx, 'Candidate-level evidence', '', 'Support · conflict · provenance', 540, false) +
+      '</div>' +
+      runConnector(4, ctx) +
+      runNode(4, ctx, 'LambdaMART MetaRank', 'Which activity best explains the observation?',
+        'Learned ensemble · evidence-aware', 620, false) +
+      runConnector(4, ctx) +
+      runNode(4, ctx, 'Final activity rank', 'Best supported identity',
+        'Confidence remains calibrated', 700, false) +
+      '<div class="gate-chain">' +
+        runNode(5, ctx, 'Calibration', '', 'Uncertainty made explicit', 780, false) +
+        runNode(5, ctx, 'Deterministic validators', '', 'Rules · dates · relationships', 850, false) +
+        runNode(6, ctx, 'Risk policy', '', 'Safe action boundary', 920, false) +
+        runNode(7, ctx, 'Review / identity link', '',
+          needsReview ? 'Human decision required' : 'No forced identity', 990, false) +
+        runNode(8, ctx, 'Schedule-write gates', '', 'Human approval only', 1060, true) +
+      '</div>' +
+    '</div>' +
+    '<footer class="run-footer"><div class="run-legend">' +
+      '<span class="done"><i></i>Persisted complete</span>' +
+      '<span class="active"><i></i>Current stage</span>' +
+      '<span class="pending"><i></i>Waiting</span>' +
+      '<span class="guarded"><i></i>Governed boundary</span></div>' +
+      '<div class="run-latest"><span>Latest durable event</span><b>' +
+      E(ctx.latest ? ctx.latest.label : 'No execution events yet') + '</b></div>' +
+    '</footer></section>';
+}
+
 VIEWS.agent = async (pid) => {
   const [act, mcp, jobs] = await Promise.all([
     A('/projects/' + pid + '/agent-activity?limit=140'),
@@ -1517,8 +1795,12 @@ VIEWS.agent = async (pid) => {
     A('/projects/' + pid + '/jobs?limit=1'),
   ]);
   const j = jobs.jobs[0];
-  return head('Agent activity', 'High-level progress only — never internal ' +
-    'reasoning') +
+  const currentActivity = j
+    ? act.activity.filter(a => String(a.job_id || '') === String(j.id || ''))
+    : [];
+  return head('Execution intelligence', 'A live, evidence-safe view of VEDA’s ' +
+    'persisted run state') +
+    executionMap(j, currentActivity) +
     (j ? '<div class="grid g4" style="margin-bottom:14px">' +
       stat('Latest job', E(j.kind), E(j.id.slice(0, 10))) +
       stat('Status', E(j.status), E(j.phase || ''),
@@ -1529,10 +1811,14 @@ VIEWS.agent = async (pid) => {
     (j && j.error ? '<div class="note danger" style="margin-bottom:14px">' +
       '<b>Job error</b><br><span class="mono" style="font-size:11.5px">' +
       E(j.error.slice(0, 900)) + '</span></div>' : '') +
-    '<div class="grid g2">' +
-    panel('Agent steps <small>' + act.activity.length + '</small>',
+    '<details class="run-details"><summary>Run evidence & technical log' +
+      '<span>' + act.activity.length + ' steps · ' + mcp.calls.length +
+      ' Horizun calls</span></summary><div class="grid g2">' +
+    panel('Persisted steps <small>' + act.activity.length + '</small>',
       '<div class="feed">' + (act.activity.length ? act.activity.map(a =>
-      '<div class="row ' + (a.state === 'failed' ? 'fail' : '') + '">' +
+      '<div class="row ' + (a.state === 'failed' ? 'fail' : '') +
+      (a === act.activity[0] && j && !['done', 'failed', 'cancelled'].includes(j.status)
+        ? ' run' : '') + '">' +
       '<span class="t">' + new Date(a.created_at * 1000)
         .toLocaleTimeString() + '</span><i class="m"></i>' +
       '<span class="x">' + E(a.label) +
@@ -1551,7 +1837,7 @@ VIEWS.agent = async (pid) => {
       '<br><span class="d">' + E(c.summary || c.error || '') + ' · ' +
       int(c.duration_ms) + 'ms</span></span></div>').join('')
       : empty('No MCP calls yet', '')) + '</div>') +
-    '</div>';
+    '</div></details>';
 };
 
 /* ==================================================== 22. Jobs */
@@ -1647,11 +1933,21 @@ VIEWS.files = async (pid) => {
       '<div class="note" style="margin-top:9px">Image-only PDFs and photos use ' +
       'adaptive local OCR. Normal PDFs use embedded text first and OCR only on ' +
       'text-poor pages. Exact duplicate sources are skipped by SHA-256.</div>' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-top:13px">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:13px;flex-wrap:wrap">' +
       '<button class="btn primary" id="up">Ingest & analyse automatically</button>' +
       '<span id="ingestsummary" style="color:var(--ink-3);font-size:12px">' +
       staged.length + ' file(s) staged' + (st.text ? ' + pasted text' : '') +
-      '</span></div></div>') +
+      '</span></div>' +
+      '<div class="ingest-live" id="ingest-live" hidden aria-live="polite">' +
+        '<div class="ingest-live-head"><span class="run-beacon"></span><div>' +
+        '<b>Secure source intake underway</b><small>No reload needed — the live ' +
+        'execution map opens as soon as the run is created.</small></div></div>' +
+        '<div class="ingest-lanes">' +
+          '<span><i>01</i><b>Transfer batch</b><small>Files + pasted field truth</small></span>' +
+          '<span><i>02</i><b>Integrity checks</b><small>SHA-256 · duplicates · security</small></span>' +
+          '<span><i>03</i><b>Create run</b><small>Immutable sources → analysis</small></span>' +
+        '</div>' +
+      '</div></div>') +
     (pendingBatch ? panel('Schedule selection required <small>' + pendingCandidates.length + ' candidates</small>',
       '<div class="body"><div class="note warn" style="margin-bottom:10px">This project folder contains multiple schedule revisions. VEDA has paused before choosing one.</div>' +
       '<button class="btn primary" data-choose-schedule-batch="' + E(pendingBatch.id) + '">Choose authoritative schedule</button></div>') : '') +
@@ -1733,7 +2029,7 @@ VIEWS.choose_schedule_candidate = (pid, batchId, candidates) => new Promise((res
       const chosen = candidates.find(c => c.id === selected);
       scrim.remove();
       window.toast('Authoritative schedule selected. Analysis started automatically.', 'good');
-      if (r && r.job_id) go('overview'); else window.render();
+      if (r && r.job_id) go('agent'); else window.render();
       resolve(true);
     } catch (e) { goBtn.disabled = false; goBtn.textContent = 'Use selected schedule'; window.toast(e.message, 'bad'); }
   };
@@ -1753,6 +2049,7 @@ VIEWS.bind_files = (pid) => {
   const mode = document.getElementById('textmode');
   const title = document.getElementById('texttitle');
   const b = document.getElementById('up');
+  const live = document.getElementById('ingest-live');
   if (!b || !inp) return;
   document.querySelectorAll('[data-choose-schedule-batch]').forEach(x => x.onclick = async () => {
     const batchId = x.dataset.chooseScheduleBatch;
@@ -1855,7 +2152,8 @@ VIEWS.bind_files = (pid) => {
       fd.append('text_mode', st.mode || 'field_note');
       fd.append('text_title', st.title || '');
     }
-    b.disabled = true; b.textContent = 'Ingesting…';
+    b.disabled = true; b.textContent = 'Securing sources…';
+    if (live) { live.hidden = false; live.classList.add('running'); }
     try {
       const r = await fetch('/api/projects/' + pid + '/ingest',
         { method: 'POST', body: fd });
@@ -1864,6 +2162,7 @@ VIEWS.bind_files = (pid) => {
       VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' };
       if (j.schedule_selection_required) {
         b.disabled = false; b.textContent = 'Ingest & analyse automatically';
+        if (live) { live.hidden = true; live.classList.remove('running'); }
         await VIEWS.choose_schedule_candidate(pid, j.batch_id, j.schedule_candidates || []);
         return;
       }
@@ -1875,6 +2174,7 @@ VIEWS.bind_files = (pid) => {
     } catch (e) {
       window.toast('Ingestion failed: ' + e.message, 'bad');
       b.disabled = false; b.textContent = 'Ingest & analyse automatically';
+      if (live) { live.classList.remove('running'); live.classList.add('failed'); }
     }
   };
 };

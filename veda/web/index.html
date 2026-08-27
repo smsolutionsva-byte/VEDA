@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VEDA - Construction Project Intelligence</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/app.css">
+<script>
+(() => {
+  let saved = null;
+  try { saved = localStorage.getItem('veda-theme'); } catch (_) {}
+  const system = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.dataset.theme = saved || system;
+})();
+</script>
+<link rel="stylesheet" href="/static/app.css?v=1.20">
 </head>
 <body>
 <div id="app">
@@ -15,6 +23,9 @@
     <button class="btn sm" id="newproj">New project</button>
     <button class="btn sm danger" id="delproj" title="Choose a project to delete">Delete</button>
     <div class="spacer"></div>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">
+      <span class="theme-orbit" aria-hidden="true"><i></i></span><em>Theme</em>
+    </button>
     <div class="chip" id="chip-agent"><i class="dot"></i><span>agent</span></div>
     <div class="chip" id="chip-mcp"><i class="dot"></i><span>horizun</span></div>
     <div class="chip" id="chip-job"><i class="dot"></i><span>idle</span></div>
@@ -24,7 +35,7 @@
   <main class="main" id="main"></main>
 </div>
 <div class="toasts" id="toasts"></div>
-<script src="/static/views.js?v=1.11"></script>
-<script src="/static/app.js?v=1.11"></script>
+<script src="/static/views.js?v=1.20"></script>
+<script src="/static/app.js?v=1.20"></script>
 </body>
 </html>

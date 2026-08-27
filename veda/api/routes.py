@@ -1171,16 +1171,102 @@ def attention(pid: str):
             r["affected_sample"] = db.q(
                 "SELECT id, source_file, locator, date, crew, discipline, description "
                 "FROM evidence WHERE id IN (" + ",".join("?" for _ in ids[:6]) + ")", ids[:6])
+            r["candidate_explanations"] = _review_candidate_explanations(pid, r, ids)
     props = [proposals.shape(p) for p in db.q(
         "SELECT * FROM proposals WHERE project_id=? AND approval_state='pending' ORDER BY created_at DESC", [pid])]
     deferred = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state='deferred'", [pid]) or {}).get("c", 0))
     unresolved = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN ('needs_review','conflicting')", [pid]) or {}).get("c", 0))
     recent = [r for r in reviews.all_for(pid, "all")
               if r.get("kind") == "clarification" and r.get("status") in ("answered","deferred")][:12]
+    state_counts = {row["state"]: int(row["c"]) for row in db.q(
+        "SELECT state, COUNT(*) c FROM evidence WHERE project_id=? GROUP BY state", [pid])}
+    kind_counts = {row["kind"]: int(row["c"]) for row in db.q(
+        "SELECT kind, COUNT(*) c FROM reviews WHERE project_id=? AND status='open' GROUP BY kind", [pid])}
+    inbox_counts = {
+        "matches": kind_counts.get("clarification", 0),
+        "security": kind_counts.get("security_review", 0),
+        "failures": kind_counts.get("failed_validation", 0),
+        "changes": len(props),
+        "conflicts": state_counts.get("conflicting", 0),
+        "unresolved": (state_counts.get("needs_review", 0) +
+                       state_counts.get("conflicting", 0)),
+        "deferred": deferred,
+    }
     return {"state": _project_state(pid), "reviews": open_reviews,
             "proposals": props, "recent_decisions": recent,
             "deferred_evidence": deferred, "unresolved_evidence": unresolved,
+            "evidence_state_counts": state_counts, "inbox_counts": inbox_counts,
             "attention_count": len(open_reviews) + len(props) + (1 if unresolved and not open_reviews else 0)}
+
+
+def _review_candidate_explanations(pid: str, review: dict, evidence_ids: list) -> list[dict]:
+    """Explain activity options with persisted ranking evidence, never a fresh AI call."""
+    if review.get("kind") != "clarification" or not evidence_ids:
+        return []
+    option_uids = (review.get("context") or {}).get("option_uids") or {}
+    ordered_options = []
+    for label in review.get("options") or []:
+        uid = option_uids.get(label)
+        if uid is not None and uid not in ordered_options:
+            ordered_options.append(uid)
+    if not ordered_options:
+        return []
+
+    evidence_ph = ",".join("?" for _ in evidence_ids)
+    uid_ph = ",".join("?" for _ in ordered_options)
+    links = db.q(
+        "SELECT * FROM evidence_links WHERE project_id=? "
+        "AND evidence_id IN (" + evidence_ph + ") "
+        "AND activity_uid IN (" + uid_ph + ")",
+        [pid, *evidence_ids, *ordered_options])
+    activities = {row["uid"]: row for row in db.q(
+        "SELECT uid, display_id, name, wbs, status, start, finish, "
+        "percent_complete, critical FROM activities WHERE project_id=? "
+        "AND uid IN (" + uid_ph + ")", [pid, *ordered_options])}
+
+    grouped: dict[int, list[dict]] = {}
+    for link in links:
+        grouped.setdefault(link.get("activity_uid"), []).append(link)
+    result = []
+    for uid in ordered_options:
+        rows = grouped.get(uid, [])
+        act = activities.get(uid) or {}
+        support: list[str] = []
+        conflict: list[str] = []
+        for link in rows:
+            for signal in db.jloads(link.get("supporting_signals"), []) or []:
+                if signal not in support:
+                    support.append(signal)
+            for signal in db.jloads(link.get("conflicting_signals"), []) or []:
+                if signal not in conflict:
+                    conflict.append(signal)
+        probabilities = [float(row["calibrated_probability"])
+                         for row in rows if row.get("calibrated_probability") is not None]
+        rank_scores = [float(row["rank_score"])
+                       for row in rows if row.get("rank_score") is not None]
+        empirical = any(bool(row.get("calibration_is_empirical")) for row in rows)
+        modes = [row.get("calibration_mode") for row in rows if row.get("calibration_mode")]
+        result.append({
+            "uid": uid,
+            "option_label": next((label for label, option_uid in option_uids.items()
+                                  if option_uid == uid), None),
+            "display_id": act.get("display_id"),
+            "name": act.get("name") or next((row.get("activity_name") for row in rows), None),
+            "wbs": act.get("wbs"),
+            "status": act.get("status"),
+            "planned_start": act.get("start"),
+            "planned_finish": act.get("finish"),
+            "percent_complete": act.get("percent_complete"),
+            "critical": bool(act.get("critical")),
+            "matched_records": len({row.get("evidence_id") for row in rows}),
+            "probability": max(probabilities) if probabilities else None,
+            "calibration_mode": modes[0] if modes else None,
+            "calibration_is_empirical": empirical,
+            "rank_score": max(rank_scores) if rank_scores else None,
+            "supporting_signals": support[:5],
+            "conflicting_signals": conflict[:4],
+        })
+    return result
 
 
 @router.get("/projects/{pid}/proposals")

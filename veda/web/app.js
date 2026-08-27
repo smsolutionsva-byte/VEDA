@@ -4,6 +4,7 @@
 const S = {
   project: null, projects: [], view: 'overview', params: {},
   counts: {}, health: null, es: null, streamProject: null, overview: null,
+  agentCompletionTimer: null,
 };
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -26,25 +27,27 @@ const post = (p, body) => api(p, {
    schedule says, what the field says, what needs a decision, and what
    the machinery is doing. */
 const NAV = [
-  ['Project', [
-    ['overview', 'Overview'], ['eps', 'EPS'], ['wbs', 'WBS'],
+  ['Operate', [
+    ['overview', 'Control Room'], ['attention', 'Review Inbox', 'attention'],
+    ['ask', 'Ask VEDA'],
+  ]],
+  ['Field Truth', [
+    ['evidence', 'Evidence', 'evidence'], ['observed', 'Field vs Schedule'],
+    ['issues', 'Issues', 'issues'], ['risks', 'Risks', 'risks'],
   ]],
   ['Schedule', [
-    ['activities', 'Activities', 'activities'], ['milestones', 'Milestones', 'milestones'],
-    ['relationships', 'Relationships', 'relationships'], ['critical', 'Critical Path', 'critical'],
-    ['quality', 'Schedule QA', 'qa_failed'], ['baselines', 'Baselines'],
-    ['resources', 'Resources', 'resources'], ['assignments', 'Assignments', 'assignments'],
-    ['timephased', 'Timephased'], ['ev', 'Earned Value'],
-  ]],
-  ['Field', [
-    ['issues', 'Issues', 'issues'], ['risks', 'Risks', 'risks'],
-    ['evidence', 'Field Evidence', 'evidence'], ['observed', 'Observed Progress'],
-  ]],
-  ['Act', [
-    ['attention', 'Needs Attention', 'attention'], ['ask', 'Ask VEDA'],
+    ['activities', 'Activities', 'activities'], ['critical', 'Critical Path', 'critical'],
+    ['milestones', 'Milestones', 'milestones'], ['quality', 'Schedule QA', 'qa_failed'],
+    ['proposals', 'Proposed Changes'],
   ]],
   ['Project Data', [
-    ['files', 'Files'], ['outputs', 'Outputs'], ['audit', 'Audit'], ['system', 'System / MCP'],
+    ['files', 'Sources'], ['outputs', 'Reports & Exports'], ['audit', 'Audit Trail'],
+  ]],
+  ['Advanced', [
+    ['wbs', 'WBS'], ['relationships', 'Relationships', 'relationships'],
+    ['baselines', 'Baselines'], ['resources', 'Resources', 'resources'],
+    ['assignments', 'Assignments', 'assignments'], ['timephased', 'Timephased'],
+    ['ev', 'Earned Value'], ['eps', 'EPS'], ['system', 'System / MCP'],
   ]],
 ];
 
@@ -91,7 +94,11 @@ async function render() {
     return;
   }
   const fn = VIEWS[S.view] || VIEWS.overview;
-  main.innerHTML = '<div class="empty">Loading…</div>';
+  // Keep the live execution canvas mounted while an SSE refresh is fetched.
+  // Replacing it with a spinner on every event makes genuine progress look static.
+  if (!(S.view === 'agent' && main.querySelector('.intelligence-run'))) {
+    main.innerHTML = '<div class="empty">Loading…</div>';
+  }
   try {
     main.innerHTML = await fn(S.project, S.params);
     if (VIEWS['bind_' + S.view]) VIEWS['bind_' + S.view](S.project, S.params);
@@ -140,6 +147,27 @@ async function refreshHealth() {
   } catch (e) {
     $('#chip-mcp').className = 'chip bad';
   }
+}
+
+/* ------------------------------------------------------------- theme */
+function syncThemeToggle() {
+  const b = $('#theme-toggle');
+  if (!b) return;
+  const theme = document.documentElement.dataset.theme || 'dark';
+  const next = theme === 'dark' ? 'light' : 'dark';
+  b.dataset.theme = theme;
+  b.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+  const label = b.querySelector('em');
+  if (label) label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+}
+
+function applyTheme(theme, persist) {
+  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+  if (persist) {
+    try { localStorage.setItem('veda-theme', document.documentElement.dataset.theme); }
+    catch (_) { /* Theme still applies when browser storage is unavailable. */ }
+  }
+  syncThemeToggle();
 }
 
 /* ------------------------------------------------------------ projects */
@@ -346,10 +374,15 @@ function connectStream() {
     const terminalAnalysis = j && j.kind === 'analysis' &&
       j.status === 'done';
     if (allowNavigate && terminalAnalysis && S.view === 'agent') {
-      go('overview');
+      await render();
+      clearTimeout(S.agentCompletionTimer);
+      S.agentCompletionTimer = setTimeout(() => {
+        if (S.view === 'agent' && S.project === streamProject) go('overview');
+      }, 1800);
       return;
     }
-    if (['overview', 'attention', 'ask', 'evidence', 'outputs', 'observed', 'quality', 'activities'].includes(S.view)) {
+    if (['overview', 'attention', 'ask', 'evidence', 'outputs', 'observed',
+      'quality', 'activities', 'agent'].includes(S.view)) {
       render();
     }
   };
@@ -375,6 +408,17 @@ window.esc = esc;
 window.api = api; window.post = post; window.toast = toast;
 
 async function init() {
+  syncThemeToggle();
+  $('#theme-toggle').onclick = () => {
+    const current = document.documentElement.dataset.theme || 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark', true);
+  };
+  const systemTheme = matchMedia('(prefers-color-scheme: light)');
+  systemTheme.addEventListener('change', (e) => {
+    let saved = null;
+    try { saved = localStorage.getItem('veda-theme'); } catch (_) {}
+    if (!saved) applyTheme(e.matches ? 'light' : 'dark', false);
+  });
   $('#projpick').onchange = async (e) => {
     const previous = S.project;
     S.project = e.target.value || null;
