@@ -21,13 +21,32 @@ _PREFIXES = {
     "PT", "PI", "PIT", "TT", "TI", "TIT", "LT", "LI", "LIT", "FT", "FI",
     "FIT", "LS", "PS", "TS", "JB", "MCC", "PCC", "DB", "UPS", "TR", "XFMR",
     "CB", "CT", "PTX", "SP", "SPL", "ISO", "PID", "PFD", "DWG", "DRG",
-    "CABLE", "LOOP", "FC", "FDN", "FOUND", "LINE", "L", "RACK", "BAY",
+    "CABLE", "CBL", "LOOP", "IP", "FC", "FDN", "FOUND", "LINE", "L", "RACK", "BAY",
 }
 
 # Prefixes that strongly indicate document/control identifiers.  We preserve
 # them because daily reports often cite an isometric/drawing rather than the
 # equipment itself, and those references can still resolve a schedule activity.
 _DOC_PREFIXES = {"ISO", "PID", "PFD", "DWG", "DRG", "NCR", "RFI", "ITP", "MIR", "MRN"}
+
+
+_ASSET_CLASS = {
+    "P": "pump", "PU": "pump", "PMP": "pump",
+    "V": "vessel", "TK": "tank", "T": "tank",
+    "E": "heat_exchanger", "HX": "heat_exchanger",
+    "C": "compressor", "K": "compressor", "COMP": "compressor", "FAN": "fan",
+    "XV": "valve", "PV": "valve", "FV": "valve", "LV": "valve", "HV": "valve",
+    "MOV": "valve", "SDV": "valve", "ESDV": "valve", "BDV": "valve", "PSV": "valve",
+    "PT": "instrument", "PI": "instrument", "PIT": "instrument", "TT": "instrument",
+    "TI": "instrument", "TIT": "instrument", "LT": "instrument", "LI": "instrument",
+    "LIT": "instrument", "FT": "instrument", "FI": "instrument", "FIT": "instrument",
+    "LS": "instrument", "PS": "instrument", "TS": "instrument",
+    "JB": "junction_box", "MCC": "motor_control_center", "PCC": "power_control_center",
+    "DB": "distribution_board", "UPS": "ups", "TR": "transformer", "XFMR": "transformer",
+    "CB": "circuit_breaker", "CABLE": "cable", "CBL": "cable", "LOOP": "instrument_loop", "IP": "instrument_package",
+    "SP": "spool", "SPL": "spool", "FDN": "foundation", "FOUND": "foundation",
+    "LINE": "process_line", "L": "process_line", "RACK": "rack", "BAY": "bay",
+}
 
 # Tokens that frequently resemble compact tags but are not assets.
 _TAG_STOP = {
@@ -43,6 +62,13 @@ _SEPARATED = re.compile(
 )
 # Compact known-prefix tag, e.g. P104A, V203, PT402, JB303.
 _COMPACT = re.compile(r"\b([A-Z]{1,6})(\d{2,7}[A-Z]?(?:[A-Z0-9]{0,3})?)\b", re.I)
+# Known-prefix notation with spaces, e.g. `PT 402`, `CBL 4401`,
+# `ISO 24P1043 003`.  Restricting to known prefixes avoids promoting ordinary
+# prose such as "AREA A" to an equipment identity.
+_SPACED_PREFIX = re.compile(r"(?=\b([A-Z]{1,6})\s+([A-Z0-9]{2,16})\b)", re.I)
+_SPACED_DOC = re.compile(r"(?=\b(ISO|PID|PFD|DWG|DRG)\s+([A-Z0-9]{2,16})\s+([A-Z0-9]{1,8})\b)", re.I)
+_LINE_SPACED = re.compile(r"\b(\d{1,3})\s+([A-Z]{1,5})\s+(\d{2,7})\s+([A-Z]\d{0,3})\b", re.I)
+_LINE_COMPACT = re.compile(r"\b(\d{1,3})([A-Z]{1,5})(\d{2,7})([A-Z]\d{0,3})\b", re.I)
 # Common line-number form that starts with nominal bore, including 24\"-P-1043-A1.
 _LINE = re.compile(
     r"\b(\d{1,3}(?:\.\d+)?\s*(?:\"|IN|INCH)?\s*[-/]\s*[A-Z]{1,5}\s*[-/]\s*\d{2,7}(?:\s*[-/]\s*[A-Z0-9]{1,10}){0,4})\b",
@@ -68,6 +94,42 @@ def tag_aliases(tag: str) -> set[str]:
     return {c, compact} if compact and compact != c else {c}
 
 
+def ocr_probable_aliases(tag: str) -> set[str]:
+    """Conservative OCR aliases, kept separate from safe notation aliases.
+
+    We only substitute visually-confusable characters next to digits and only
+    generate single-edit alternatives.  These aliases are evidence, never
+    canonical identity; `P-101A` must never collapse into `P-101B`.
+    """
+    c=_canon_tag(tag)
+    if not c: return set()
+    out=set()
+    pairs={"O":"0","I":"1","L":"1","S":"5","B":"8"}
+    chars=list(c)
+    for i,ch in enumerate(chars):
+        rep=pairs.get(ch)
+        if not rep: continue
+        left=chars[i-1].isdigit() if i>0 else False
+        right=chars[i+1].isdigit() if i+1<len(chars) else False
+        if left or right:
+            v=chars.copy(); v[i]=rep; out.update(tag_aliases("".join(v)))
+    # reverse confusion is only allowed inside a numeric run adjacent to letters.
+    rev={"0":"O","1":"I","5":"S","8":"B"}
+    for i,ch in enumerate(chars):
+        rep=rev.get(ch)
+        if not rep: continue
+        if (i>0 and chars[i-1].isalpha()) or (i+1<len(chars) and chars[i+1].isalpha()):
+            v=chars.copy(); v[i]=rep; out.update(tag_aliases("".join(v)))
+    return out - tag_aliases(c)
+
+
+def _asset_class(tag: str) -> str | None:
+    c=_canon_tag(tag)
+    head=re.split(r"[-_/.:\d]", c, 1)[0]
+    if c[:1].isdigit() and ("-P-" in c or "/P/" in c): return "process_line"
+    return _ASSET_CLASS.get(head)
+
+
 def _tag_type(tag: str) -> str:
     c = _canon_tag(tag)
     head = re.split(r"[-_/.:\d]", c, 1)[0]
@@ -75,7 +137,7 @@ def _tag_type(tag: str) -> str:
         return "document"
     if head in {"PT", "PI", "PIT", "TT", "TI", "TIT", "LT", "LI", "LIT", "FT", "FI", "FIT", "LS", "PS", "TS"}:
         return "instrument"
-    if head in {"MCC", "PCC", "DB", "UPS", "CB", "CT", "XFMR", "TR", "JB", "CABLE"}:
+    if head in {"MCC", "PCC", "DB", "UPS", "CB", "CT", "XFMR", "TR", "JB", "CABLE", "CBL"}:
         return "electrical"
     if head in {"SP", "SPL"}:
         return "spool"
@@ -102,10 +164,22 @@ def extract_asset_tags(*texts: Any, custom: Any = None) -> list[dict]:
             return
         if not any(ch.isdigit() for ch in c):
             return
-        found.setdefault(c, {"tag": c, "type": typ or _tag_type(c), "source": source})
+        found.setdefault(c, {"tag": c, "type": typ or _tag_type(c), "class": _asset_class(c),
+                             "source": source, "aliases": sorted(tag_aliases(c)),
+                             "ocr_aliases": sorted(ocr_probable_aliases(c))})
 
     for m in _LINE.finditer(blob.upper()):
         add(m.group(1), "line")
+    for m in _LINE_SPACED.finditer(blob.upper()):
+        add("-".join(m.groups()), "line")
+    for m in _LINE_COMPACT.finditer(blob.upper()):
+        add("-".join(m.groups()), "line")
+    for m in _SPACED_DOC.finditer(blob.upper()):
+        add("-".join(m.groups()), "document")
+    for m in _SPACED_PREFIX.finditer(blob.upper()):
+        prefix = m.group(1).upper()
+        if prefix in _PREFIXES and prefix not in {"LINE","CABLE","RACK","BAY"} and any(ch.isdigit() for ch in m.group(2)):
+            add(prefix + "-" + m.group(2))
     for m in _SEPARATED.finditer(blob.upper()):
         raw = m.group(1)
         # Ignore simple calendar dates and chainages (12+400 is not matched).
@@ -115,7 +189,7 @@ def extract_asset_tags(*texts: Any, custom: Any = None) -> list[dict]:
     for m in _COMPACT.finditer(blob.upper()):
         prefix, tail = m.group(1).upper(), m.group(2).upper()
         if prefix in _PREFIXES:
-            add(prefix + tail)
+            add(prefix + "-" + tail)
 
     if custom:
         if isinstance(custom, str):
@@ -163,6 +237,16 @@ def asset_alias_set(items: Iterable[Any]) -> set[str]:
     return out
 
 
+def asset_ocr_alias_set(items: Iterable[Any]) -> set[str]:
+    out: set[str]=set()
+    for item in items or ():
+        if isinstance(item, dict) and item.get("ocr_aliases"):
+            out.update(str(x) for x in item.get("ocr_aliases") or [])
+        else:
+            out.update(ocr_probable_aliases(item.get("tag") if isinstance(item,dict) else str(item)))
+    return out
+
+
 # Richer location ontology than the original `area/unit/spread` regex.  Tokens
 # are intentionally hierarchical so exact rack/bay matches can coexist with a
 # broader unit/area match.
@@ -174,8 +258,12 @@ _LOCATION_PATTERNS = (
     ("unit", r"\bunit\s*[-:#]?\s*([a-z0-9]+)"),
     ("train", r"\btrain\s*[-:#]?\s*([a-z0-9]+)"),
     ("block", r"\bblock\s*[-:#]?\s*([a-z0-9]+)"),
-    ("rack", r"\b(?:pipe\s*)?rack\s*[-:#]?\s*([a-z0-9]+)"),
-    ("rack", r"\bpr\s*[-:#]?\s*([a-z0-9]{1,6})\b"),
+    # Capture `Pipe Rack PR-02` as rack:02 rather than rack:pr, and never
+    # misread ordinary words beginning with `pr` (e.g. "process") as a rack.
+    ("rack", r"\b(?:pipe\s*)?rack\s*[-:#]?\s*(?:pr\s*[-:#]?\s*)?([a-z0-9]+)"),
+    ("rack", r"\bpr[-:#]\s*([a-z0-9]{1,6})\b"),
+    ("rack", r"\bpr\s+([a-z0-9]{1,6})\b"),
+    ("rack", r"\bpr(\d{1,6})\b"),
     ("bay", r"\bbay\s*[-:#]?\s*([a-z0-9]+)"),
     ("building", r"\b(?:building|bldg)\s*[-:#]?\s*([a-z0-9]+)"),
     ("floor", r"\b(?:floor|level)\s*[-:#]?\s*([a-z0-9]+)"),

@@ -123,6 +123,50 @@ TOOLS = [
         },
     },
     {
+        "name": "veda_activity_search",
+        "description": "Hybrid engineering-aware activity search: exact tags + sparse/dense retrieval + cross-encoder + WBS/date/network reranking. Use this instead of guessing from activity names.",
+        "inputSchema": {"type":"object","properties":{
+            "evidence_id":{"type":"string"}, "query":{"type":"string"},
+            "discipline":{"type":"string"}, "location":{"type":"string"},
+            "date":{"type":"string"}, "limit":{"type":"integer","default":8}
+        }}
+    },
+    {
+        "name": "veda_entity_lookup",
+        "description": "Exact/alias engineering identifier lookup across activity tags/custom fields. Cheap first step when a report contains an equipment/line/instrument/spool/cable tag.",
+        "inputSchema": {"type":"object","properties":{"text":{"type":"string"},"limit":{"type":"integer","default":30}},"required":["text"]}
+    },
+    {
+        "name": "veda_activity_context",
+        "description": "Explain one candidate activity with WBS/search document and predecessor/successor context.",
+        "inputSchema": {"type":"object","properties":{"uid":{"type":"integer"}},"required":["uid"]}
+    },
+    {
+        "name": "veda_resolution_plan",
+        "description": "Complexity router: recommends the minimum useful reasoning/tool path for an evidence item and reports whether graph/history/agent escalation is justified.",
+        "inputSchema": {"type":"object","properties":{"evidence_id":{"type":"string"},"limit":{"type":"integer","default":6}},"required":["evidence_id"]}
+    },
+    {
+        "name": "veda_match_calibration",
+        "description": "Calibration diagnostics from planner accept/reject history. Cold-start priors are explicitly marked non-empirical.",
+        "inputSchema": {"type":"object","properties":{}}
+    },
+    {
+        "name": "veda_historical_sequence",
+        "description": "Historical schedule sequence strategy/advice and optional candidate support. Chooses simple association/graph-embedding/GNN evaluation based on actual corpus size, never buzzwords.",
+        "inputSchema": {"type":"object","properties":{"uid":{"type":"integer"}}}
+    },
+    {
+        "name": "veda_execution_events",
+        "description": "Canonical execution events built from one or more source observations, preserving corroboration instead of duplicating progress updates.",
+        "inputSchema": {"type":"object","properties":{"activity_uid":{"type":"integer"},"limit":{"type":"integer","default":100}}}
+    },
+    {
+        "name": "veda_activity_lineage",
+        "description": "Activity identity lineage across schedule revisions (same/renamed/split/merge hypotheses when available).",
+        "inputSchema": {"type":"object","properties":{"uid":{"type":"integer"},"limit":{"type":"integer","default":100}}}
+    },
+    {
         "name": "veda_human_answers",
         "description": "Answers a human has given to review questions on this "
                        "project. Use these to resolve ambiguity you previously "
@@ -297,6 +341,93 @@ def t_answers(_args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
                 "note": "These are HUMAN_INPUT and outrank AI inference."})
 
 
+def t_activity_search(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.retrieval import engine, calibration
+    eid=args.get("evidence_id")
+    if eid:
+        ev=db.q1("SELECT * FROM evidence WHERE id=? AND project_id=?",[eid,PROJECT_ID])
+        if not ev: return _err("no such evidence: "+str(eid))
+    else:
+        q=str(args.get("query") or "").strip()
+        if not q: return _err("evidence_id or query is required")
+        ev={"id":"mcp-ephemeral","project_id":PROJECT_ID,"description":q,
+            "discipline":args.get("discipline"),"location":args.get("location"),"date":args.get("date")}
+    res=engine.hybrid_search(PROJECT_ID,ev,top_k=min(int(args.get("limit",8)),30))
+    rows=[]
+    for c in res.get("candidates") or []:
+        cal=calibration.calibrated_probability(c["score"],PROJECT_ID,c.get("features") or {})
+        rows.append({"uid":c["activity"].get("uid"),"display_id":c["activity"].get("display_id"),
+                     "name":c["activity"].get("name"),"wbs":c["activity"].get("wbs"),
+                     "wbs_path":c["activity"].get("wbs_path"),"rank_score":c.get("score"),
+                     "probability":cal.get("probability"),"is_calibrated":cal.get("is_calibrated"),
+                     "calibration_mode":cal.get("mode"),"features":c.get("features"),
+                     "supporting":c.get("supporting"),"conflicting":c.get("conflicting")})
+    return _ok({"count":len(rows),"candidates":rows,"diagnostics":res.get("diagnostics")})
+
+
+def t_entity_lookup(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.retrieval.entities import extract_asset_tags, asset_alias_set
+    tags=extract_asset_tags(args.get("text")); aliases=asset_alias_set(tags)
+    rows=[]
+    for a in db.q("SELECT uid,display_id,name,wbs,wbs_path,asset_tags_json,custom_json FROM activities WHERE project_id=? AND is_summary=0",[PROJECT_ID]):
+        atags=db.jloads(a.get("asset_tags_json"),None)
+        if atags is None: atags=extract_asset_tags(a.get("display_id"),a.get("name"),a.get("custom_json"))
+        hit=aliases & asset_alias_set(atags)
+        if hit: rows.append({**a,"matched_aliases":sorted(hit)})
+    rows=rows[:min(int(args.get("limit",30)),100)]
+    return _ok({"query_tags":tags,"count":len(rows),"activities":rows})
+
+
+def t_activity_context(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.retrieval.engine import activity_context
+    out=activity_context(PROJECT_ID,int(args.get("uid")))
+    return _ok(out) if out else _err("activity not found")
+
+
+def t_resolution_plan(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.retrieval import engine
+    from veda.resolution import router
+    ev=db.q1("SELECT * FROM evidence WHERE id=? AND project_id=?",[args.get("evidence_id"),PROJECT_ID])
+    if not ev: return _err("no such evidence")
+    res=engine.hybrid_search(PROJECT_ID,ev,top_k=min(int(args.get("limit",6)),12))
+    return _ok({"plan":router.plan(PROJECT_ID,ev,res.get("candidates") or []),
+                "candidate_uids":[c["activity"].get("uid") for c in res.get("candidates") or []]})
+
+
+def t_match_calibration(_args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.retrieval.calibration import diagnostics
+    return _ok(diagnostics(PROJECT_ID))
+
+
+def t_historical_sequence(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    from veda.resolution import sequence
+    out={"model_advice":sequence.model_advice()}
+    if args.get("uid") is not None:
+        a=db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?",[PROJECT_ID,int(args["uid"])])
+        if not a: return _err("activity not found")
+        out["candidate_support"]=sequence.score_candidate(PROJECT_ID,a)
+    return _ok(out)
+
+
+def t_execution_events(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    sql="SELECT * FROM execution_events WHERE project_id=?"; params=[PROJECT_ID]
+    if args.get("activity_uid") is not None:
+        sql+=" AND activity_uid=?"; params.append(int(args["activity_uid"]))
+    sql+=" ORDER BY event_date DESC, created_at DESC LIMIT ?"; params.append(min(int(args.get("limit",100)),400))
+    rows=db.q(sql,params)
+    for r in rows:
+        r["sources"]=db.q("SELECT evidence_id,source_file,locator,source_trust FROM execution_event_sources WHERE execution_event_id=?",[r["id"]])
+    return _ok({"count":len(rows),"events":rows})
+
+
+def t_activity_lineage(args: dict, PROJECT_ID: str = PROJECT_ID) -> dict:
+    sql="SELECT * FROM activity_lineage WHERE project_id=?"; params=[PROJECT_ID]
+    if args.get("uid") is not None:
+        sql+=" AND (from_uid=? OR to_uid=?)"; params += [int(args["uid"]),int(args["uid"])]
+    sql+=" ORDER BY to_revision DESC LIMIT ?"; params.append(min(int(args.get("limit",100)),400))
+    return _ok({"count":len(db.q(sql,params)),"lineage":db.q(sql,params)})
+
+
 HANDLERS = {
     "veda_project_overview": t_overview,
     "veda_activities": t_activities,
@@ -305,6 +436,14 @@ HANDLERS = {
     "veda_files": t_files,
     "veda_read_file": t_read_file,
     "veda_evidence": t_evidence,
+    "veda_activity_search": t_activity_search,
+    "veda_entity_lookup": t_entity_lookup,
+    "veda_activity_context": t_activity_context,
+    "veda_resolution_plan": t_resolution_plan,
+    "veda_match_calibration": t_match_calibration,
+    "veda_historical_sequence": t_historical_sequence,
+    "veda_execution_events": t_execution_events,
+    "veda_activity_lineage": t_activity_lineage,
     "veda_human_answers": t_answers,
 }
 

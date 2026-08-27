@@ -89,8 +89,15 @@ class HashEmbeddingBackend:
             out.append(_norm(v))
         return out
 
+    def encode_payload(self, texts: list[str]) -> dict:
+        return {"dense": self.encode(texts), "sparse": [None for _ in texts]}
+
     def pair_scores(self, pairs: list[tuple[str, str]]) -> list[float] | None:
         return None
+
+    def diagnostics(self) -> dict:
+        return {"backend": self.name, "dim": self.dim, "reranker_loaded": False,
+                "native_sparse": False, "device": "cpu"}
 
 
 class BgeM3Backend:
@@ -99,6 +106,7 @@ class BgeM3Backend:
     def __init__(self, model_ref: str):
         from FlagEmbedding import BGEM3FlagModel  # type: ignore
         use_fp16 = os.environ.get("VEDA_EMBEDDING_FP16", "1").lower() not in ("0", "false", "no")
+        self.use_fp16 = use_fp16
         self.model_ref = model_ref
         self.name = "bge-m3:" + str(model_ref)
         self._model = BGEM3FlagModel(model_ref, use_fp16=use_fp16)
@@ -118,16 +126,40 @@ class BgeM3Backend:
                 self._reranker = None
         self.dim = 1024
 
-    def encode(self, texts: list[str]) -> list[list[float]]:
+    def encode_payload(self, texts: list[str]) -> dict:
         if not texts:
-            return []
-        batch = int(os.environ.get("VEDA_EMBEDDING_BATCH", "24"))
-        max_len = int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "768"))
+            return {"dense": [], "sparse": []}
+        batch = int(os.environ.get("VEDA_EMBEDDING_BATCH", "32"))
+        # Activity documents are compact.  Keeping this far below BGE-M3's 8192
+        # maximum materially reduces latency without truncating normal schedule context.
+        max_len = int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "512"))
         out = self._model.encode(texts, batch_size=batch, max_length=max_len,
-                                 return_dense=True, return_sparse=False,
+                                 return_dense=True, return_sparse=True,
                                  return_colbert_vecs=False)
-        vecs = out["dense_vecs"]
-        return [list(map(float, v)) for v in vecs]
+        dense = [list(map(float, v)) for v in out["dense_vecs"]]
+        sparse = []
+        for obj in out.get("lexical_weights") or [None for _ in texts]:
+            if obj is None:
+                sparse.append(None)
+            else:
+                sparse.append({str(k): float(v) for k,v in dict(obj).items()})
+        return {"dense": dense, "sparse": sparse}
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        return self.encode_payload(texts)["dense"]
+
+    def diagnostics(self) -> dict:
+        dev = None
+        try:
+            dev = str(getattr(self._model, "devices", None) or getattr(self._model, "device", None) or "auto")
+        except Exception:
+            dev = "auto"
+        return {"backend": self.name, "model_ref": str(self.model_ref), "dim": self.dim,
+                "reranker_loaded": self._reranker is not None,
+                "reranker_model": (_RERANKER_PATH or _RERANKER_MODEL) if self._reranker is not None else None,
+                "native_sparse": True, "fp16": self.use_fp16, "device": dev,
+                "embedding_max_length": int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "512")),
+                "rerank_max_length": int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "512"))}
 
     def pair_scores(self, pairs: list[tuple[str, str]]) -> list[float] | None:
         if not pairs:
@@ -159,6 +191,13 @@ class BgeM3Backend:
         if isinstance(result, (list, tuple)):
             return [float(x) for x in result]
         return None
+
+
+def sparse_dot(a: dict | None, b: dict | None) -> float:
+    if not a or not b:
+        return 0.0
+    if len(a) > len(b): a,b=b,a
+    return float(sum(float(v) * float(b.get(str(k), 0.0)) for k,v in a.items()))
 
 
 _BACKEND_SINGLETON = None

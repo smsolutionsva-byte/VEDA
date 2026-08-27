@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS evidence (
   source_file TEXT, locator TEXT,
   date TEXT, author TEXT, contractor TEXT, crew TEXT,
   discipline TEXT, location TEXT, chainage TEXT,
-  event_type TEXT,
+  event_type TEXT, action_type TEXT, event_state TEXT, event_confidence REAL,
   asset_tags_json TEXT, location_tags_json TEXT,
   quantity REAL, unit TEXT,
   description TEXT,
@@ -331,9 +331,10 @@ CREATE TABLE IF NOT EXISTS evidence_links (
   activity_uid INTEGER,
   activity_name TEXT,
   confidence REAL,
-  retrieval_score REAL,
-  calibration_mode TEXT,
-  feature_json TEXT,
+  retrieval_score REAL, rank_score REAL, calibrated_probability REAL,
+  calibration_mode TEXT, calibration_is_empirical INTEGER DEFAULT 0, calibration_model_version TEXT,
+  feature_json TEXT, policy_json TEXT, prediction_set_json TEXT,
+  policy_decision TEXT, recommended_uid INTEGER, committed_uid INTEGER,
   relation TEXT DEFAULT 'supporting',
   supporting_signals TEXT,
   conflicting_signals TEXT,
@@ -349,6 +350,45 @@ CREATE TABLE IF NOT EXISTS evidence_links (
 CREATE INDEX IF NOT EXISTS ix_evl_ev ON evidence_links(evidence_id);
 CREATE INDEX IF NOT EXISTS ix_evl_act ON evidence_links(project_id, activity_uid);
 
+-- Canonical execution events preserve institutional memory independently of
+-- whatever activity IDs/descriptions a later schedule revision happens to use.
+CREATE TABLE IF NOT EXISTS execution_events (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  canonical_key TEXT,
+  activity_uid INTEGER,
+  action_type TEXT, event_state TEXT, event_date TEXT,
+  observed_progress REAL, quantity REAL, unit TEXT,
+  confidence REAL, state TEXT DEFAULT 'observed',
+  source_count INTEGER DEFAULT 0,
+  provenance TEXT DEFAULT 'DERIVED',
+  created_at REAL, updated_at REAL
+);
+CREATE INDEX IF NOT EXISTS ix_exec_event_project ON execution_events(project_id, activity_uid, event_date);
+
+CREATE TABLE IF NOT EXISTS execution_event_sources (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  execution_event_id TEXT NOT NULL,
+  evidence_id TEXT NOT NULL,
+  source_file TEXT, locator TEXT, source_trust REAL,
+  created_at REAL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_exec_event_source ON execution_event_sources(execution_event_id, evidence_id);
+
+-- Activity identity across schedule revisions.  Stable UIDs are strongest;
+-- rename/split/merge hypotheses remain explicit and auditable.
+CREATE TABLE IF NOT EXISTS activity_lineage (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  from_revision INTEGER, to_revision INTEGER,
+  from_uid INTEGER, to_uid INTEGER,
+  from_display_id TEXT, to_display_id TEXT,
+  relation TEXT, score REAL, basis TEXT,
+  created_at REAL
+);
+CREATE INDEX IF NOT EXISTS ix_activity_lineage_project ON activity_lineage(project_id, from_revision, to_revision);
+
 CREATE TABLE IF NOT EXISTS retrieval_documents (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -358,6 +398,7 @@ CREATE TABLE IF NOT EXISTS retrieval_documents (
   embedding_model TEXT,
   embedding_dim INTEGER,
   embedding_blob BLOB,
+  sparse_json TEXT,
   metadata_json TEXT,
   updated_at REAL,
   created_at REAL
@@ -628,6 +669,9 @@ def init_db() -> None:
     ecols = {r[1] for r in conn.execute("PRAGMA table_info(evidence)").fetchall()}
     for name, ddl in (
         ("event_type", "ALTER TABLE evidence ADD COLUMN event_type TEXT"),
+        ("action_type", "ALTER TABLE evidence ADD COLUMN action_type TEXT"),
+        ("event_state", "ALTER TABLE evidence ADD COLUMN event_state TEXT"),
+        ("event_confidence", "ALTER TABLE evidence ADD COLUMN event_confidence REAL"),
         ("asset_tags_json", "ALTER TABLE evidence ADD COLUMN asset_tags_json TEXT"),
         ("location_tags_json", "ALTER TABLE evidence ADD COLUMN location_tags_json TEXT"),
     ):
@@ -639,11 +683,24 @@ def init_db() -> None:
         conn.execute("ALTER TABLE evidence_links ADD COLUMN review_id TEXT")
     for name, ddl in (
         ("retrieval_score", "ALTER TABLE evidence_links ADD COLUMN retrieval_score REAL"),
+        ("rank_score", "ALTER TABLE evidence_links ADD COLUMN rank_score REAL"),
+        ("calibrated_probability", "ALTER TABLE evidence_links ADD COLUMN calibrated_probability REAL"),
         ("calibration_mode", "ALTER TABLE evidence_links ADD COLUMN calibration_mode TEXT"),
+        ("calibration_is_empirical", "ALTER TABLE evidence_links ADD COLUMN calibration_is_empirical INTEGER DEFAULT 0"),
+        ("calibration_model_version", "ALTER TABLE evidence_links ADD COLUMN calibration_model_version TEXT"),
         ("feature_json", "ALTER TABLE evidence_links ADD COLUMN feature_json TEXT"),
+        ("policy_json", "ALTER TABLE evidence_links ADD COLUMN policy_json TEXT"),
+        ("prediction_set_json", "ALTER TABLE evidence_links ADD COLUMN prediction_set_json TEXT"),
+        ("policy_decision", "ALTER TABLE evidence_links ADD COLUMN policy_decision TEXT"),
+        ("recommended_uid", "ALTER TABLE evidence_links ADD COLUMN recommended_uid INTEGER"),
+        ("committed_uid", "ALTER TABLE evidence_links ADD COLUMN committed_uid INTEGER"),
     ):
         if name not in lcols:
             conn.execute(ddl)
+
+    rdcols = {r[1] for r in conn.execute("PRAGMA table_info(retrieval_documents)").fetchall()}
+    if "sparse_json" not in rdcols:
+        conn.execute("ALTER TABLE retrieval_documents ADD COLUMN sparse_json TEXT")
 
     # Legacy workflow migration: human attention is no longer a job status.
     # Analysis that had already finished but was labelled awaiting_review is

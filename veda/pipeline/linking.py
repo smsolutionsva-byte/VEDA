@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from .. import db, reviews
+from ..retrieval import engine as retrieval_engine, calibration
+from ..resolution import events as event_model, risk as risk_policy
 from . import validators
 
 STOP = {"the", "and", "for", "with", "of", "to", "in", "on", "at", "a", "an",
@@ -182,8 +184,49 @@ def cluster_key_for(ev: dict, cands: list) -> tuple:
             "How should these records be attributed?")
 
 
-ACCEPT = 0.62
-MARGIN = 0.10
+
+def _upsert_execution_event(project_id: str, ev: dict, cand: dict, event_info: dict,
+                            cal: dict) -> str | None:
+    """Create/deduplicate the canonical execution-event layer.
+
+    Source observations remain immutable evidence.  Multiple DPR/diary/voice
+    records can corroborate one canonical event without becoming duplicate
+    schedule updates.
+    """
+    if event_info.get("state") not in {"start", "progress", "finish"}:
+        return None
+    uid = int(cand["activity"]["uid"])
+    action = str(event_info.get("action") or "activity")
+    state = str(event_info.get("state") or "observation")
+    day = str(ev.get("date") or "unknown")
+    progress = event_info.get("progress")
+    bucket = "" if progress is None else f"|p={round(float(progress),1)}"
+    key = f"{uid}|{action}|{state}|{day}{bucket}"
+    row = db.q1("SELECT * FROM execution_events WHERE project_id=? AND canonical_key=?", [project_id, key])
+    prob = float(cal.get("probability") or 0.0)
+    if row:
+        eid = row["id"]
+    else:
+        eid = db.insert("execution_events", {
+            "project_id": project_id, "canonical_key": key, "activity_uid": uid,
+            "action_type": action, "event_state": state, "event_date": ev.get("date"),
+            "observed_progress": progress, "quantity": ev.get("quantity"), "unit": ev.get("unit"),
+            "confidence": prob, "source_count": 0, "provenance": "DERIVED",
+            "updated_at": db.now(),
+        })
+    exists = db.q1("SELECT id FROM execution_event_sources WHERE execution_event_id=? AND evidence_id=?", [eid, ev["id"]])
+    if not exists:
+        try:
+            trust = next((c.get("detail",{}).get("trust") for c in validators.validate_link(
+                ev, cand["activity"], project_id=project_id).get("checks",[]) if c.get("name")=="source_trust"), None)
+        except Exception:
+            trust = None
+        db.insert("execution_event_sources", {"project_id": project_id, "execution_event_id": eid,
+                  "evidence_id": ev["id"], "source_file": ev.get("source_file"),
+                  "locator": ev.get("locator"), "source_trust": trust})
+    n = (db.q1("SELECT COUNT(*) c FROM execution_event_sources WHERE execution_event_id=?", [eid]) or {}).get("c",0)
+    db.update("execution_events", eid, {"source_count": n, "confidence": prob, "updated_at": db.now()})
+    return eid
 
 
 def link_evidence(project_id: str, *, job_id: str | None = None,
@@ -191,14 +234,12 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
                   agent_links: dict | None = None,
                   status_date: str | None = None,
                   raise_reviews: bool = True) -> dict:
-    """Associate evidence with activities and record the outcome.
+    """Resolve evidence identity through hybrid retrieval + engineering risk policy.
 
-    agent_links maps evidence_id -> list of {activity_uid, confidence, relation,
-    supporting_signals, conflicting_signals} proposed by the model. Model
-    proposals are treated as candidates, then validated like any other.
+    `linked` means the evidence identity was associated with an activity.  It
+    still does NOT authorize a Primavera actual/progress write; mutation remains
+    proposal/approval/verified-write territory.
     """
-    acts = db.q("SELECT * FROM activities WHERE project_id=?", [project_id])
-    by_uid = {a["uid"]: a for a in acts}
     if evidence_rows is None:
         evidence_rows = db.q(
             "SELECT * FROM evidence WHERE project_id=? AND state IN "
@@ -210,8 +251,13 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
         status_date = (snap or {}).get("status_date")
 
     stats = {"linked": 0, "needs_review": 0, "unresolved": 0, "conflicting": 0,
-             "historical": 0, "duplicate": 0, "quarantined": 0}
+             "historical": 0, "duplicate": 0, "quarantined": 0, "non_progress": 0}
     clusters: dict = {}
+
+    # Build/refresh the schedule representation once per batch.  Each DPR row
+    # then performs a warm query against the same revision rather than scanning
+    # and re-embedding the schedule repeatedly.
+    retrieval_engine.index_project(project_id)
 
     for ev in evidence_rows:
         if ev.get("security_state") in ("suspicious", "quarantined"):
@@ -222,32 +268,18 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
         db.ex("DELETE FROM evidence_links WHERE evidence_id=? AND "
               "(human_decision IS NULL OR human_decision='')", [ev["id"]])
 
-        cands = candidates_for(ev, acts)
+        event_info = event_model.classify_event(ev)
+        db.update("evidence", ev["id"], {
+            "action_type": event_info.get("action"), "event_state": event_info.get("state"),
+            "event_confidence": event_info.get("confidence"),
+            "event_type": ev.get("event_type") or event_info.get("action"),
+        })
+        # Refresh local copy because dynamically-added fields may be used below.
+        ev = {**ev, "action_type": event_info.get("action"), "event_state": event_info.get("state")}
 
-        # Fold in whatever the model proposed, so its judgement is scored too.
-        for prop in (agent_links or {}).get(ev["id"], []):
-            uid = prop.get("activity_uid")
-            act = by_uid.get(uid)
-            if act is None:
-                continue
-            existing = next((c for c in cands if c["activity"]["uid"] == uid), None)
-            model_conf = float(prop.get("confidence") or 0.5)
-            if existing:
-                existing["score"] = round(
-                    min(1.0, existing["score"] * 0.7 + model_conf * 0.45), 3)
-                existing["supporting"] = list(dict.fromkeys(
-                    existing["supporting"] + list(prop.get("supporting_signals") or [])))
-                existing["conflicting"] = list(dict.fromkeys(
-                    existing["conflicting"] +
-                    list(prop.get("conflicting_signals") or [])))
-                existing["from_agent"] = True
-            else:
-                cands.append({"activity": act, "score": round(model_conf * 0.8, 3),
-                              "supporting": list(prop.get("supporting_signals") or []),
-                              "conflicting": list(
-                                  prop.get("conflicting_signals") or []),
-                              "from_agent": True})
-        cands.sort(key=lambda x: -x["score"])
+        agent_proposed = (agent_links or {}).get(ev["id"], [])
+        hs = retrieval_engine.hybrid_search(project_id, ev, top_k=8, agent_links=agent_proposed, ensure_index=False)
+        cands = hs.get("candidates") or []
 
         if not cands:
             db.update("evidence", ev["id"], {"state": "needs_review"})
@@ -256,67 +288,84 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
             continue
 
         best = cands[0]
-        runner = cands[1] if len(cands) > 1 else None
         vres = validators.validate_link(ev, best["activity"], project_id=project_id,
                                         status_date=status_date)
+        cal = calibration.calibrated_probability(best["score"], project_id,
+                                                  features=best.get("features") or {})
+        policy = risk_policy.assess(candidates=cands, calibration=cal,
+                                    validator=vres, event=event_info)
 
-        decisive = best["score"] >= ACCEPT and (
-            runner is None or best["score"] - runner["score"] >= MARGIN)
+        historical = any(c["name"] == "historical_detection" and
+                         c["result"] == validators.WARN for c in vres["checks"])
+        dup = any(c["name"] == "duplicate_detection" and
+                  c["result"] == validators.WARN for c in vres["checks"])
 
-        if vres["result"] == validators.FAIL:
+        if dup:
+            state, relation, is_cand = "duplicate", "duplicate", 0
+            stats["duplicate"] += 1
+        elif historical:
+            state, relation, is_cand = "historical", "historical", 0
+            stats["historical"] += 1
+        elif policy["decision"] == "conflicting":
             state, relation, is_cand = "conflicting", "conflicting", 1
             stats["conflicting"] += 1
-        elif not decisive:
-            state, relation, is_cand = "needs_review", "unresolved", 1
-            stats["needs_review"] += 1
-            _add_cluster(clusters, ev, cands)
+        elif policy["decision"] == "link_identity_only":
+            state, relation, is_cand = "linked", "supporting", 0
+            stats["linked"] += 1
         else:
-            historical = any(c["name"] == "historical_detection" and
-                             c["result"] == validators.WARN for c in vres["checks"])
-            dup = any(c["name"] == "duplicate_detection" and
-                      c["result"] == validators.WARN for c in vres["checks"])
-            if dup:
-                state, relation, is_cand = "duplicate", "duplicate", 0
-                stats["duplicate"] += 1
-            elif historical:
-                state, relation, is_cand = "historical", "historical", 0
-                stats["historical"] += 1
-            else:
-                state, relation, is_cand = "linked", "supporting", 0
-                stats["linked"] += 1
+            state, relation, is_cand = "needs_review", "non_progress" if event_info.get("non_progress") else "unresolved", 1
+            stats["needs_review"] += 1
+            if event_info.get("non_progress"):
+                stats["non_progress"] += 1
+            _add_cluster(clusters, ev, cands)
 
+        best_features = dict(best.get("features") or {})
+        # Keep raw retrieval diagnostics distinct from engineering rank score.
+        retrieval_score = float(best_features.get("raw_score") or 0.0)
+        rank_score = float(best.get("score") or 0.0)
+        committed_uid = best["activity"]["uid"] if state == "linked" else None
         db.insert("evidence_links", {
             "project_id": project_id, "evidence_id": ev["id"],
             "activity_uid": best["activity"]["uid"],
             "activity_name": best["activity"]["name"],
-            "confidence": best["score"], "relation": relation,
+            "confidence": float(cal.get("probability") or 0.0),
+            "retrieval_score": retrieval_score, "rank_score": rank_score,
+            "calibrated_probability": float(cal.get("probability") or 0.0),
+            "calibration_mode": cal.get("mode"),
+            "calibration_is_empirical": 1 if cal.get("is_calibrated") else 0,
+            "calibration_model_version": cal.get("model_version"),
+            "feature_json": db.jdumps(best_features),
+            "policy_json": db.jdumps(policy),
+            "prediction_set_json": db.jdumps(policy.get("candidate_set") or {}),
+            "policy_decision": policy.get("decision"),
+            "recommended_uid": best["activity"]["uid"], "committed_uid": committed_uid,
+            "relation": relation,
             "supporting_signals": db.jdumps(best["supporting"]),
             "conflicting_signals": db.jdumps(best["conflicting"]),
-            "validator_result": vres["result"],
-            "validator_json": db.jdumps(vres),
+            "validator_result": vres["result"], "validator_json": db.jdumps(vres),
             "is_candidate": is_cand,
-            "provenance": "AI_INFERENCE" if best.get("from_agent")
-            else "DETERMINISTIC_CALCULATION",
+            "provenance": "AI_INFERENCE" if best.get("from_agent") else "DETERMINISTIC_CALCULATION",
         })
-        # Keep the alternatives visible - contradictions are never hidden (spec 37).
-        for alt in cands[1:3]:
+        for alt in cands[1:4]:
             db.insert("evidence_links", {
                 "project_id": project_id, "evidence_id": ev["id"],
-                "activity_uid": alt["activity"]["uid"],
-                "activity_name": alt["activity"]["name"],
-                "confidence": alt["score"], "relation": "unresolved",
-                "supporting_signals": db.jdumps(alt["supporting"]),
+                "activity_uid": alt["activity"]["uid"], "activity_name": alt["activity"]["name"],
+                "confidence": None, "retrieval_score": float(alt.get("features",{}).get("raw_score") or 0),
+                "rank_score": float(alt.get("score") or 0),
+                "feature_json": db.jdumps(alt.get("features") or {}),
+                "relation": "unresolved", "supporting_signals": db.jdumps(alt["supporting"]),
                 "conflicting_signals": db.jdumps(alt["conflicting"]),
-                "validator_result": None, "is_candidate": 1,
+                "is_candidate": 1, "recommended_uid": best["activity"]["uid"],
                 "provenance": "DETERMINISTIC_CALCULATION",
             })
 
         db.update("evidence", ev["id"], {"state": state,
-                                         "confidence": best["score"]})
+                 "confidence": float(cal.get("probability") or 0.0)})
+        if state == "linked":
+            _upsert_execution_event(project_id, ev, best, event_info, cal)
 
     if raise_reviews:
         _raise_cluster_reviews(project_id, clusters, job_id)
-
     rebuild_observed_progress(project_id)
     return {"stats": stats, "clusters": len(clusters)}
 

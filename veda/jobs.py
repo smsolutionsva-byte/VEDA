@@ -636,7 +636,7 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
             rows = extract.extract_evidence(project_id, f, job_id)
             db.ex("DELETE FROM evidence WHERE file_id=?", [f["id"]])
             for r in rows:
-                db.insert("evidence", r)
+                db.insert("evidence", extract.enrich_evidence_record(r))
             db.update("files", f["id"], {"extract_state": "done",
                                          "extract_error": None})
             total_ev += len(rows)
@@ -885,7 +885,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
             if patch:
                 db.update("evidence", e.ref, patch)
             continue
-        new_id = db.insert("evidence", {
+        new_id = db.insert("evidence", extract.enrich_evidence_record({
             "project_id": project_id, "job_id": job_id,
             "source_file": e.source_file, "locator": e.locator, "date": e.date,
             "author": e.author, "contractor": e.contractor, "crew": e.crew,
@@ -894,7 +894,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
             "description": e.description,
             "observed_progress": e.observed_progress,
             "confidence": e.confidence, "state": "new",
-            "provenance": e.provenance})
+            "provenance": e.provenance}))
         ref_to_id[e.ref] = new_id
 
     # Candidate links from the model, keyed by the evidence row they cite.

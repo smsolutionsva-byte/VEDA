@@ -28,10 +28,16 @@ MIN_FEATURE_CLASS = 15
 # Deliberately small, interpretable identity feature set. Agent judgement is one
 # corroborating signal rather than a privileged probability source.
 FEATURE_KEYS = (
-    "raw_score", "rerank", "dense", "sparse", "asset_exact", "location",
-    "discipline", "wbs", "temporal", "graph", "chainage", "date_corroboration",
+    "raw_score", "rerank", "dense", "sparse", "bge_sparse",
+    "asset_exact", "asset_alias", "asset_ocr", "asset_negative", "asset_conflict", "asset_coverage",
+    "action", "action_conflict", "phase", "phase_conflict", "location", "location_conflict", "discipline",
+    "wbs", "wbs_ancestor", "wbs_code",
+    "temporal", "actual_date", "current_date", "baseline_date", "date_corroboration",
+    "graph", "pred_ready", "driving_pred_ready", "successor_progress",
+    "relationship_consistency", "historical_sequence", "chainage", "source_trust",
     "rank_margin", "agent_support",
 )
+
 
 
 def _sigmoid(z: float) -> float:
@@ -60,6 +66,24 @@ def _label_records(project_id: str | None = None) -> list[tuple[dict, int]]:
         feat["agent_support"] = max(0.0, min(1.0,
             float(feat.get("agent_agreement") or 0.0) * float(feat.get("agent_confidence") or 0.0)))
         out.append((feat, 1 if r.get("human_decision") == "accepted" else 0))
+    return out
+
+
+def _label_records_by_project() -> dict[str, list[tuple[dict, int]]]:
+    out: dict[str, list[tuple[dict, int]]] = {}
+    rows = db.q("SELECT project_id,feature_json,human_decision FROM evidence_links "
+                "WHERE human_decision IN ('accepted','rejected') AND feature_json IS NOT NULL")
+    for r in rows:
+        try:
+            feat = json.loads(r.get("feature_json") or "{}")
+            raw = float(feat.get("raw_score"))
+        except Exception:
+            continue
+        feat["raw_score"] = max(0.0, min(1.0, raw))
+        feat["agent_support"] = max(0.0, min(1.0,
+            float(feat.get("agent_agreement") or 0.0) * float(feat.get("agent_confidence") or 0.0)))
+        out.setdefault(str(r.get("project_id") or "unknown"), []).append(
+            (feat, 1 if r.get("human_decision") == "accepted" else 0))
     return out
 
 
@@ -114,7 +138,7 @@ def _feature_rows(records: list[tuple[dict, int]]) -> list[tuple[list[float], in
     # default-valued features on legacy decisions.
     out = []
     for feat, y in records:
-        observed = sum(1 for k in ("rerank", "dense", "sparse", "wbs", "temporal", "graph")
+        observed = sum(1 for k in ("rerank", "dense", "sparse", "asset_exact", "action", "wbs", "temporal", "graph")
                        if k in feat)
         if observed >= 4:
             out.append((_vector(feat), y))
@@ -174,6 +198,102 @@ def _prior(raw: float) -> float:
     return _sigmoid(7.0 * (raw - 0.66))
 
 
+def _meta(mode: str, rows: list, *, scope: str) -> dict:
+    pos = sum(y for _, y in rows) if rows else 0
+    return {"mode": mode, "scope": scope, "n": len(rows), "positive_count": pos,
+            "negative_count": max(0, len(rows)-pos), "is_calibrated": mode != "conservative_prior",
+            "model_version": "veda-calibration-0.3"}
+
+
+_VALIDATION_CACHE: dict[tuple[int, int], dict] = {}
+
+
+def _probability_metrics(pred_pairs: list[tuple[float, int]]) -> dict:
+    if not pred_pairs:
+        return {"n":0,"brier":None,"ece":None,"bins":[]}
+    brier = sum((p-y)**2 for p,y in pred_pairs)/len(pred_pairs)
+    bins=[]
+    for i in range(10):
+        lo=i/10; hi=(i+1)/10
+        vals=[(p,y) for p,y in pred_pairs if lo <= p < hi or (i==9 and p<=1.0)]
+        if vals:
+            mp=sum(p for p,_ in vals)/len(vals); acc=sum(y for _,y in vals)/len(vals)
+            bins.append({"from":lo,"to":hi,"n":len(vals),"mean_predicted":round(mp,4),"empirical_accuracy":round(acc,4)})
+    ece=sum((b["n"]/len(pred_pairs))*abs(b["mean_predicted"]-b["empirical_accuracy"]) for b in bins)
+    return {"n":len(pred_pairs),"brier":round(brier,5),"ece":round(ece,5),"bins":bins}
+
+
+def _precision_threshold(pred_pairs: list[tuple[float,int]], target: float = 0.99, min_selected: int = 20) -> dict:
+    if not pred_pairs:
+        return {"threshold":None,"precision":None,"coverage":0.0,"selected":0}
+    thresholds=sorted({round(p,6) for p,_ in pred_pairs}, reverse=True)
+    best=None
+    for t in thresholds:
+        sel=[y for p,y in pred_pairs if p>=t]
+        if len(sel)<min_selected:
+            continue
+        precision=sum(sel)/len(sel)
+        if precision+1e-12 >= target:
+            cand={"threshold":t,"precision":precision,"coverage":len(sel)/len(pred_pairs),"selected":len(sel)}
+            if best is None or cand["coverage"]>best["coverage"]:
+                best=cand
+    if best is None:
+        return {"threshold":None,"precision":None,"coverage":0.0,"selected":0}
+    return {"threshold":round(best["threshold"],6),"precision":round(best["precision"],5),
+            "coverage":round(best["coverage"],5),"selected":best["selected"]}
+
+
+def validation_diagnostics(target_precision: float = 0.99) -> dict:
+    """Leave-one-project-out validation for calibration/risk thresholds.
+
+    Random row splits leak project-specific naming/WBS conventions.  This
+    validation trains on other projects and predicts the held-out project, then
+    derives an automation threshold only if the requested precision is actually
+    observed on those out-of-project predictions.
+    """
+    grouped=_label_records_by_project()
+    total=sum(len(v) for v in grouped.values())
+    key=(len(grouped),total)
+    if key in _VALIDATION_CACHE:
+        return _VALIDATION_CACHE[key]
+    if len(grouped)<3 or total<120:
+        out={"validated":False,"method":"leave_one_project_out","projects":len(grouped),"n":total,
+             "reason":"need at least 3 reviewed projects and 120 labelled candidate decisions",
+             "target_precision":target_precision,"threshold":None}
+        _VALIDATION_CACHE[key]=out; return out
+    preds=[]; folds=[]
+    for holdout, test_records in grouped.items():
+        train_records=[r for pid,rows in grouped.items() if pid!=holdout for r in rows]
+        train_feat=_feature_rows(train_records); test_feat=_feature_rows(test_records)
+        if _eligible(train_feat, MIN_FEATURE_GLOBAL, MIN_FEATURE_CLASS) and test_feat:
+            model=_fit_feature_logit(train_feat)
+            fold=[(_feature_predict(model,f),y) for f,y in test_records
+                  if sum(1 for k in ("rerank","dense","sparse","asset_exact","wbs","temporal","graph") if k in f)>=4]
+            mode="feature_logit"
+        else:
+            train_raw=[(float(f["raw_score"]),y) for f,y in train_records]
+            test_raw=[(float(f["raw_score"]),y) for f,y in test_records]
+            if not _eligible(train_raw, MIN_GLOBAL):
+                continue
+            a,b=_fit_platt(train_raw); fold=[(_sigmoid(a*x+b),y) for x,y in test_raw]; mode="platt"
+        if fold:
+            preds.extend(fold); folds.append({"project_id":holdout,"n":len(fold),"mode":mode})
+    metrics=_probability_metrics(preds)
+    threshold=_precision_threshold(preds,target_precision,min_selected=max(20,int(.03*len(preds))))
+    out={"validated":bool(preds),"method":"leave_one_project_out","projects":len(folds),
+         "n":len(preds),"target_precision":target_precision,**metrics,**threshold,"folds":folds}
+    _VALIDATION_CACHE[key]=out
+    return out
+
+
+
+
+def _validated_meta(payload: dict) -> dict:
+    val=validation_diagnostics()
+    payload["risk_validation"]={k:val.get(k) for k in ("validated","method","projects","n","target_precision","threshold","precision","coverage","brier","ece")}
+    payload["validated_auto_link_threshold"]=val.get("threshold") if val.get("validated") else None
+    return payload
+
 def calibrated_probability(raw_score: float, project_id: str, features: dict | None = None) -> dict:
     raw = max(0.0, min(1.0, float(raw_score)))
     current = dict(features or {})
@@ -183,28 +303,32 @@ def calibrated_probability(raw_score: float, project_id: str, features: dict | N
     local_features = _feature_rows(local_records)
     if features is not None and _eligible(local_features, MIN_FEATURE_LOCAL, MIN_FEATURE_CLASS):
         model = _fit_feature_logit(local_features)
-        return {"probability": _feature_predict(model, current), "mode": "project_feature_logit",
-                "n": len(local_features), "features": list(FEATURE_KEYS)}
+        return _validated_meta({"probability": _feature_predict(model, current),
+                **_meta("project_feature_logit", local_features, scope="project"),
+                "features": list(FEATURE_KEYS)})
 
     local = [(float(f["raw_score"]), y) for f, y in local_records]
     if _eligible(local, MIN_LOCAL):
         a, b = _fit_platt(local)
-        return {"probability": _sigmoid(a * raw + b), "mode": "project_platt",
-                "n": len(local), "a": a, "b": b}
+        return _validated_meta({"probability": _sigmoid(a * raw + b),
+                **_meta("project_platt", local, scope="project"), "a": a, "b": b})
 
     global_records = _label_records(None)
     global_features = _feature_rows(global_records)
     if features is not None and _eligible(global_features, MIN_FEATURE_GLOBAL, MIN_FEATURE_CLASS):
         model = _fit_feature_logit(global_features)
-        return {"probability": _feature_predict(model, current), "mode": "global_feature_logit",
-                "n": len(global_features), "features": list(FEATURE_KEYS)}
+        return _validated_meta({"probability": _feature_predict(model, current),
+                **_meta("global_feature_logit", global_features, scope="global"),
+                "features": list(FEATURE_KEYS)})
 
     global_rows = [(float(f["raw_score"]), y) for f, y in global_records]
     if _eligible(global_rows, MIN_GLOBAL):
         a, b = _fit_platt(global_rows)
-        return {"probability": _sigmoid(a * raw + b), "mode": "global_platt",
-                "n": len(global_rows), "a": a, "b": b}
-    return {"probability": _prior(raw), "mode": "conservative_prior", "n": len(local)}
+        return _validated_meta({"probability": _sigmoid(a * raw + b),
+                **_meta("global_platt", global_rows, scope="global"), "a": a, "b": b})
+    return {"probability": _prior(raw),
+            **_meta("conservative_prior", local, scope="project" if local else "none"),
+            "note": "Cold-start prior is NOT an empirically calibrated probability."}
 
 
 def diagnostics(project_id: str) -> dict:
@@ -255,7 +379,11 @@ def diagnostics(project_id: str) -> dict:
             bins.append({"from": round(lo, 1), "to": round(hi, 1), "n": len(items),
                          "mean_predicted": round(sum(p for p, _ in items) / len(items), 3),
                          "empirical_accuracy": round(sum(y for _, y in items) / len(items), 3)})
+    ece = sum((b["n"] / max(1, len(pred_pairs))) * abs(b["mean_predicted"] - b["empirical_accuracy"]) for b in bins)
     return {"mode": mode, "scope": scope, "n": len(pred_pairs),
-            "positives": sum(y for _, y in pred_pairs), "brier": round(brier, 4), "bins": bins,
+            "positives": sum(y for _, y in pred_pairs), "negatives": len(pred_pairs)-sum(y for _, y in pred_pairs),
+            "brier": round(brier, 4), "ece": round(ece, 4), "bins": bins,
             "top_feature_weights": [{"feature": k, "weight": round(v, 3)} for k, v in coeff[:8]],
-            "note": "Brier + reliability bins are descriptive; validate on held-out project/time slices before production thresholds."}
+            "model_version": "veda-calibration-0.3",
+            "held_out_validation": validation_diagnostics(),
+            "note": "In-sample Brier/ECE are descriptive; held_out_validation uses leave-one-project-out folds and is the only source allowed to propose an automation threshold."}

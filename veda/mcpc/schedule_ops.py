@@ -770,6 +770,8 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
 
     revision_changes = _record_revision_changes(
         project_id, snapshot_id, revision, previous_activities, act_rows)
+    lineage_changes = _record_activity_lineage(
+        project_id, revision, previous_activities, act_rows)
     if revision > 1:
         step("schedule_revision_compared",
              str(revision_changes["added"]) + " added, " +
@@ -790,7 +792,7 @@ def collect_snapshot(project_id: str, schedule_path: str, *, job_id: str | None 
         "forecast_finish": forecast_finish,
         "status_date": status_date,
         "percent_complete": overall,
-        "revision_changes": revision_changes,
+        "revision_changes": revision_changes, "activity_lineage": lineage_changes,
     }
 
 
@@ -800,6 +802,79 @@ _REVISION_FIELDS = (
     "duration_days", "remaining_days", "percent_complete", "constraint_type",
     "constraint_date", "deadline", "baseline_start", "baseline_finish",
 )
+
+
+def _record_activity_lineage(project_id: str, revision: int, before_rows: list, after_rows: list) -> dict:
+    """Record stable identity and conservative rename/split/merge hypotheses.
+
+    This does not rewrite history.  It only preserves an auditable bridge between
+    the activity identity that existed when old evidence was created and the
+    identity exposed by the new schedule revision.
+    """
+    out={"same_uid":0,"renamed_or_rekeyed":0,"split_candidate":0,"merge_candidate":0}
+    if revision <= 1 or not before_rows:
+        return out
+    db.ex("DELETE FROM activity_lineage WHERE project_id=? AND to_revision=?",[project_id,revision])
+    before={int(r["uid"]):r for r in before_rows if r.get("uid") is not None}
+    after={int(r["uid"]):r for r in after_rows if r.get("uid") is not None}
+    for uid in sorted(set(before)&set(after)):
+        a,b=before[uid],after[uid]
+        basis=[]
+        if a.get("display_id")==b.get("display_id"): basis.append("display_id_stable")
+        if a.get("name")==b.get("name"): basis.append("name_stable")
+        db.insert("activity_lineage",{"project_id":project_id,"from_revision":revision-1,"to_revision":revision,
+                  "from_uid":uid,"to_uid":uid,"from_display_id":a.get("display_id"),"to_display_id":b.get("display_id"),
+                  "relation":"same_uid","score":1.0,"basis":";".join(basis) or "stable_horizun_uid"})
+        out["same_uid"]+=1
+
+    old=[r for u,r in before.items() if u not in after]
+    new=[r for u,r in after.items() if u not in before]
+    import re as _re
+    def toks(v): return {x for x in _re.findall(r"[a-z0-9]+",str(v or "").lower()) if len(x)>2}
+    def sim(a,b):
+        score=0.0; reasons=[]
+        da=str(a.get("display_id") or "").lower(); dbid=str(b.get("display_id") or "").lower()
+        if da and dbid and da==dbid: score+=.65; reasons.append("display_id_exact")
+        an,bn=toks(a.get("name")),toks(b.get("name"));
+        if an and bn:
+            j=len(an&bn)/max(1,len(an|bn)); score+=.48*j
+            if j>=.6: reasons.append("name_similarity")
+        aw,bw=toks(a.get("wbs")),toks(b.get("wbs"))
+        if aw and bw:
+            j=len(aw&bw)/max(1,len(aw|bw)); score+=.22*j
+            if j>=.6: reasons.append("wbs_similarity")
+        return min(1.0,score),reasons
+    matrix={(int(a["uid"]),int(b["uid"])):sim(a,b) for a in old for b in new}
+    # One-to-one high-confidence rekeys/renames.
+    used_old=set(); used_new=set()
+    pairs=sorted(((sc,ou,nu,rs) for (ou,nu),(sc,rs) in matrix.items()),reverse=True)
+    for sc,ou,nu,rs in pairs:
+        if sc < .72 or ou in used_old or nu in used_new: continue
+        a,b=before[ou],after[nu]
+        db.insert("activity_lineage",{"project_id":project_id,"from_revision":revision-1,"to_revision":revision,
+                  "from_uid":ou,"to_uid":nu,"from_display_id":a.get("display_id"),"to_display_id":b.get("display_id"),
+                  "relation":"renamed_or_rekeyed","score":round(sc,4),"basis":";".join(rs)})
+        used_old.add(ou); used_new.add(nu); out["renamed_or_rekeyed"]+=1
+    # Ambiguous one-to-many / many-to-one remain hypotheses and require planner review.
+    for a in old:
+        ou=int(a["uid"]); matches=[(nu,sc,rs) for (x,nu),(sc,rs) in matrix.items() if x==ou and sc>=.58 and nu not in used_new]
+        if len(matches)>=2:
+            for nu,sc,rs in sorted(matches,key=lambda z:-z[1])[:4]:
+                b=after[nu]
+                db.insert("activity_lineage",{"project_id":project_id,"from_revision":revision-1,"to_revision":revision,
+                          "from_uid":ou,"to_uid":nu,"from_display_id":a.get("display_id"),"to_display_id":b.get("display_id"),
+                          "relation":"split_candidate","score":round(sc,4),"basis":";".join(rs)})
+                out["split_candidate"]+=1
+    for b in new:
+        nu=int(b["uid"]); matches=[(ou,sc,rs) for (ou,x),(sc,rs) in matrix.items() if x==nu and sc>=.58 and ou not in used_old]
+        if len(matches)>=2:
+            for ou,sc,rs in sorted(matches,key=lambda z:-z[1])[:4]:
+                a=before[ou]
+                db.insert("activity_lineage",{"project_id":project_id,"from_revision":revision-1,"to_revision":revision,
+                          "from_uid":ou,"to_uid":nu,"from_display_id":a.get("display_id"),"to_display_id":b.get("display_id"),
+                          "relation":"merge_candidate","score":round(sc,4),"basis":";".join(rs)})
+                out["merge_candidate"]+=1
+    return out
 
 
 def _record_revision_changes(project_id: str, snapshot_id: str, revision: int,
@@ -961,6 +1036,25 @@ def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
             if parent:
                 children.setdefault(parent, []).append(wid)
 
+        path_memo: dict[str, list[str]] = {}
+        def wbs_path_parts(wid: str, trail: set[str] | None = None) -> list[str]:
+            if wid in path_memo: return path_memo[wid]
+            trail=set(trail or ())
+            if wid in trail: return []
+            trail.add(wid)
+            n=nodes_by_id.get(wid) or {}
+            parent=str(n.get("parent_wbs_id") or "")
+            prefix=wbs_path_parts(parent,trail) if parent and parent in nodes_by_id else []
+            label=str(n.get("name") or n.get("code") or wid)
+            path_memo[wid]=prefix+[label]
+            return path_memo[wid]
+
+        def mapped_wbs_id(r: dict) -> str:
+            # XER source identity is often Activity ID while Horizun uid is an
+            # internal runtime identity.  Try both; never silently discard WBS.
+            return str(task_to_wbs.get(str(r.get("uid"))) or
+                       task_to_wbs.get(str(r.get("display_id"))) or "")
+
         memo_desc: dict[str, set[str]] = {}
         def descendants(wid: str, trail: set[str] | None = None) -> set[str]:
             if wid in memo_desc:
@@ -980,8 +1074,7 @@ def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
         leaf_rows = [r for r in rows if not r.get("is_summary")]
         for wid, n in nodes_by_id.items():
             covered = descendants(wid)
-            kids = [r for r in leaf_rows
-                    if str(task_to_wbs.get(str(r.get("uid"))) or "") in covered]
+            kids = [r for r in leaf_rows if mapped_wbs_id(r) in covered]
             starts = [k["start"] for k in kids if k.get("start")]
             finishes = [k["finish"] for k in kids if k.get("finish")]
             tot = sum((k.get("duration_days") or 1) for k in kids) or 1
@@ -1005,6 +1098,16 @@ def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
                 "provenance": ("SOURCE_FILE" if (source or {}).get("format") in
                                ("csv", "tsv", "xlsx", "xlsm") else "MCP_FACT"),
             })
+        for r in rows:
+            wid=mapped_wbs_id(r)
+            n=nodes_by_id.get(wid) or {}
+            parts=wbs_path_parts(wid) if wid else []
+            code=n.get("code") or r.get("wbs")
+            patch={"wbs_name": n.get("name") or (parts[-1] if parts else None),
+                   "wbs_path": " > ".join(parts) if parts else None}
+            if not r.get("wbs") and code: patch["wbs"]=code
+            db.update("activities", r["id"], patch)
+            r.update({k:v for k,v in patch.items() if v is not None})
         return
 
     # Non-XER / adapter fallback: summary rows describe the hierarchy.
@@ -1039,6 +1142,24 @@ def _build_wbs(project_id: str, snapshot_id: str, rows: list, by_uid: dict,
                               if (k.get("finish_variance_days") or 0) > 0),
             "provenance": "MCP_FACT",
         })
+
+    # Resolve readable paths for fallback formats from the WBS code hierarchy.
+    nodes={str(x.get("code") or ""):x for x in db.q("SELECT code,name,parent_code FROM wbs_nodes WHERE project_id=?",[project_id])}
+    def parts(code: str) -> list[str]:
+        out=[]; seen=set(); cur=str(code or "")
+        while cur and cur not in seen:
+            seen.add(cur); n=nodes.get(cur)
+            if n:
+                out.append(str(n.get("name") or cur)); cur=str(n.get("parent_code") or "")
+            elif "." in cur:
+                out.append(cur.rsplit(".",1)[-1]); cur=cur.rsplit(".",1)[0]
+            else:
+                out.append(cur); break
+        return list(reversed(out))
+    for r in rows:
+        ps=parts(str(r.get("wbs") or ""))
+        patch={"wbs_name": ps[-1] if ps else None, "wbs_path": " > ".join(ps) if ps else None}
+        db.update("activities",r["id"],patch); r.update({k:v for k,v in patch.items() if v is not None})
 
 
 def _build_eps(project_id: str, info: dict, path: str) -> None:

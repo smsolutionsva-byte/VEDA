@@ -8,6 +8,7 @@ Each validator returns:
     {"name", "result": pass|warn|fail, "message", "detail"}
 """
 from __future__ import annotations
+import os
 
 import re
 from datetime import date, datetime, timedelta
@@ -125,6 +126,29 @@ def discipline_key(text: str | None) -> str | None:
         return None
     t = str(text).lower()
     for key, words in DISCIPLINE_ALIASES.items():
+        if any(w in t for w in words):
+            return key
+    return None
+
+
+MAJOR_DISCIPLINE_ALIASES = {
+    "instrumentation": {"instrumentation", "instrument", "loop check", "calibration", "transmitter", "analyzer", "junction box", "jb ", "pt-", "tt-", "lt-", "ft-"},
+    "electrical": {"electrical", "cable", "mcc", "pcc", "switchgear", "transformer", "earthing", "grounding", "termination", "glanding"},
+    "piping": {"piping", "pipe", "spool", "line ", "fit-up", "fitup", "weld", "hydrotest", "flushing", "tie-in", "isometric", " iso-"},
+    "rotating_equipment": {"rotating", "pump", "compressor", "turbine", "fan", "blower", "alignment", "coupling"},
+    "static_equipment": {"static equipment", "vessel", "column", "drum", "tank", "heat exchanger", "exchanger", "reactor"},
+    "structural": {"structural", "steel structure", "structural steel", "platform", "pipe rack", "rack steel"},
+    "civil": {"civil", "foundation", "concrete", "rebar", "reinforcement", "formwork", "shuttering", "excavation", "backfill", "grading", "road"},
+    "hse": {"hse", "safety", "permit to work", "ptw", "toolbox talk", "incident", "near miss", "hazard", "scaffold inspection"},
+    "commissioning": {"commissioning", "precommissioning", "pre-commissioning", "startup", "start-up"},
+}
+
+
+def major_discipline_key(text: str | None) -> str | None:
+    if not text:
+        return None
+    t = " " + str(text).lower() + " "
+    for key, words in MAJOR_DISCIPLINE_ALIASES.items():
         if any(w in t for w in words):
             return key
     return None
@@ -264,24 +288,42 @@ def validate_link(evidence: dict, activity: dict | None, *,
                          "Discipline could not be determined on both sides."))
 
     # --- duplicate detection ----------------------------------------------
-    dup = db.q1(
-        "SELECT id, source_file, locator FROM evidence WHERE project_id=? AND id<>? "
-        "AND IFNULL(date,'')=IFNULL(?,'') AND IFNULL(crew,'')=IFNULL(?,'') "
-        "AND IFNULL(quantity,-1)=IFNULL(?,-1) AND substr(IFNULL(description,''),1,80)"
-        "=substr(?,1,80) LIMIT 1",
-        [project_id, evidence.get("id"), evidence.get("date"), evidence.get("crew"),
-         evidence.get("quantity"), evidence.get("description") or ""])
+    # Text equality is *not* enough to call two site observations duplicates.
+    # The same physical event can legitimately be repeated in a DPR, diary,
+    # supervisor voice note, or another contractor sheet; those observations
+    # should corroborate a canonical execution event instead of one being
+    # silently discarded.  We only call a row a source-level duplicate when
+    # we have a stable provenance locator (file + row/page/cell) and an earlier
+    # record with the same provenance key.
+    src = str(evidence.get("source_file") or "").strip()
+    locator = str(evidence.get("locator") or "").strip()
+    dup = None
+    if src and locator:
+        created = float(evidence.get("created_at") or 0.0)
+        dup = db.q1(
+            "SELECT id, source_file, locator FROM evidence "
+            "WHERE project_id=? AND id<>? AND source_file=? AND locator=? "
+            "AND (COALESCE(created_at,0) < ? OR "
+            "(COALESCE(created_at,0)=? AND id < ?)) "
+            "ORDER BY COALESCE(created_at,0), id LIMIT 1",
+            [project_id, evidence.get("id"), src, locator, created, created,
+             evidence.get("id")])
     if dup:
         checks.append(_r("duplicate_detection", WARN,
-                         "An identical record already exists (" +
+                         "The same source locator was already ingested (" +
                          str(dup.get("source_file")) + " " +
-                         str(dup.get("locator")) + ").", duplicate_of=dup["id"]))
+                         str(dup.get("locator")) + ").", duplicate_of=dup["id"],
+                         basis="same_provenance_locator"))
     else:
-        checks.append(_r("duplicate_detection", PASS, "No duplicate record found."))
+        msg = ("No provenance-level duplicate found." if src and locator else
+               "No stable source locator is available; text similarity alone is "
+               "not treated as a duplicate.")
+        checks.append(_r("duplicate_detection", PASS, msg))
 
     # --- historical detection (spec 39) -----------------------------------
     sd = _d(status_date)
-    if ed and sd and ed < sd - timedelta(days=45):
+    historical_days = max(1, int(os.getenv("VEDA_HISTORICAL_DAYS", "90")))
+    if ed and sd and ed < sd - timedelta(days=historical_days):
         checks.append(_r("historical_detection", WARN,
                          "Evidence is " + str((sd - ed).days) + " days older than "
                          "the data date; treat as historical, not current progress.",

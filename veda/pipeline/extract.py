@@ -566,3 +566,27 @@ def _extract_json(project_id: str, f: dict, job_id, text: str, provenance: str =
             "raw_json": db.jdumps(r), "provenance": provenance,
         })
     return out
+
+
+def enrich_evidence_record(row: dict) -> dict:
+    """Attach canonical engineering entities/event state before persistence.
+
+    Deterministic extraction remains source provenance; these normalized fields
+    are derived aids and can always be recomputed from the raw observation.
+    """
+    from ..retrieval.entities import extract_asset_tags, extract_location_tags
+    from ..resolution.events import classify_event
+    out=dict(row)
+    raw=db.jloads(out.get("raw_json"),{})
+    tags=extract_asset_tags(out.get("description"), out.get("location"), out.get("discipline"), custom=raw)
+    locs=extract_location_tags(out.get("location"), out.get("description"), raw)
+    event=classify_event(out)
+    out["asset_tags_json"]=db.jdumps(tags) if tags else None
+    out["location_tags_json"]=db.jdumps(locs) if locs else None
+    out["action_type"]=event.get("action")
+    out["event_type"]=out.get("event_type") or event.get("action")
+    out["event_state"]=event.get("state")
+    out["event_confidence"]=event.get("confidence")
+    if out.get("observed_progress") is None and event.get("progress") is not None:
+        out["observed_progress"]=event.get("progress")
+    return out

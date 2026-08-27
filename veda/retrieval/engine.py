@@ -20,8 +20,15 @@ from typing import Any
 
 from .. import db
 from . import embeddings
-from .entities import (asset_alias_set, event_types, extract_asset_tags,
-                       extract_location_tags, primary_event_type)
+from .entities import (asset_alias_set, asset_ocr_alias_set, event_types, extract_asset_tags,
+                       extract_location_tags, primary_event_type, tag_aliases)
+from ..resolution import events as event_model
+from ..resolution import wbs as wbs_model
+from ..resolution import temporal as temporal_model
+from ..resolution import sequence as sequence_model
+from ..resolution import ranker as engineering_ranker
+
+_SEARCH_CACHE: dict[str, tuple[tuple[int, float], list[dict]]] = {}
 
 STOP = {"the", "and", "for", "with", "of", "to", "in", "on", "at", "a", "an",
         "works", "work", "site", "no", "nos", "shift", "day", "daily", "progress",
@@ -80,6 +87,48 @@ def _custom_text(custom: Any) -> str:
     return " ".join(vals[:40])
 
 
+def _activity_phase(act: dict, action: str | None = None) -> dict:
+    """Resolve schedule lifecycle role with hierarchy-aware precedence."""
+    name = str(act.get("name") or "")
+    # Review/approval tasks remain review tasks even when nested under a
+    # Commissioning/Construction WBS branch.
+    if re.search(r"\b(review|approve|approval|design|engineering check|drawing review)\b", name, re.I):
+        return {"phase":"engineering", "phrase":"activity_review_role", "confidence":0.98}
+    wbs_text = " ".join(str(act.get(k) or "") for k in ("wbs_path","wbs_name"))
+    wp = event_model.detect_phase(wbs_text, None)
+    if wp.get("phase"):
+        return wp
+    np = event_model.detect_phase(name, action)
+    return np
+
+
+def _asset_assertions(text: str, items: list[dict]) -> dict:
+    """Separate positively asserted asset mentions from blocked/pending ones."""
+    segments = [x.strip() for x in re.split(r"[;\n]+", str(text or "")) if x.strip()] or [str(text or "")]
+    positive: set[str] = set(); negative: set[str] = set(); detail=[]
+    from .entities import tag_aliases
+    for item in items or []:
+        if not isinstance(item, dict) or item.get("type") == "document":
+            continue
+        tag = str(item.get("tag") or "")
+        aliases = tag_aliases(tag)
+        compact_aliases = {re.sub(r"[^a-z0-9]", "", x.lower()) for x in aliases}
+        states=[]
+        for seg in segments:
+            compact_seg = re.sub(r"[^a-z0-9]", "", seg.lower())
+            if any(a and a in compact_seg for a in compact_aliases):
+                info = event_model.classify_event(seg)
+                states.append(info.get("state"))
+        if not states:
+            continue
+        is_positive = any(st not in {"blocked","no_progress","planned_future","cancelled","correction"} for st in states)
+        is_negative = all(st in {"blocked","no_progress","planned_future","cancelled","correction"} for st in states)
+        if is_positive: positive.update(aliases)
+        if is_negative: negative.update(aliases)
+        detail.append({"tag":tag,"states":states,"assertion":"positive" if is_positive else "non_progress"})
+    return {"positive_aliases":positive,"negative_aliases":negative,"mentions":detail}
+
+
 def build_activity_document(act: dict, network_context: dict | None = None) -> tuple[str, dict]:
     custom = _json(act.get("custom_json"), {})
     tags = _json(act.get("asset_tags_json"), None)
@@ -99,15 +148,19 @@ def build_activity_document(act: dict, network_context: dict | None = None) -> t
         "WBS node: " + str(act.get("wbs_name") or ""),
         "Engineering tags: " + tag_text,
         "Location: " + " ".join(locs),
+        "Canonical action: " + str(event_model.detect_action(act.get("name"))["action"] or ""),
+        "Lifecycle phase: " + str(_activity_phase(act, event_model.detect_action(act.get("name"))["action"])["phase"] or ""),
         "Status: " + str(act.get("status") or ""),
         "Notes: " + str(act.get("notes") or ""),
         "Custom: " + _custom_text(custom),
-        "Predecessors: " + "; ".join((network_context or {}).get("predecessors") or []),
-        "Successors: " + "; ".join((network_context or {}).get("successors") or []),
+        "[PRED] " + "; ".join((network_context or {}).get("predecessors") or []),
+        "[SUCC] " + "; ".join((network_context or {}).get("successors") or []),
     ]
     text = "\n".join(p for p in parts if p.split(":", 1)[-1].strip())
     meta = {"asset_tags": tags, "asset_aliases": sorted(asset_alias_set(tags)),
             "location_tags": locs, "event_types": event_types(act.get("name")),
+            "canonical_action": event_model.detect_action(act.get("name"))["action"],
+            "lifecycle_phase": _activity_phase(act, event_model.detect_action(act.get("name"))["action"])["phase"],
             "wbs": act.get("wbs"), "wbs_path": act.get("wbs_path"),
             "status": act.get("status"), "network_context": network_context or {}}
     return text, meta
@@ -116,6 +169,41 @@ def build_activity_document(act: dict, network_context: dict | None = None) -> t
 def _fingerprint(text: str, meta: dict, model: str) -> str:
     payload = text + "\n" + json.dumps(meta, sort_keys=True, default=str) + "\n" + model
     return hashlib.sha256(payload.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _cached_documents(project_id: str) -> list[dict]:
+    """Return pre-decoded retrieval rows for steady-state DPR processing.
+
+    The schedule index changes only when a revision is ingested/reindexed.  A
+    50k-activity project must not unpack every embedding and retokenize every
+    activity for each DPR row, so cache those immutable search views and use a
+    cheap DB signature for invalidation.
+    """
+    sigrow = db.q1(
+        "SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) u FROM retrieval_documents "
+        "WHERE project_id=?", [project_id]) or {"c": 0, "u": 0}
+    sig = (int(sigrow.get("c") or 0), float(sigrow.get("u") or 0.0))
+    cached = _SEARCH_CACHE.get(project_id)
+    if cached and cached[0] == sig:
+        return cached[1]
+    rows = db.q(
+        "SELECT d.*,a.* FROM retrieval_documents d JOIN activities a "
+        "ON a.project_id=d.project_id AND a.uid=d.activity_uid "
+        "WHERE d.project_id=? AND a.is_summary=0", [project_id])
+    for row in rows:
+        row["_dense_vec"] = embeddings.unpack_vector(row.get("embedding_blob"))
+        row["_doc_tokens"] = _tokens(row.get("search_text"))
+        row["_sparse_obj"] = _json(row.get("sparse_json"), {})
+        row["_meta_obj"] = _json(row.get("metadata_json"), {})
+    _SEARCH_CACHE[project_id] = (sig, rows)
+    return rows
+
+
+def invalidate_search_cache(project_id: str | None = None) -> None:
+    if project_id is None:
+        _SEARCH_CACHE.clear()
+    else:
+        _SEARCH_CACHE.pop(project_id, None)
 
 
 def index_project(project_id: str, force: bool = False) -> dict:
@@ -151,19 +239,22 @@ def index_project(project_id: str, force: bool = False) -> dict:
         chunk_size = 512
         for pos in range(0, len(pending), chunk_size):
             chunk = pending[pos:pos + chunk_size]
-            vecs = backend.encode([x[1] for x in chunk])
-            for (act, text, meta, fp), vec in zip(chunk, vecs):
+            payload = backend.encode_payload([x[1] for x in chunk]) if hasattr(backend, "encode_payload") else {"dense": backend.encode([x[1] for x in chunk]), "sparse": [None for _ in chunk]}
+            vecs = payload.get("dense") or []
+            sparse_payload = payload.get("sparse") or [None for _ in chunk]
+            for (act, text, meta, fp), vec, sparse in zip(chunk, vecs, sparse_payload):
                 old = existing.get(int(act["uid"]))
                 row = {"project_id": project_id, "activity_uid": int(act["uid"]),
                        "fingerprint": fp, "search_text": text,
                        "embedding_model": backend.name, "embedding_dim": len(vec),
                        "embedding_blob": embeddings.pack_vector(vec),
+                       "sparse_json": db.jdumps(sparse) if sparse else None,
                        "metadata_json": db.jdumps(meta), "updated_at": db.now()}
                 if old:
                     db.ex("UPDATE retrieval_documents SET fingerprint=?,search_text=?,embedding_model=?,"
-                          "embedding_dim=?,embedding_blob=?,metadata_json=?,updated_at=? WHERE id=?",
+                          "embedding_dim=?,embedding_blob=?,sparse_json=?,metadata_json=?,updated_at=? WHERE id=?",
                           [row["fingerprint"], row["search_text"], row["embedding_model"],
-                           row["embedding_dim"], row["embedding_blob"], row["metadata_json"],
+                           row["embedding_dim"], row["embedding_blob"], row["sparse_json"], row["metadata_json"],
                            row["updated_at"], old["id"]])
                 else:
                     db.insert("retrieval_documents", row)
@@ -172,6 +263,8 @@ def index_project(project_id: str, force: bool = False) -> dict:
         ph = ",".join("?" for _ in stale)
         db.ex("DELETE FROM retrieval_documents WHERE project_id=? AND activity_uid IN (" + ph + ")",
               [project_id] + stale)
+    if pending or stale or force:
+        invalidate_search_cache(project_id)
     return {"activities": len(acts), "indexed": len(pending), "removed": len(stale),
             "embedding_backend": backend.name}
 
@@ -185,24 +278,36 @@ def _evidence_query(ev: dict) -> dict:
     locs = _json(ev.get("location_tags_json"), None)
     if locs is None:
         locs = extract_location_tags(ev.get("location"), desc, raw)
-    event = ev.get("event_type") or primary_event_type(desc)
+    event_info = event_model.classify_event(ev)
+    assertions = _asset_assertions(desc, tags)
+    event = event_info.get("action") or ev.get("event_type") or primary_event_type(desc)
     query = "\n".join([
         "Field report: " + desc,
         "Discipline: " + str(ev.get("discipline") or ""),
         "Location: " + str(ev.get("location") or "") + " " + " ".join(locs),
         "Engineering tags: " + " ".join(t.get("tag", "") if isinstance(t, dict) else str(t) for t in tags),
-        "Event: " + str(event or ""),
+        "Canonical action: " + str(event or ""),
+        "Execution state: " + str(event_info.get("state") or ""),
+        "Lifecycle phase: " + str(event_info.get("phase") or ""),
     ])
-    return {"text": query, "asset_tags": tags, "asset_aliases": asset_alias_set(tags),
-            "location_tags": set(locs), "event_type": event,
+    all_aliases = asset_alias_set(tags)
+    positive_aliases = assertions.get("positive_aliases") or set()
+    negative_aliases = assertions.get("negative_aliases") or set()
+    return {"text": query, "asset_tags": tags, "asset_aliases": all_aliases,
+            "positive_asset_aliases": positive_aliases,
+            "negative_asset_aliases": negative_aliases,
+            "anchor_asset_aliases": positive_aliases or all_aliases,
+            "asset_assertions": assertions,
+            "location_tags": set(locs), "event_type": event, "event_info": event_info,
             "discipline": str(ev.get("discipline") or "").strip().lower(),
             "date": _d(ev.get("date"))}
 
 
 def _discipline(act: dict) -> str | None:
     # Reuse the mature validator dictionary without creating a module cycle at import time.
-    from ..pipeline.validators import discipline_key
-    return discipline_key(" ".join(str(act.get(k) or "") for k in ("name", "wbs_name", "wbs_path")))
+    from ..pipeline.validators import major_discipline_key, discipline_key
+    text=" ".join(str(act.get(k) or "") for k in ("name", "wbs_name", "wbs_path"))
+    return major_discipline_key(text) or discipline_key(text)
 
 
 def _context_wbs_priors(project_id: str, ev: dict) -> Counter:
@@ -251,10 +356,11 @@ def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[l
         if not isinstance(item, dict) or item.get("type") != "document":
             from .entities import tag_aliases
             physical_aliases.update(tag_aliases(item.get("tag") if isinstance(item, dict) else str(item)))
+    physical_aliases &= set(q.get("anchor_asset_aliases") or physical_aliases)
     if physical_aliases:
         anchored = []
         for d in all_docs:
-            meta = _json(d.get("metadata_json"), {})
+            meta = d.get("_meta_obj") or _json(d.get("metadata_json"), {})
             if physical_aliases & set(meta.get("asset_aliases") or []):
                 anchored.append(d)
         if anchored:
@@ -298,8 +404,8 @@ def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[l
         maybe_filter("location", lambda d: bool(q["location_tags"] & set(_json(d.get("metadata_json"), {}).get("location_tags") or [])))
 
     qdisc = None
-    from ..pipeline.validators import discipline_key
-    qdisc = discipline_key(ev.get("discipline")) or discipline_key(ev.get("description"))
+    from ..pipeline.validators import discipline_key, major_discipline_key
+    qdisc = major_discipline_key(ev.get("discipline")) or major_discipline_key(ev.get("description")) or discipline_key(ev.get("discipline")) or discipline_key(ev.get("description"))
     if qdisc:
         maybe_filter("discipline", lambda d: _discipline(d) == qdisc)
 
@@ -594,52 +700,119 @@ def _date_corroboration(project_id: str, ev: dict, q: dict) -> tuple[float, list
     }
 
 def _signal_features(project_id: str, ev: dict, act: dict, meta: dict, q: dict) -> dict:
-    from ..pipeline.validators import discipline_key, chainage_values, chainage_window
-    ev_alias = q["asset_aliases"]
+    from ..pipeline.validators import discipline_key, major_discipline_key, chainage_values, chainage_window, source_class, SOURCE_TRUST
+    ev_alias = set(q.get("positive_asset_aliases") or q["asset_aliases"])
+    neg_alias = set(q.get("negative_asset_aliases") or [])
     act_alias = set(meta.get("asset_aliases") or [])
     tag_overlap = ev_alias & act_alias
+    negative_tag_overlap = neg_alias & act_alias
+    ev_ocr = asset_ocr_alias_set(q.get("asset_tags") or [])
+    act_ocr = asset_ocr_alias_set(meta.get("asset_tags") or [])
+    ocr_overlap = (ev_ocr & act_alias) | (act_ocr & ev_alias)
+    ev_tags = {str(x.get("tag") or "") for x in q.get("asset_tags") or [] if isinstance(x, dict)}
+    act_tags = {str(x.get("tag") or "") for x in meta.get("asset_tags") or [] if isinstance(x, dict)}
+    positive_tag_names = {str(x.get("tag") or "") for x in q.get("asset_tags") or [] if isinstance(x,dict) and (not q.get("positive_asset_aliases") or set(tag_aliases(x.get("tag"))) & set(q.get("positive_asset_aliases") or []))}
+    exact_tag_overlap = positive_tag_names & act_tags
+    # A physical identifier disagreement is much stronger than absence of a tag.
+    ev_phys = {str(x.get("tag") or "") for x in q.get("asset_tags") or []
+               if isinstance(x, dict) and x.get("type") != "document" and
+               (not q.get("positive_asset_aliases") or set(tag_aliases(x.get("tag"))) & set(q.get("positive_asset_aliases") or []))}
+    act_phys = {str(x.get("tag") or "") for x in meta.get("asset_tags") or []
+                if isinstance(x, dict) and x.get("type") != "document"}
+    asset_conflict = 1.0 if ev_phys and act_phys and not tag_overlap else 0.0
+
     evloc = q["location_tags"]
     actloc = set(meta.get("location_tags") or [])
     loc_overlap = evloc & actloc
-    evdisc = discipline_key(ev.get("discipline")) or discipline_key(ev.get("description"))
+    ev_by_type = {x.split(":",1)[0]:x for x in evloc if ":" in x}
+    ac_by_type = {x.split(":",1)[0]:x for x in actloc if ":" in x}
+    location_conflict = 1.0 if any(t in ac_by_type and ac_by_type[t] != v for t,v in ev_by_type.items()) else 0.0
+
+    evdisc = major_discipline_key(ev.get("discipline")) or major_discipline_key(ev.get("description")) or discipline_key(ev.get("discipline")) or discipline_key(ev.get("description"))
     adisc = _discipline(act)
-    disc = 1.0 if evdisc and adisc and evdisc == adisc else 0.15 if evdisc and adisc and evdisc != adisc else 0.5
+    disc = 1.0 if evdisc and adisc and evdisc == adisc else 0.10 if evdisc and adisc and evdisc != adisc else 0.5
 
     ev_ch = chainage_values(str(ev.get("chainage") or "") + " " + str(ev.get("description") or ""))
     lo, hi = chainage_window(" ".join(str(act.get(k) or "") for k in ("name", "wbs_path", "wbs_name")))
     chain = 0.5
     if ev_ch and lo is not None:
-        if hi is None:
-            hi = lo
+        if hi is None: hi = lo
         chain = 1.0 if any(lo - 500 <= c <= hi + 500 for c in ev_ch) else 0.0
 
-    temporal, tsup, tcon = _temporal_features(ev, act, q.get("event_type"))
+    event_info = q.get("event_info") or event_model.classify_event(ev)
+    activity_action = meta.get("canonical_action") or event_model.detect_action(act.get("name"))["action"]
+    action_score, action_conflict_reason = event_model.action_compatibility(event_info.get("action"), activity_action)
+    action_conflict = 1.0 if action_conflict_reason else 0.0
+    activity_phase = meta.get("lifecycle_phase") or _activity_phase(act, activity_action)["phase"]
+    phase_score, phase_conflict_reason = event_model.phase_compatibility(event_info.get("phase"), activity_phase)
+    phase_conflict = 1.0 if phase_conflict_reason else 0.0
+
+    snap = db.q1("SELECT data_date,status_date FROM schedule_snapshots WHERE project_id=? AND is_current=1 ORDER BY created_at DESC LIMIT 1", [project_id]) or {}
+    tdetail = temporal_model.features(ev, act, snap, event_info)
     corroboration, csup, ccon, cdetail = _date_corroboration(project_id, ev, q)
     graph, gsup, gcon, gdetail = _graph_features(project_id, ev, act)
-    # WBS context agreement is represented by location/tag/discipline matches in
-    # the resolved path plus lexical overlap with the path itself.
-    qtok = set(_tokens(q["text"]))
-    wtok = set(_tokens(" ".join(str(act.get(k) or "") for k in ("wbs", "wbs_path", "wbs_name"))))
-    wbs_overlap = len(qtok & wtok) / max(1, min(8, len(qtok)))
-    wbs_score = min(1.0, 0.25 + 1.8 * wbs_overlap + (0.25 if loc_overlap else 0.0))
+    wdetail = wbs_model.features(ev, act)
+    hist = sequence_model.score_candidate(project_id, act)
+    source_trust = SOURCE_TRUST.get(source_class(ev.get("source_file"), ev.get("description")), 0.5)
+
+    pred_ready = float(gdetail.get("predecessor_readiness", .5))
+    driving_count = int(gdetail.get("driving_predecessors", 0) or 0)
+    driving_ready = pred_ready if driving_count else .5
+    succ_adv = int(gdetail.get("successors_advanced", 0) or 0)
+    relationship_consistency = graph
+
+    supports=[]; conflicts=[]
+    if tag_overlap: supports.append("engineering identifier agrees: " + ", ".join(sorted(tag_overlap)[:3]))
+    if ocr_overlap and not tag_overlap: supports.append("OCR-probable engineering identifier alias agrees")
+    if exact_tag_overlap: supports.append("exact canonical tag agrees")
+    if negative_tag_overlap: conflicts.append("candidate asset is mentioned only as blocked/pending/non-progress")
+    if asset_conflict: conflicts.append("physical engineering identifier conflicts")
+    if loc_overlap: supports.append("location agrees: " + ", ".join(sorted(loc_overlap)[:3]))
+    if location_conflict: conflicts.append("same location hierarchy type has a different value")
+    if action_score >= .9 and event_info.get("action"): supports.append("canonical action agrees ("+str(event_info.get("action"))+")")
+    if action_conflict_reason: conflicts.append(action_conflict_reason)
+    if phase_score >= .9 and event_info.get("phase"): supports.append("lifecycle phase agrees ("+str(event_info.get("phase"))+")")
+    if phase_conflict_reason: conflicts.append(phase_conflict_reason)
+    if wdetail.get("matched_tokens"): supports.append("WBS ancestry agrees: "+", ".join(wdetail["matched_tokens"][:5]))
+    if wdetail.get("location_conflict"): conflicts.append("WBS/location branch conflicts")
+    supports.extend(csup); supports.extend(gsup); conflicts.extend(ccon); conflicts.extend(gcon)
+
     return {
-        "asset_exact": 1.0 if tag_overlap else 0.0,
+        "asset_exact": 1.0 if exact_tag_overlap else 0.0,
+        "asset_alias": 1.0 if tag_overlap else 0.0,
+        "asset_negative": 1.0 if negative_tag_overlap else 0.0,
+        "evidence_asset_count": float(len(ev_phys)),
+        "asset_coverage": (len(exact_tag_overlap) / max(1, len(ev_phys))) if ev_phys else 0.5,
+        "asset_ocr": 1.0 if ocr_overlap and not tag_overlap else 0.0,
+        "asset_conflict": asset_conflict if not ocr_overlap else min(asset_conflict, 0.12),
         "asset_overlap_count": min(1.0, len(tag_overlap) / 2.0),
+        "action": action_score, "action_conflict": action_conflict,
+        "phase": phase_score, "phase_conflict": phase_conflict,
+        "event_state_non_progress": 1.0 if event_info.get("non_progress") else 0.0,
         "location": 1.0 if loc_overlap else 0.0 if evloc and actloc else 0.5,
+        "location_conflict": location_conflict,
         "discipline": disc,
         "chainage": chain,
-        "temporal": temporal,
+        "temporal": float(tdetail.get("score", .5)),
+        "actual_date": float(tdetail.get("actual", .5)),
+        "current_date": float(tdetail.get("current", .5)),
+        "baseline_date": float(tdetail.get("baseline", .5)),
         "date_corroboration": corroboration,
         "graph": graph,
-        "wbs": wbs_score,
-        "supports": [*(['exact engineering tag: ' + ', '.join(sorted(tag_overlap)[:3])] if tag_overlap else []),
-                     *(['location: ' + ', '.join(sorted(loc_overlap)[:3])] if loc_overlap else []),
-                     *tsup, *csup, *gsup],
-        "conflicts": [*tcon, *ccon, *gcon],
-        "graph_detail": gdetail,
-        "date_detail": cdetail,
+        "pred_ready": pred_ready,
+        "driving_pred_ready": driving_ready,
+        "successor_progress": min(1.0, succ_adv / 2.0),
+        "relationship_consistency": relationship_consistency,
+        "historical_sequence": float(hist.get("score", .5)),
+        "wbs": float(wdetail.get("score", .5)),
+        "wbs_ancestor": float(wdetail.get("ancestor_match", 0.0)),
+        "wbs_code": max(float(wdetail.get("exact_code", 0.0)), float(wdetail.get("code_prefix", 0.0))),
+        "source_trust": float(source_trust),
+        "supports": supports, "conflicts": conflicts,
+        "graph_detail": gdetail, "date_detail": cdetail, "temporal_detail": tdetail,
+        "wbs_detail": wdetail, "historical_sequence_detail": hist,
+        "event_detail": event_info,
     }
-
 
 def _raw_score(f: dict) -> float:
     # Ranking model, not probability.  Exact engineering identity and semantic
@@ -668,12 +841,9 @@ def _raw_score(f: dict) -> float:
 
 
 def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
-                  agent_links: list[dict] | None = None) -> dict:
-    index_info = index_project(project_id)
-    docs = db.q(
-        "SELECT d.*,a.* FROM retrieval_documents d JOIN activities a "
-        "ON a.project_id=d.project_id AND a.uid=d.activity_uid "
-        "WHERE d.project_id=? AND a.is_summary=0", [project_id])
+                  agent_links: list[dict] | None = None, *, ensure_index: bool = True) -> dict:
+    index_info = index_project(project_id) if ensure_index else {"activities": None, "indexed": 0, "embedding_backend": embeddings.get_backend().name, "preindexed": True}
+    docs = _cached_documents(project_id)
     if not docs:
         return {"candidates": [], "diagnostics": {"index": index_info}}
     q = _evidence_query(ev)
@@ -681,20 +851,27 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     if not pool:
         pool = docs
     backend = embeddings.get_backend()
-    qvec = backend.encode([q["text"]])[0]
-    dense_raw = [embeddings.cosine(qvec, embeddings.unpack_vector(d.get("embedding_blob"))) for d in pool]
+    qpayload = backend.encode_payload([q["text"]]) if hasattr(backend, "encode_payload") else {"dense": backend.encode([q["text"]]), "sparse": [None]}
+    qvec = qpayload["dense"][0]
+    q_sparse = (qpayload.get("sparse") or [None])[0]
+    dense_raw = [embeddings.cosine(qvec, d.get("_dense_vec") or embeddings.unpack_vector(d.get("embedding_blob"))) for d in pool]
     dense_norm = _normalize(dense_raw)
     query_tokens = _tokens(q["text"])
-    doc_tokens = [_tokens(d.get("search_text")) for d in pool]
+    doc_tokens = [d.get("_doc_tokens") or _tokens(d.get("search_text")) for d in pool]
     sparse_raw = _bm25(query_tokens, doc_tokens)
     sparse_norm = _normalize(sparse_raw)
+    bge_sparse_raw = [embeddings.sparse_dot(q_sparse, d.get("_sparse_obj") or _json(d.get("sparse_json"), {})) for d in pool] if q_sparse else [0.0 for _ in pool]
+    bge_sparse_norm = _normalize(bge_sparse_raw)
     dr, sr = _rank(dense_raw), _rank(sparse_raw)
     rrf = [1 / (60 + dr[i]) + 1 / (60 + sr[i]) for i in range(len(pool))]
+    if any(v > 0 for v in bge_sparse_raw):
+        br = _rank(bge_sparse_raw)
+        rrf = [v + 1 / (60 + br[i]) for i,v in enumerate(rrf)]
     # Add exact tag ranking as a third retrieval channel when available.
     tag_hits = []
     for d in pool:
-        meta = _json(d.get("metadata_json"), {})
-        tag_hits.append(1.0 if q["asset_aliases"] & set(meta.get("asset_aliases") or []) else 0.0)
+        meta = d.get("_meta_obj") or _json(d.get("metadata_json"), {})
+        tag_hits.append(1.0 if set(q.get("anchor_asset_aliases") or q["asset_aliases"]) & set(meta.get("asset_aliases") or []) else 0.0)
     if any(tag_hits):
         tr = _rank(tag_hits)
         rrf = [v + 1 / (60 + tr[i]) for i, v in enumerate(rrf)]
@@ -721,10 +898,11 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     candidates = []
     for i in first:
         act = pool[i]
-        meta = _json(act.get("metadata_json"), {})
+        meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
         sf = _signal_features(project_id, ev, act, meta, q)
         feat = {"dense": dense_norm[i], "dense_cosine": dense_raw[i],
                 "sparse": sparse_norm[i], "sparse_bm25": sparse_raw[i],
+                "bge_sparse": bge_sparse_norm[i], "bge_sparse_raw": bge_sparse_raw[i],
                 "rrf": rrf[i], "rerank": rerank_raw[i], **sf}
         ap = agent_by_uid.get(int(act["uid"]))
         if ap:
@@ -735,7 +913,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         else:
             feat["agent_agreement"] = 0.0
             feat["agent_confidence"] = 0.0
-        feat["raw_score"] = _raw_score(feat)
+        feat["raw_score"] = _raw_score(feat)  # retained as a retrieval diagnostic only
         candidates.append({"activity": act, "score": feat["raw_score"],
                            "features": feat,
                            "supporting": list(dict.fromkeys(feat.pop("supports"))),
@@ -749,26 +927,23 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         if uid in present or uid not in by_uid:
             continue
         act = by_uid[uid]
-        meta = _json(act.get("metadata_json"), {})
+        meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
         sf = _signal_features(project_id, ev, act, meta, q)
         feat = {"dense": 0.0, "dense_cosine": 0.0, "sparse": 0.0, "sparse_bm25": 0.0,
-                "rrf": 0.0, "rerank": 0.0, **sf,
+                "bge_sparse": 0.0, "bge_sparse_raw": 0.0, "rrf": 0.0, "rerank": 0.0, **sf,
                 "agent_agreement": 1.0, "agent_confidence": float(ap.get("confidence") or 0.5)}
         feat["raw_score"] = _raw_score(feat)
         candidates.append({"activity": act, "score": feat["raw_score"], "features": feat,
                            "supporting": list(ap.get("supporting_signals") or []),
                            "conflicting": list(ap.get("conflicting_signals") or []),
                            "from_agent": True})
-    candidates.sort(key=lambda c: c["score"], reverse=True)
-    # Separation from the nearest alternative is a powerful uncertainty signal.
-    # Keep it outside the handcrafted rank score so the learned confidence layer
-    # can discover how much margin actually predicts correctness.
-    for pos, cand in enumerate(candidates):
-        others = [c["score"] for j, c in enumerate(candidates) if j != pos]
-        cand["features"]["rank_margin"] = max(0.0, cand["score"] - max(others)) if others else 1.0
-        cand["features"]["rank_position"] = 1.0 / (pos + 1.0)
+    ranked = engineering_ranker.rank(project_id, candidates)
+    candidates = ranked["candidates"]
     diagnostics.update({"index": index_info, "embedding_backend": backend.name,
-                        "retrieved_pool": len(pool), "reranked": len(first)})
+                        "embedding_diagnostics": backend.diagnostics() if hasattr(backend, "diagnostics") else {},
+                        "retrieved_pool": len(pool), "reranked": len(first),
+                        "channels": {"dense": True, "bm25": True, "bge_sparse": bool(q_sparse), "exact_tag": any(tag_hits)},
+                        "engineering_ranker": ranked.get("diagnostics")})
     return {"candidates": candidates[:max(top_k, 1)], "diagnostics": diagnostics}
 
 
