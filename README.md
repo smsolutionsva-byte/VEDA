@@ -32,6 +32,16 @@ as a schedule fact.
 ---
 
 
+## v0.3.1 — TreeRank + Rescheduler challengers
+
+v0.3.1 adds two structural resolver/planning challengers without replacing the established Adaptive ExecutionRank path. **TreeRank** models parent/child/sibling/ancestor schedule structure and granularity; **Rescheduler** performs opportunistic counterfactual rolling-horizon planning over a small disputed candidate set.
+
+On the 180-case mixed holdout, TreeRank reached **65.58% Top-1** on UID-labelled cases and **69.44%** on exact links. Rescheduler is not a strong universal matcher, but reached **100% frozen-TEST Top-1** and **87.5% mixed-holdout Top-1** on live-workfront cases. See `V0.3.1_RELEASE_NOTES.md` and `VEDA_GOOSE_BENCHMARK/challengers_v031/TREE_RESCHEDULER_FULL_SCORECARD.md`.
+
+The intended direction is multi-expert: EngineeringRank answers *what*, TreeRank answers *where/at what hierarchy level*, WorkfrontRank contributes *what is active now*, and Rescheduler reasons about *what changes next*.
+
+---
+
 ## v0.3.0 — Adaptive ExecutionRank
 
 VEDA now keeps **EngineeringRank** and **WorkfrontRank** as separate resolver experts and uses a learned query-level gate to decide which expert should have authority for each observation. The gate uses evidence completeness, candidate ambiguity, WBS/location/temporal discrimination, frontier concentration, graph coherence and expert disagreement. It does **not** use benchmark category labels or hardcoded rules such as `if WBS -> disable graph`.

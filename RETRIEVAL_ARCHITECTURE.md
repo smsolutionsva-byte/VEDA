@@ -1,4 +1,4 @@
-# VEDA Hybrid Schedule Entity Resolution (v0.2)
+# VEDA Hybrid Schedule Entity Resolution (v0.3.1)
 
 VEDA resolves messy field evidence to L5/L6 schedule activities using independent,
 explainable signals. Horizun remains the schedule truth/CPM engine; retrieval never
@@ -64,3 +64,10 @@ fallback, not the recommended production embedding model.
 `confidence` on new evidence links is the calibrated/provisional probability returned
 by the calibration layer. `calibration_mode` declares whether it came from project
 labels, organization-wide labels, or the conservative cold-start prior.
+
+
+## v0.3.1 structural challengers
+
+- **TreeRank** maintains parent/child/sibling/ancestor schedule context and an independent hierarchy candidate channel. Its current strongest role is hierarchical identity and granularity; it is not a live-workfront model.
+- **Rescheduler** performs evidence-directed candidate screening followed by counterfactual local state updates and bounded rolling-horizon beam search. It is experimental and should be treated as planning/state-transition evidence rather than schedule truth.
+- **Current production principle:** do not globally sum all expert scores. Expert authority should be learned from query context, uncertainty and discriminative power; deterministic validators and human review remain downstream safety gates.
