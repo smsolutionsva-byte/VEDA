@@ -5,6 +5,8 @@ const S = {
   project: null, projects: [], view: 'overview', params: {},
   counts: {}, health: null, es: null, streamProject: null, overview: null,
   agentCompletionTimer: null,
+  agentWatchTimer: null, agentWatchProject: null, agentJobFingerprint: null,
+  agentSyncBusy: false, renderVersion: 0,
 };
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -80,17 +82,25 @@ function renderRail() {
 
 function go(view, params) {
   S.view = view; S.params = params || {};
+  if (view !== 'agent') {
+    clearTimeout(S.agentCompletionTimer);
+    S.agentCompletionTimer = null;
+  }
   location.hash = view + (params && params.id ? '/' + params.id : '');
-  renderRail(); render();
+  renderRail(); syncAgentWatchdog(); render();
 }
 window.go = go;
 
 /* ------------------------------------------------------------ render */
 async function render() {
   const main = $('#main');
+  const version = ++S.renderVersion;
+  const renderProject = S.project;
+  const renderView = S.view;
   if (!S.project) {
     main.innerHTML = VIEWS.noproject();
     bindNoProject();
+    syncAgentWatchdog();
     return;
   }
   const fn = VIEWS[S.view] || VIEWS.overview;
@@ -100,12 +110,19 @@ async function render() {
     main.innerHTML = '<div class="empty">Loading…</div>';
   }
   try {
-    main.innerHTML = await fn(S.project, S.params);
-    if (VIEWS['bind_' + S.view]) VIEWS['bind_' + S.view](S.project, S.params);
+    const html = await fn(renderProject, S.params);
+    if (version !== S.renderVersion || renderProject !== S.project ||
+        renderView !== S.view) return;
+    main.innerHTML = html;
+    if (VIEWS['bind_' + renderView]) VIEWS['bind_' + renderView](renderProject, S.params);
+    syncAgentWatchdog();
   } catch (e) {
+    if (version !== S.renderVersion || renderProject !== S.project ||
+        renderView !== S.view) return;
     main.innerHTML = '<div class="panel"><div class="body">' +
       '<div class="note danger"><b>Could not load this view.</b><br>' +
       esc(e.message) + '</div></div></div>';
+    syncAgentWatchdog();
   }
 }
 window.render = render;
@@ -116,9 +133,15 @@ async function refreshCounts() {
   try {
     const o = await api('/projects/' + S.project + '/overview');
     S.overview = o;
+    const latestJob = o.latest_job || null;
+    const analysisRunning = Boolean(latestJob &&
+      ['queued', 'running'].includes(String(latestJob.status || '')));
     S.counts = Object.assign({}, o.counts, {
       qa_failed: o.quality.failed,
-      attention: Number(o.counts.pending_reviews || 0) + Number(o.counts.pending_proposals || 0) + ((Number(o.counts.unresolved_evidence || 0) > 0 && Number(o.counts.pending_reviews || 0) === 0) ? 1 : 0),
+      attention: Number(o.counts.pending_reviews || 0) +
+        Number(o.counts.pending_proposals || 0) +
+        ((!analysisRunning && Number(o.counts.unresolved_evidence || 0) > 0 &&
+          Number(o.counts.pending_reviews || 0) === 0) ? 1 : 0),
     });
     renderRail();
     const ps = o.project_state || { code: 'up_to_date', label: 'Up to date' };
@@ -181,6 +204,7 @@ async function loadProjects(selectId) {
     : '<option value="">No projects yet</option>';
   const nextProject = selectId || (r.projects[0] && r.projects[0].id) || null;
   const changed = nextProject !== S.project;
+  if (changed) stopAgentWatchdog();
   S.project = nextProject;
   if (S.project) sel.value = S.project;
   if (changed && S.project) await activateCurrentProject(S.project);
@@ -248,6 +272,9 @@ function showDeleteConfirmation(project) {
 
       if (deletingCurrent) {
         if (S.es) { S.es.close(); S.es = null; }
+        stopAgentWatchdog();
+        clearTimeout(S.agentCompletionTimer);
+        S.agentCompletionTimer = null;
         S.project = null;
         S.overview = null;
         S.counts = {};
@@ -349,6 +376,82 @@ async function activateCurrentProject(pid) {
   }
 }
 
+/* ------------------------------------------------ durable run watchdog
+   SSE is the fast path. This scoped reconciliation loop covers a suspended
+   tab, reconnect gap, or coalesced burst by comparing durable job/activity
+   fingerprints while the execution view is visible. */
+function stopAgentWatchdog() {
+  if (S.agentWatchTimer) clearInterval(S.agentWatchTimer);
+  S.agentWatchTimer = null;
+  S.agentWatchProject = null;
+  S.agentJobFingerprint = null;
+  S.agentSyncBusy = false;
+}
+
+function runPresentationBehind() {
+  const map = $('#main .intelligence-run');
+  if (!map) return false;
+  return Number(map.dataset.runDisplay || 0) < Number(map.dataset.runActual || 0);
+}
+
+function maybeLeaveCompletedRun(projectId, job) {
+  const terminal = job && job.kind === 'analysis' && job.status === 'done';
+  if (!terminal || runPresentationBehind() || S.view !== 'agent' ||
+      S.project !== projectId) {
+    clearTimeout(S.agentCompletionTimer);
+    S.agentCompletionTimer = null;
+    return;
+  }
+  if (S.agentCompletionTimer) return;
+  S.agentCompletionTimer = setTimeout(() => {
+    S.agentCompletionTimer = null;
+    if (S.view === 'agent' && S.project === projectId) go('overview');
+  }, 1800);
+}
+
+async function pollAgentState(projectId) {
+  if (S.agentSyncBusy || S.view !== 'agent' || S.project !== projectId) return;
+  S.agentSyncBusy = true;
+  try {
+    const [jobs, activity] = await Promise.all([
+      api('/projects/' + projectId + '/jobs?limit=1'),
+      api('/projects/' + projectId + '/agent-activity?limit=1'),
+    ]);
+    if (S.view !== 'agent' || S.project !== projectId) return;
+    const job = jobs.jobs && jobs.jobs[0];
+    const latest = activity.activity && activity.activity[0];
+    const fingerprint = [job && job.id, job && job.status, job && job.phase,
+      job && job.finished_at, latest && latest.id, latest && latest.created_at,
+      latest && latest.label].join('|');
+    if (fingerprint !== S.agentJobFingerprint || runPresentationBehind()) {
+      S.agentJobFingerprint = fingerprint;
+      await render();
+      if (S.view === 'agent' && S.project === projectId) {
+        if (job && ['done', 'failed', 'cancelled'].includes(job.status)) {
+          await refreshCounts();
+        }
+        maybeLeaveCompletedRun(projectId, job);
+      }
+    }
+  } catch (_) {
+    // The SSE reconnect path and next interval both retry durable state.
+  } finally {
+    S.agentSyncBusy = false;
+  }
+}
+
+function syncAgentWatchdog() {
+  if (S.view !== 'agent' || !S.project) {
+    stopAgentWatchdog();
+    return;
+  }
+  if (S.agentWatchTimer && S.agentWatchProject === S.project) return;
+  stopAgentWatchdog();
+  S.agentWatchProject = S.project;
+  const projectId = S.project;
+  S.agentWatchTimer = setInterval(() => pollAgentState(projectId), 720);
+}
+
 function bindNoProject() {
   const b = $('#createFirst');
   if (b) b.onclick = newProject;
@@ -375,10 +478,7 @@ function connectStream() {
       j.status === 'done';
     if (allowNavigate && terminalAnalysis && S.view === 'agent') {
       await render();
-      clearTimeout(S.agentCompletionTimer);
-      S.agentCompletionTimer = setTimeout(() => {
-        if (S.view === 'agent' && S.project === streamProject) go('overview');
-      }, 1800);
+      maybeLeaveCompletedRun(streamProject, j);
       return;
     }
     if (['overview', 'attention', 'ask', 'evidence', 'outputs', 'observed',
@@ -395,7 +495,10 @@ function connectStream() {
     clearTimeout(pending);
     pending = setTimeout(() => syncFromServer(true), 350);
   };
-  es.onerror = () => { /* EventSource retries; onopen performs state catch-up. */ };
+  es.onerror = () => {
+    // EventSource reconnects itself; immediately reconcile durable state too.
+    syncFromServer(false);
+  };
 }
 
 /* ---------------------------------------------------------------- init */
@@ -430,6 +533,7 @@ async function init() {
       return;
     }
     connectStream();
+    syncAgentWatchdog();
     await refreshCounts();
     render();
   };
@@ -445,7 +549,7 @@ async function init() {
   window.addEventListener('hashchange', () => {
     const [v, id] = location.hash.replace('#', '').split('/');
     if (v && v !== S.view) { S.view = v; S.params = id ? { id: id } : {};
-                             renderRail(); render(); }
+                             renderRail(); syncAgentWatchdog(); render(); }
   });
   const [v, id] = location.hash.replace('#', '').split('/');
   if (v) { S.view = v; S.params = id ? { id: id } : {}; }

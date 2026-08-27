@@ -1648,12 +1648,14 @@ const RUN_PHASE_ORDER = {
   queued: 0, files_received: 0,
   mcp_health: 1, schedule_detected: 1, schedule_reused: 1,
   schedule_parsed: 1, schedule_loaded: 1, schedule_snapshot: 1,
-  evidence_quarantined: 2, evidence_processed: 2,
+  evidence_quarantined: 2, evidence_processed: 2, evidence_reused: 2,
   agent_invoked: 3, agent_status: 3, agent_unavailable: 3,
   agent_error: 3, agent_failed: 3, tool_call: 3,
   structured_output_rejected: 3, structured_output_partial: 3,
   provider_selected: 3, fallback_analysis: 3,
-  output_ready: 4, dry_run_complete: 5,
+  output_ready: 4, resolver_indexing: 4, resolver_experts: 4,
+  resolver_ranking: 4, resolver_validating: 5, dry_run_complete: 5,
+  resolver_persisting: 6,
   associations_validated: 6, human_review_required: 7,
 };
 
@@ -1675,6 +1677,42 @@ function runContext(job, activity) {
   return { phase, ordinal, status, latest, names };
 }
 
+VIEWS._runPlayback = VIEWS._runPlayback || {};
+
+function presentedRunContext(job, activity) {
+  const actual = runContext(job, activity);
+  if (!job || actual.status === 'empty' ||
+      actual.status === 'failed' || actual.status === 'cancelled') {
+    return { ...actual, actualOrdinal: actual.ordinal, catchingUp: false };
+  }
+
+  const now = Date.now();
+  let playback = VIEWS._runPlayback[job.id];
+  if (!playback) {
+    // A terminal job opened from history should be immediately truthful. A
+    // live job starts at Sources, then replays only stages the server persisted.
+    const firstOrdinal = actual.status === 'done' ? actual.ordinal : 0;
+    playback = VIEWS._runPlayback[job.id] = {
+      ordinal: Math.min(firstOrdinal, actual.ordinal), lastAdvance: now,
+    };
+  }
+  if (actual.ordinal < playback.ordinal) {
+    playback.ordinal = actual.ordinal;
+    playback.lastAdvance = now;
+  } else if (actual.ordinal > playback.ordinal && now - playback.lastAdvance >= 620) {
+    playback.ordinal += 1;
+    playback.lastAdvance = now;
+  }
+  const catchingUp = playback.ordinal < actual.ordinal;
+  return {
+    ...actual,
+    actualOrdinal: actual.ordinal,
+    ordinal: playback.ordinal,
+    status: actual.status === 'done' && catchingUp ? 'running' : actual.status,
+    catchingUp,
+  };
+}
+
 function runState(level, ctx, guarded) {
   if (guarded) return 'guarded';
   if (ctx.status === 'empty') return 'pending';
@@ -1691,10 +1729,11 @@ function runState(level, ctx, guarded) {
 
 function runNode(level, ctx, title, question, meta, delay, guarded) {
   const state = runState(level, ctx, guarded);
+  const slug = String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const marker = state === 'done' ? '✓' : state === 'failed' ? '!' :
     state === 'guarded' ? '◇' : '•';
-  return '<div class="arch-node ' + state + '" style="--delay:' +
-    Math.round(Number(delay) || 0) + 'ms"><span class="arch-marker" aria-hidden="true">' +
+  return '<div class="arch-node node-' + slug + ' ' + state + '">' +
+    '<span class="arch-marker" aria-hidden="true">' +
     marker + '</span><div><b>' + E(title) + '</b>' +
     (question ? '<em>' + E(question) + '</em>' : '') +
     (meta ? '<small>' + E(meta) + '</small>' : '') + '</div></div>';
@@ -1716,7 +1755,7 @@ function runDuration(job) {
 }
 
 function executionMap(job, activity) {
-  const ctx = runContext(job, activity);
+  const ctx = presentedRunContext(job, activity);
   const phaseLabel = String(ctx.phase || 'queued').replace(/_/g, ' ');
   const needsReview = ctx.names.has('human_review_required');
   const statusLabel = ctx.status === 'done' ? 'Analysis complete' :
@@ -1731,7 +1770,12 @@ function executionMap(job, activity) {
     [4, 'Resolver'], [6, 'Controls'], [7, 'Decision'],
   ];
 
-  return '<section class="intelligence-run ' + statusClass + '">' +
+  return '<section class="intelligence-run ' + statusClass + '" aria-label="VEDA execution status"' +
+    ' data-run-job="' + E(job ? job.id : '') + '"' +
+    ' data-run-display="' + E(ctx.ordinal) + '"' +
+    ' data-run-actual="' + E(ctx.actualOrdinal) + '"' +
+    ' data-run-terminal="' + E(job ? job.status : '') + '"' +
+    (statusClass === 'running' ? ' aria-busy="true"' : '') + '>' +
     '<header class="run-header"><div class="run-title">' +
       '<div class="eyebrow">Persisted execution intelligence</div>' +
       '<h2>Field truth → governed schedule decision</h2>' +
@@ -1740,15 +1784,19 @@ function executionMap(job, activity) {
       '<div class="run-status"><span class="run-beacon" aria-hidden="true"></span>' +
       '<div><b>' + E(statusLabel) + '</b><small>' + E(phaseLabel) + ' · ' +
       E(runDuration(job)) + '</small></div></div></header>' +
-    '<div class="run-milestones">' + milestones.map(([level, label]) =>
-      '<div class="run-milestone ' + runState(level, ctx, false) + '">' +
-      '<i></i><span>' + E(label) + '</span></div>').join('') + '</div>' +
+    '<div class="run-milestones" aria-label="Execution stages">' +
+      milestones.map(([level, label]) => {
+        const state = runState(level, ctx, false);
+        return '<div class="run-milestone ' + state + '"' +
+          (state === 'active' ? ' aria-current="step"' : '') + '>' +
+          '<i aria-hidden="true"></i><span>' + E(label) + '</span></div>';
+      }).join('') + '</div>' +
     '<div class="architecture-map">' +
       '<div class="map-caption"><span>Live architecture</span>' +
       '<small>WHAT × WHERE × CHANGED WORLD</small></div>' +
       runNode(0, ctx, 'Field observation', 'What changed on site?',
         'DPR · note · report · image', 0, false) +
-      runConnector(1, ctx) +
+      runConnector(4, ctx) +
       runNode(4, ctx, 'Semantic candidate floor', 'Which activities are plausible?',
         'Candidate retrieval · no forced match', 80, false) +
       '<div class="arch-fork ' + runState(4, ctx, false) + '">' +

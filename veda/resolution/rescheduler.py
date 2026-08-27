@@ -24,13 +24,18 @@ from __future__ import annotations
 import json, math, re
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 from .. import db
 from . import events as event_model
 from ..retrieval.entities import extract_location_tags, extract_asset_tags, asset_alias_set
 
 _CACHE: dict[str, dict] = {}
 _RECENT_STATE_CACHE: dict[tuple[str, str], dict] = {}
+
+
+def _checkpoint(cancel_check: Callable[[], None] | None) -> None:
+    if cancel_check:
+        cancel_check()
 
 
 def _date(v):
@@ -46,14 +51,16 @@ def _prefix(v: Any, levels: int = 3) -> str:
     return '.'.join(parts[:levels])
 
 
-def _index(project_id: str) -> dict:
+def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> dict:
+    _checkpoint(cancel_check)
     sig = db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?', [project_id]) or {'c':0,'u':0}
     key = (int(sig.get('c') or 0), float(sig.get('u') or 0.0))
     old = _CACHE.get(project_id)
     if old and old.get('sig') == key: return old
     acts = {int(a['uid']): a for a in db.q('SELECT * FROM activities WHERE project_id=? AND is_summary=0', [project_id]) if a.get('uid') is not None}
     prefix_map=defaultdict(set); info={}; action_map=defaultdict(set); asset_map=defaultdict(set); location_map=defaultdict(set); discipline_map=defaultdict(set)
-    for uid,a in acts.items():
+    for position, (uid,a) in enumerate(acts.items()):
+        if position % 128 == 0: _checkpoint(cancel_check)
         pref=_prefix(a.get('wbs') or a.get('wbs_path'),3)
         if pref: prefix_map[pref].add(uid)
         tags=extract_asset_tags(a.get('name'),a.get('custom_json'),a.get('wbs_path'))
@@ -70,7 +77,8 @@ def _index(project_id: str) -> dict:
         for loc in locs: location_map[str(loc).lower()].add(uid)
         if disc: discipline_map[disc].add(uid)
     preds=defaultdict(list); succs=defaultdict(list)
-    for r in db.q('SELECT * FROM relationships WHERE project_id=?', [project_id]):
+    for position, r in enumerate(db.q('SELECT * FROM relationships WHERE project_id=?', [project_id])):
+        if position % 256 == 0: _checkpoint(cancel_check)
         if r.get('pred_uid') is None or r.get('succ_uid') is None: continue
         p,s=int(r['pred_uid']),int(r['succ_uid']); preds[s].append(r); succs[p].append(r)
     out={'sig':key,'acts':acts,'preds':preds,'succs':succs,'prefix_map':prefix_map,'info':info,
@@ -145,11 +153,18 @@ def _temporal_uid(idx,uid,day)->float:
     return .5
 
 
-def _continuity(a,b)->float:
-    if not a or not b:return .5
-    la=set(extract_location_tags(a.get('wbs_path'),a.get('name')));lb=set(extract_location_tags(b.get('wbs_path'),b.get('name')))
+def _continuity(idx, a_uid:int|None, b_uid:int|None)->float:
+    """Cached workface continuity for the rolling-horizon inner loop.
+
+    Location and WBS features are materialized by `_index`. Re-extracting them
+    thousands of times per evidence row made Rescheduler dominate runtime.
+    """
+    if a_uid is None or b_uid is None:return .5
+    ai=idx['info'].get(int(a_uid),{});bi=idx['info'].get(int(b_uid),{})
+    if not ai or not bi:return .5
+    la=set(ai.get('locations') or ());lb=set(bi.get('locations') or ())
     loc=1.0 if la and lb and la&lb else .35
-    wa=_prefix(a.get('wbs') or a.get('wbs_path'),3);wb=_prefix(b.get('wbs') or b.get('wbs_path'),3)
+    wa=str(ai.get('prefix') or '');wb=str(bi.get('prefix') or '')
     wbs=1.0 if wa and wb and wa==wb else .30
     return .58*loc+.42*wbs
 
@@ -208,13 +223,15 @@ def _local_pool(idx,uid,day)->set[int]:
     return pool
 
 
-def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override:set[int],oos_active:set[int],mode:str,depth=3,width=8)->tuple[float,list[int]]:
+def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override:set[int],oos_active:set[int],mode:str,depth=3,width=8,cancel_check: Callable[[], None] | None = None)->tuple[float,list[int]]:
     """Repair a short rolling horizon after the observation has changed the world."""
     pool=_local_pool(idx,anchor_uid,day)
     states=[(0.0,[],set(started_override),set(completed_override),set(oos_active),anchor_uid)]
     for step in range(depth):
+        _checkpoint(cancel_check)
         new=[]
-        for util,path,started,done,oos,last in states:
+        for state_position, (util,path,started,done,oos,last) in enumerate(states):
+            if state_position % 4 == 0: _checkpoint(cancel_check)
             actions=[]
             # Continuing/finishing already-started work is a valid opportunistic action.
             for uid in started-done:
@@ -224,7 +241,7 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
                 if uid in oos and mode=='Progress Override': ready=max(ready,.96)
                 elif uid in oos and mode=='Actual Dates': ready=max(ready,.84)
                 if ready>=.10:
-                    sc=.42*ready+.33*_temporal_uid(idx,uid,day)+.25*_continuity(idx['acts'].get(last),a)
+                    sc=.42*ready+.33*_temporal_uid(idx,uid,day)+.25*_continuity(idx,last,uid)
                     actions.append((sc,uid,'finish'))
             for uid in pool:
                 if uid in started or uid in done:continue
@@ -232,7 +249,7 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
                 if _completed(a,day):continue
                 ready,_,_=_pred_readiness(idx,uid,day,started,done,'start')
                 if ready<.10:continue
-                temp=_temporal_uid(idx,uid,day);cont=_continuity(idx['acts'].get(last),a);critical=1.0 if a.get('critical') else .5
+                temp=_temporal_uid(idx,uid,day);cont=_continuity(idx,last,uid);critical=1.0 if a.get('critical') else .5
                 sc=.42*ready+.28*temp+.20*cont+.10*critical
                 actions.append((sc,uid,'startfinish'))
             if not actions:
@@ -246,8 +263,10 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
     return min(1.0,best[0]/max(1e-6,maxu)),best[1]
 
 
-def score_candidate(project_id:str,ev:dict,cand:dict)->tuple[float,dict]:
-    idx=_index(project_id);a=cand.get('activity') or {};uid=int(a.get('uid'));day=_date(ev.get('date'))
+def score_candidate(project_id:str,ev:dict,cand:dict,
+                    cancel_check: Callable[[], None] | None = None)->tuple[float,dict]:
+    _checkpoint(cancel_check)
+    idx=_index(project_id,cancel_check=cancel_check);a=cand.get('activity') or {};uid=int(a.get('uid'));day=_date(ev.get('date'))
     info=event_model.classify_event(ev);state=info.get('state');positive=state in {'finish','progress','start','mixed'}
     started=set();done=set()
     if state in {'start','progress','mixed'}:started.add(uid)
@@ -257,7 +276,8 @@ def score_candidate(project_id:str,ev:dict,cand:dict)->tuple[float,dict]:
     mode=_schedule_mode(project_id);ctx=_planning_context(ev);override_conf=float(ctx['precedence_override_confidence'])
     oos_active={uid} if oos else set()
     temp=_temporal_uid(idx,uid,day);recent=_recent_context(idx,project_id,uid,day)
-    future,path=_beam_future(idx,uid,day,started,done,oos_active,mode,depth=3,width=7)
+    future,path=_beam_future(idx,uid,day,started,done,oos_active,mode,depth=3,width=7,
+                             cancel_check=cancel_check)
     unlock=0.0
     if uid in done:
         for r in idx['succs'].get(uid,[]):
@@ -286,9 +306,11 @@ def _recent_prefix_candidates(idx,project_id,day)->dict[int,float]:
     return out
 
 
-def seed_candidates(project_id:str,ev:dict,limit:int=40)->list[dict]:
+def seed_candidates(project_id:str,ev:dict,limit:int=40,
+                    cancel_check: Callable[[], None] | None = None)->list[dict]:
     """Independent changed-world attention screen; no WorkfrontRank dependency."""
-    idx=_index(project_id);day=_date(ev.get('date'));einfo=event_model.classify_event(ev);action=einfo.get('action');disc=str(ev.get('discipline') or '').lower()
+    _checkpoint(cancel_check)
+    idx=_index(project_id,cancel_check=cancel_check);day=_date(ev.get('date'));einfo=event_model.classify_event(ev);action=einfo.get('action');disc=str(ev.get('discipline') or '').lower()
     qaliases=asset_alias_set(extract_asset_tags(ev.get('description'),ev.get('asset_tag'),ev.get('asset_tags')))
     qloc=set(extract_location_tags(ev.get('description'),ev.get('location')))
     qtokens={x for x in re.findall(r'[a-z0-9]+',str(ev.get('description') or '').lower()) if x not in {'completed','complete','started','start','site','unit','area','work','the','and'}}
@@ -310,7 +332,8 @@ def seed_candidates(project_id:str,ev:dict,limit:int=40)->list[dict]:
     elif disc_u:pool|=set(list(disc_u)[:3000])
     if not pool:pool=set(idx['acts'])
     scored=[]
-    for uid in pool:
+    for position, uid in enumerate(pool):
+        if position % 64 == 0: _checkpoint(cancel_check)
         a=idx['acts'].get(uid);inf=idx['info'].get(uid,{})
         if not a:continue
         asset=1.0 if qaliases and qaliases&set(inf.get('aliases') or []) else (.5 if not qaliases else 0.0)
@@ -324,20 +347,26 @@ def seed_candidates(project_id:str,ev:dict,limit:int=40)->list[dict]:
     return [{'activity':idx['acts'][uid],'score':score,'features':{'engineering_rank_score':score,'rescheduler_recent_seed':rc},'supporting':['reality-first planner seed'],'conflicting':[],'from_agent':False} for score,uid,rc in scored[:limit]]
 
 
-def standalone_rank(project_id:str,ev:dict,limit:int=24)->dict:
-    return rerank(project_id,ev,seed_candidates(project_id,ev,limit=40),limit=limit)
+def standalone_rank(project_id:str,ev:dict,limit:int=24,
+                    cancel_check: Callable[[], None] | None = None)->dict:
+    return rerank(project_id,ev,seed_candidates(project_id,ev,limit=40,
+                  cancel_check=cancel_check),limit=limit,
+                  cancel_check=cancel_check)
 
 
-def rerank(project_id:str,ev:dict,candidates:list[dict],limit=24)->dict:
+def rerank(project_id:str,ev:dict,candidates:list[dict],limit=24,
+           cancel_check: Callable[[], None] | None = None)->dict:
+    _checkpoint(cancel_check)
     prepared=[]
     for c0 in candidates:
         c={**c0,'features':dict(c0.get('features') or {})};f=c['features'];eng=float(f.get('engineering_rank_score',c.get('score') or 0.0));prepared.append((eng,c))
     prepared.sort(key=lambda x:x[0],reverse=True);ordered=[x[0] for x in prepared]
     margin=(ordered[0]-ordered[1]) if len(ordered)>1 else 1.0;ambiguity=max(0.0,min(1.0,1.0-margin/0.22));alpha=.08+.30*ambiguity
     deep_uids={int(c['activity']['uid']) for _,c in prepared[:12]};out=[]
-    for eng,c in prepared:
+    for position, (eng,c) in enumerate(prepared):
+        if position % 4 == 0: _checkpoint(cancel_check)
         uid=int(c['activity']['uid'])
-        if uid in deep_uids:rs,rf=score_candidate(project_id,ev,c)
+        if uid in deep_uids:rs,rf=score_candidate(project_id,ev,c,cancel_check=cancel_check)
         else:rs=.5;rf={'rescheduler_score':.5,'replan_skipped':True}
         score=(1.0-alpha)*eng+alpha*rs;c['features'].update(rf);c['features']['rescheduler_authority']=alpha;c['score']=score;out.append(c)
     out.sort(key=lambda c:c['score'],reverse=True)

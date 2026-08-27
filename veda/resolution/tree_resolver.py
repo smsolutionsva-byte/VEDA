@@ -16,13 +16,18 @@ from __future__ import annotations
 import math, re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 from .. import db
 from ..retrieval.entities import extract_asset_tags, asset_alias_set, extract_location_tags
 from . import events as event_model
 
 _CACHE: dict[str, dict] = {}
+
+
+def _checkpoint(cancel_check: Callable[[], None] | None) -> None:
+    if cancel_check:
+        cancel_check()
 
 
 def _date(v: Any):
@@ -53,7 +58,8 @@ def _discipline_from_path(a: dict) -> str:
     return p[-1].lower() if p else ''
 
 
-def _index(project_id: str) -> dict:
+def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> dict:
+    _checkpoint(cancel_check)
     sig=db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?',[project_id]) or {'c':0,'u':0}
     key=(int(sig.get('c') or 0),float(sig.get('u') or 0.0))
     old=_CACHE.get(project_id)
@@ -63,7 +69,8 @@ def _index(project_id: str) -> dict:
     nodes=defaultdict(lambda:{'children':set(),'leaves':set(),'depth':0,'label':''})
     asset_map=defaultdict(set); token_map=defaultdict(set); name_token_map=defaultdict(set); location_map=defaultdict(set); branch_map=defaultdict(set)
     info={}
-    for a in acts:
+    for position, a in enumerate(acts):
+        if position % 128 == 0: _checkpoint(cancel_check)
         uid=int(a['uid']); parts=_path_parts(a)
         parent=()
         for d,part in enumerate(parts,1):
@@ -99,15 +106,18 @@ def _evidence(ev: dict) -> dict:
             'discipline':_norm(ev.get('discipline')),'tokens':toks,'date':_date(ev.get('date'))}
 
 
-def candidate_uids(project_id: str, ev: dict, limit: int=160) -> list[int]:
+def candidate_uids(project_id: str, ev: dict, limit: int=160,
+                   cancel_check: Callable[[], None] | None = None) -> list[int]:
     """Hierarchical candidate generation independent of semantic retrieval."""
-    idx=_index(project_id); q=_evidence(ev); votes=defaultdict(float)
+    _checkpoint(cancel_check)
+    idx=_index(project_id,cancel_check=cancel_check); q=_evidence(ev); votes=defaultdict(float)
     # Exact/safe asset identity seeds entire leaf families.
     for al in q['aliases']:
         for uid in idx['asset_map'].get(_norm(al).replace(' ',''),()): votes[uid]+=4.0
     # Hierarchy/location/discipline words seed branches.
     important={t for t in q['tokens'] if t not in {'project','work','completed','complete','started','start','final','site','unit','area'}}
-    for t in important:
+    for position, t in enumerate(important):
+        if position % 16 == 0: _checkpoint(cancel_check)
         us=idx['token_map'].get(t,())
         if len(us)<=2500:
             for uid in us: votes[uid]+=1.0
@@ -153,8 +163,10 @@ def _loc_score(q_locs:set[str], a_locs:set[str], parts:tuple[str,...], qtokens:s
     return .15+.65*j
 
 
-def score_activity(project_id:str, ev:dict, uid:int, q:dict|None=None) -> tuple[float,dict]:
-    idx=_index(project_id); a=idx['activities'].get(int(uid)); inf=idx['info'].get(int(uid),{})
+def score_activity(project_id:str, ev:dict, uid:int, q:dict|None=None,
+                   cancel_check: Callable[[], None] | None = None) -> tuple[float,dict]:
+    _checkpoint(cancel_check)
+    idx=_index(project_id,cancel_check=cancel_check); a=idx['activities'].get(int(uid)); inf=idx['info'].get(int(uid),{})
     if not a: return 0.0,{}
     q=q or _evidence(ev)
     a_alias=set(inf.get('aliases') or []); exact=1.0 if q['aliases'] and (q['aliases'] & a_alias) else (0.5 if not q['aliases'] else 0.0)
@@ -175,14 +187,17 @@ def score_activity(project_id:str, ev:dict, uid:int, q:dict|None=None) -> tuple[
         'tree_phase':phase,'tree_discipline':disc,'tree_branch':branch,'tree_leaf_text':leaf,'tree_temporal':temp,'tree_path':list(inf.get('parts') or ())}
 
 
-def rerank(project_id:str, ev:dict, engineering_candidates:list[dict], limit:int=24) -> dict:
-    idx=_index(project_id); q=_evidence(ev); by_uid={int(c['activity']['uid']):c for c in engineering_candidates if (c.get('activity') or {}).get('uid') is not None}
+def rerank(project_id:str, ev:dict, engineering_candidates:list[dict], limit:int=24,
+           cancel_check: Callable[[], None] | None = None) -> dict:
+    _checkpoint(cancel_check)
+    idx=_index(project_id,cancel_check=cancel_check); q=_evidence(ev); by_uid={int(c['activity']['uid']):c for c in engineering_candidates if (c.get('activity') or {}).get('uid') is not None}
     uids=list(by_uid)
-    for uid in candidate_uids(project_id,ev,160):
+    for uid in candidate_uids(project_id,ev,160,cancel_check=cancel_check):
         if uid not in by_uid: uids.append(uid)
     out=[]
-    for uid in uids:
-        ts,tf=score_activity(project_id,ev,uid,q=q)
+    for position, uid in enumerate(uids):
+        if position % 16 == 0: _checkpoint(cancel_check)
+        ts,tf=score_activity(project_id,ev,uid,q=q,cancel_check=cancel_check)
         if uid in by_uid:
             c={**by_uid[uid], 'features':dict(by_uid[uid].get('features') or {})}
             eng=float(c.get('score') or 0.0)

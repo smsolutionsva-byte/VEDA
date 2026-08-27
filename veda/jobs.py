@@ -647,6 +647,12 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
         step(job_id, project_id, "evidence_processed",
              str(total_ev) + " evidence records extracted from " +
              str(len(ev_files)) + " document(s)")
+    else:
+        ready_ev = int((db.q1(
+            "SELECT COUNT(*) c FROM evidence WHERE project_id=?", [project_id])
+            or {}).get("c", 0))
+        step(job_id, project_id, "evidence_reused",
+             str(ready_ev) + " existing evidence record(s) ready for reasoning")
 
     _raise_if_cancelled(job_id)
     # ---- 4. reasoning (spec 7 - VEDA invokes the agent itself) ----------
@@ -910,12 +916,19 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
             "supporting_signals": l.supporting_signals,
             "conflicting_signals": l.conflicting_signals})
 
-    link_stats = linking.link_evidence(project_id, job_id=job_id,
-                                       agent_links=agent_links)
+    link_stats = linking.link_evidence(
+        project_id, job_id=job_id, agent_links=agent_links,
+        progress=lambda phase, label, detail=None: step(
+            job_id, project_id, phase, label, "success", detail),
+        cancel_check=lambda: _raise_if_cancelled(job_id))
+    _raise_if_cancelled(job_id)
+    step(job_id, project_id, "resolver_persisting",
+         "Persisting governed findings and proposed actions")
 
     # ---- issues and risks, kept distinct (spec 32) ----------------------
     n_issues = 0
     for i in result.issues:
+        _raise_if_cancelled(job_id)
         if db.q1("SELECT id FROM issues WHERE project_id=? AND title=?",
                  [project_id, i.title]):
             continue
@@ -937,6 +950,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
 
     n_risks = 0
     for r in result.risks:
+        _raise_if_cancelled(job_id)
         if db.q1("SELECT id FROM risks WHERE project_id=? AND title=?",
                  [project_id, r.title]):
             continue
@@ -961,6 +975,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
     # ---- review questions the model raised (spec 40, 41) ----------------
     n_reviews = 0
     for q in result.review_questions:
+        _raise_if_cancelled(job_id)
         ids = [ref_to_id.get(r, r) for r in q.affected_evidence_refs]
         reviews.create(project_id=project_id, kind=q.kind, title=q.title,
                        question=q.question, detail=q.detail,
@@ -972,6 +987,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
     # ---- change proposals: validated, then dry-run (spec 46, 47) --------
     n_props = 0
     for p in result.change_proposals:
+        _raise_if_cancelled(job_id)
         pid = proposals.create(
             project_id, operation=p.operation, target_uid=p.target_uid,
             field=p.field, proposed_value=p.proposed_value, reason=p.reason,
@@ -994,6 +1010,7 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
 
     # ---- artifacts -------------------------------------------------------
     for a in result.artifacts:
+        _raise_if_cancelled(job_id)
         path = None
         if a.content:
             out = config.project_dir(project_id) / "outputs"

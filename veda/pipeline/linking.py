@@ -13,8 +13,9 @@ never changes that activity's official progress.
 from __future__ import annotations
 
 import re
+import time
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 from .. import db, reviews
 from ..retrieval import engine as retrieval_engine, calibration
@@ -233,13 +234,24 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
                   evidence_rows: list | None = None,
                   agent_links: dict | None = None,
                   status_date: str | None = None,
-                  raise_reviews: bool = True) -> dict:
+                  raise_reviews: bool = True,
+                  progress: Callable[[str, str, str | None], None] | None = None,
+                  cancel_check: Callable[[], None] | None = None) -> dict:
     """Resolve evidence identity through hybrid retrieval + engineering risk policy.
 
     `linked` means the evidence identity was associated with an activity.  It
     still does NOT authorize a Primavera actual/progress write; mutation remains
     proposal/approval/verified-write territory.
     """
+    def checkpoint() -> None:
+        if cancel_check:
+            cancel_check()
+
+    def report(phase: str, label: str, detail: str | None = None) -> None:
+        if progress:
+            progress(phase, label, detail)
+
+    checkpoint()
     if evidence_rows is None:
         evidence_rows = db.q(
             "SELECT * FROM evidence WHERE project_id=? AND state IN "
@@ -257,9 +269,27 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
     # Build/refresh the schedule representation once per batch.  Each DPR row
     # then performs a warm query against the same revision rather than scanning
     # and re-embedding the schedule repeatedly.
-    retrieval_engine.index_project(project_id)
+    total = len(evidence_rows)
+    report("resolver_indexing", "Building the semantic candidate floor",
+           str(total) + " evidence record(s) queued for identity resolution")
+    index_info = retrieval_engine.index_project(
+        project_id, cancel_check=cancel_check)
+    checkpoint()
+    report("resolver_experts",
+           "Semantic, Engineering, Tree and Rescheduler experts are ready",
+           "Four candidate lists will be fused by MetaRank · " +
+           str(index_info.get("embedding_backend") or "retrieval ready"))
 
-    for ev in evidence_rows:
+    last_progress_at = 0.0
+    for position, ev in enumerate(evidence_rows, start=1):
+        checkpoint()
+        progress_now = time.monotonic()
+        if (position == 1 or position == total or
+                progress_now - last_progress_at >= 1.0):
+            report("resolver_ranking",
+                   "Resolving field evidence " + str(position) + " of " + str(total),
+                   "Candidate union → expert utilities → LambdaMART MetaRank")
+            last_progress_at = progress_now
         if ev.get("security_state") in ("suspicious", "quarantined"):
             db.update("evidence", ev["id"], {"state": "quarantined"})
             stats["quarantined"] += 1
@@ -278,7 +308,10 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
         ev = {**ev, "action_type": event_info.get("action"), "event_state": event_info.get("state")}
 
         agent_proposed = (agent_links or {}).get(ev["id"], [])
-        hs = retrieval_engine.hybrid_search(project_id, ev, top_k=8, agent_links=agent_proposed, ensure_index=False)
+        hs = retrieval_engine.hybrid_search(
+            project_id, ev, top_k=8, agent_links=agent_proposed,
+            ensure_index=False, cancel_check=cancel_check)
+        checkpoint()
         cands = hs.get("candidates") or []
 
         if not cands:
@@ -368,8 +401,13 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
         if state == "linked":
             _upsert_execution_event(project_id, ev, best, event_info, cal)
 
+    checkpoint()
+    report("resolver_validating",
+           "Calibrating ranks and applying deterministic risk policy",
+           "Identity confidence is separated from schedule-write authority")
     if raise_reviews:
         _raise_cluster_reviews(project_id, clusters, job_id)
+    checkpoint()
     rebuild_observed_progress(project_id)
     return {"stats": stats, "clusters": len(clusters)}
 

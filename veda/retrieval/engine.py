@@ -18,7 +18,7 @@ import os
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 from .. import db
 from . import embeddings
@@ -232,7 +232,10 @@ def invalidate_search_cache(project_id: str | None = None) -> None:
         _SEARCH_CACHE.pop(project_id, None); _VECTOR_MATRIX_CACHE.pop(project_id,None); _BM25_CACHE.pop(project_id,None)
 
 
-def index_project(project_id: str, force: bool = False) -> dict:
+def index_project(project_id: str, force: bool = False,
+                  cancel_check: Callable[[], None] | None = None) -> dict:
+    if cancel_check:
+        cancel_check()
     backend = embeddings.get_backend()
     acts = db.q("SELECT * FROM activities WHERE project_id=? AND is_summary=0", [project_id])
     existing = {int(r["activity_uid"]): r for r in db.q(
@@ -241,7 +244,9 @@ def index_project(project_id: str, force: bool = False) -> dict:
     pending = []
     keep = set()
     network: dict[int, dict[str, list[str]]] = defaultdict(lambda: {"predecessors": [], "successors": []})
-    for rel in db.q("SELECT pred_uid,pred_name,succ_uid,succ_name,type,lag_days,driving FROM relationships WHERE project_id=?", [project_id]):
+    for position, rel in enumerate(db.q("SELECT pred_uid,pred_name,succ_uid,succ_name,type,lag_days,driving FROM relationships WHERE project_id=?", [project_id])):
+        if cancel_check and position % 256 == 0:
+            cancel_check()
         puid, suid = rel.get("pred_uid"), rel.get("succ_uid")
         typ = str(rel.get("type") or "FS")
         lag = float(rel.get("lag_days") or 0.0)
@@ -249,7 +254,9 @@ def index_project(project_id: str, force: bool = False) -> dict:
         if suid is not None and puid is not None:
             network[int(suid)]["predecessors"].append(str(rel.get("pred_name") or puid) + suffix)
             network[int(puid)]["successors"].append(str(rel.get("succ_name") or suid) + suffix)
-    for act in acts:
+    for position, act in enumerate(acts):
+        if cancel_check and position % 128 == 0:
+            cancel_check()
         uid = int(act["uid"])
         keep.add(uid)
         nctx = {k: v[:5] for k, v in network.get(uid, {}).items()} if uid in network else None
@@ -262,10 +269,16 @@ def index_project(project_id: str, force: bool = False) -> dict:
         # Chunk indexing so a large P6 schedule does not hold every 1024-d vector
         # in memory at once. FlagEmbedding still batches internally; this bounds
         # VEDA's own peak memory and makes revision re-indexing predictable.
-        chunk_size = 512
+        # Smaller cancellable chunks bound how long a deleted/switched project
+        # can retain the single worker while an embedding batch is in flight.
+        chunk_size = 128 if cancel_check else 512
         for pos in range(0, len(pending), chunk_size):
+            if cancel_check:
+                cancel_check()
             chunk = pending[pos:pos + chunk_size]
             payload = backend.encode_payload([x[1] for x in chunk]) if hasattr(backend, "encode_payload") else {"dense": backend.encode([x[1] for x in chunk]), "sparse": [None for _ in chunk]}
+            if cancel_check:
+                cancel_check()
             vecs = payload.get("dense") or []
             sparse_payload = payload.get("sparse") or [None for _ in chunk]
             # Bulk upsert per embedding chunk.  Large schedules can contain tens
@@ -300,6 +313,8 @@ def index_project(project_id: str, force: bool = False) -> dict:
               [project_id] + stale)
     if pending or stale or force:
         invalidate_search_cache(project_id)
+    if cancel_check:
+        cancel_check()
     return {"activities": len(acts), "indexed": len(pending), "removed": len(stale),
             "embedding_backend": backend.name}
 
@@ -898,8 +913,15 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
                   agent_links: list[dict] | None = None, *, ensure_index: bool = True,
                   use_workfront: bool | None = None,
                   use_adaptive_gate: bool | None = None,
-                  use_metarank: bool | None = None) -> dict:
-    index_info = index_project(project_id) if ensure_index else {"activities": None, "indexed": 0, "embedding_backend": embeddings.get_backend().name, "preindexed": True}
+                  use_metarank: bool | None = None,
+                  cancel_check: Callable[[], None] | None = None) -> dict:
+    def checkpoint() -> None:
+        if cancel_check:
+            cancel_check()
+
+    checkpoint()
+    index_info = index_project(project_id, cancel_check=cancel_check) if ensure_index else {"activities": None, "indexed": 0, "embedding_backend": embeddings.get_backend().name, "preindexed": True}
+    checkpoint()
     docs = _cached_documents(project_id)
     if not docs:
         return {"candidates": [], "diagnostics": {"index": index_info}}
@@ -924,6 +946,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         use_workfront = False
         use_adaptive_gate = False
     pool, diagnostics = _metadata_candidates(project_id, ev, docs)
+    checkpoint()
     if not pool:
         pool = docs
     frontier_info = None
@@ -975,6 +998,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         rr = backend.pair_scores(pairs)
     except Exception:
         rr = None
+    checkpoint()
     if rr:
         rrn = _normalize(rr)
         for idx, val in zip(first, rrn):
@@ -988,7 +1012,9 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     agent_by_uid = {int(a.get("activity_uid")): a for a in (agent_links or [])
                     if a.get("activity_uid") is not None}
     candidates = []
-    for i in first:
+    for position, i in enumerate(first):
+        if position % 8 == 0:
+            checkpoint()
         act = pool[i]
         meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
         sf = _signal_features(project_id, ev, act, meta, q)
@@ -1034,6 +1060,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     # compare both variants in ONE semantic retrieval pass, which is important
     # at 10k+ activities and prevents benchmarking cache/warmup artifacts.
     base_ranked = engineering_ranker.rank(project_id, copy.deepcopy(candidates))
+    checkpoint()
     pre_workfront_candidates = base_ranked["candidates"]
 
     # Independent execution-frontier candidate channel.  This runs after the
@@ -1127,16 +1154,24 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
 
         try:
             from ..resolution import tree_resolver
-            tree_candidates = (tree_resolver.rerank(project_id, ev, [], limit=24).get("candidates") or [])[:24]
+            tree_candidates = (tree_resolver.rerank(
+                project_id, ev, [], limit=24,
+                cancel_check=cancel_check).get("candidates") or [])[:24]
         except Exception as ex:
+            checkpoint()
             expert_errors["tree"] = f"{type(ex).__name__}: {ex}"
             tree_candidates = []
+        checkpoint()
         try:
             from ..resolution import rescheduler
-            rescheduler_candidates = (rescheduler.standalone_rank(project_id, ev, limit=24).get("candidates") or [])[:24]
+            rescheduler_candidates = (rescheduler.standalone_rank(
+                project_id, ev, limit=24,
+                cancel_check=cancel_check).get("candidates") or [])[:24]
         except Exception as ex:
+            checkpoint()
             expert_errors["rescheduler"] = f"{type(ex).__name__}: {ex}"
             rescheduler_candidates = []
+        checkpoint()
 
         experts = {
             "semantic": semantic_candidates,
@@ -1151,12 +1186,14 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
                 candidates = meta["candidates"]
             metarank_diag = meta.get("diagnostics") or {}
         except Exception as ex:
+            checkpoint()
             expert_errors["metarank"] = f"{type(ex).__name__}: {ex}"
             # Fail closed to the established EngineeringRank ordering rather
             # than silently trusting a partially initialized learned router.
             candidates = engineering_candidates
             metarank_diag = {"mode": "engineering_fail_closed", "error": expert_errors["metarank"]}
 
+    checkpoint()
     diagnostics.update({"index": index_info, "embedding_backend": backend.name,
                         "embedding_diagnostics": backend.diagnostics() if hasattr(backend, "diagnostics") else {},
                         "retrieved_pool": len(pool), "reranked": len(first),

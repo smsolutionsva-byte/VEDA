@@ -27,6 +27,29 @@ _MODEL_PATH = os.environ.get("VEDA_EMBEDDING_MODEL_PATH", "").strip()
 _RERANKER_MODEL = os.environ.get("VEDA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3").strip()
 _RERANKER_PATH = os.environ.get("VEDA_RERANKER_MODEL_PATH", "").strip()
 _ALLOW_DOWNLOAD = os.environ.get("VEDA_ALLOW_MODEL_DOWNLOAD", "0").lower() in ("1", "true", "yes")
+_ALLOW_CPU_BGE = os.environ.get("VEDA_ALLOW_CPU_BGE", "0").lower() in ("1", "true", "yes")
+
+
+def _accelerator_available() -> bool:
+    """Whether the installed Torch runtime can execute learned retrieval off CPU.
+
+    BGE-M3 is a large learned model. Merely finding its cached weights is not a
+    useful `auto` signal on CPU-only operator laptops, where one batch can take
+    minutes and monopolize VEDA's single worker.
+    """
+    requested = os.environ.get("VEDA_EMBEDDING_DEVICE", "auto").strip().lower()
+    if requested == "cpu":
+        return False
+    if requested.startswith("cuda") or requested in ("mps", "xpu"):
+        return True
+    try:
+        import torch  # type: ignore
+        if bool(torch.cuda.is_available()):
+            return True
+        mps = getattr(getattr(torch, "backends", None), "mps", None)
+        return bool(mps and mps.is_available())
+    except Exception:
+        return False
 
 
 def _norm(v: list[float]) -> list[float]:
@@ -65,6 +88,9 @@ class HashEmbeddingBackend:
     """
     name = "hash-ngram-v2"
     dim = _DIM
+
+    def __init__(self, selection_reason: str = "configured fallback"):
+        self.selection_reason = selection_reason
 
     @staticmethod
     def _features(text: str) -> list[str]:
@@ -105,7 +131,8 @@ class HashEmbeddingBackend:
 
     def diagnostics(self) -> dict:
         return {"backend": self.name, "dim": self.dim, "reranker_loaded": False,
-                "native_sparse": False, "device": "cpu"}
+                "native_sparse": False, "device": "cpu",
+                "selection_reason": self.selection_reason}
 
 
 class BgeM3Backend:
@@ -113,7 +140,11 @@ class BgeM3Backend:
 
     def __init__(self, model_ref: str):
         from FlagEmbedding import BGEM3FlagModel  # type: ignore
-        use_fp16 = os.environ.get("VEDA_EMBEDDING_FP16", "1").lower() not in ("0", "false", "no")
+        # Half precision speeds accelerator inference but is counterproductive
+        # for the normal CPU path. Explicit CPU BGE therefore stays FP32.
+        use_fp16 = (_accelerator_available() and
+                    os.environ.get("VEDA_EMBEDDING_FP16", "1").lower()
+                    not in ("0", "false", "no"))
         self.use_fp16 = use_fp16
         self.model_ref = model_ref
         self.name = "bge-m3:" + str(model_ref)
@@ -128,7 +159,7 @@ class BgeM3Backend:
                 from FlagEmbedding import FlagReranker  # type: ignore
                 self._reranker = FlagReranker(
                     rref or _RERANKER_MODEL, query_max_length=256,
-                    passage_max_length=int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "512")),
+                    passage_max_length=int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "256")),
                     use_fp16=use_fp16)
             except Exception:
                 self._reranker = None
@@ -140,7 +171,7 @@ class BgeM3Backend:
         batch = int(os.environ.get("VEDA_EMBEDDING_BATCH", "32"))
         # Activity documents are compact.  Keeping this far below BGE-M3's 8192
         # maximum materially reduces latency without truncating normal schedule context.
-        max_len = int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "512"))
+        max_len = int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "256"))
         out = self._model.encode(texts, batch_size=batch, max_length=max_len,
                                  return_dense=True, return_sparse=True,
                                  return_colbert_vecs=False)
@@ -166,8 +197,8 @@ class BgeM3Backend:
                 "reranker_loaded": self._reranker is not None,
                 "reranker_model": (_RERANKER_PATH or _RERANKER_MODEL) if self._reranker is not None else None,
                 "native_sparse": True, "fp16": self.use_fp16, "device": dev,
-                "embedding_max_length": int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "512")),
-                "rerank_max_length": int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "512"))}
+                "embedding_max_length": int(os.environ.get("VEDA_EMBEDDING_MAX_LENGTH", "256")),
+                "rerank_max_length": int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "256"))}
 
     def pair_scores(self, pairs: list[tuple[str, str]]) -> list[float] | None:
         if not pairs:
@@ -188,7 +219,7 @@ class BgeM3Backend:
                 pass
         # If the cross-encoder is not cached, BGE-M3's own dense+sparse+ColBERT
         # interaction is a strong local reranking fallback without another model.
-        max_passage = int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "512"))
+        max_passage = int(os.environ.get("VEDA_RERANK_MAX_LENGTH", "256"))
         result = self._model.compute_score(
             payload, max_passage_length=max_passage,
             weights_for_different_modes=[0.42, 0.23, 0.35],
@@ -233,13 +264,15 @@ def get_backend():
         return _BACKEND_SINGLETON
 
     if _BACKEND in ("hash", "hashed", "fallback"):
-        _BACKEND_SINGLETON = HashEmbeddingBackend()
+        _BACKEND_SINGLETON = HashEmbeddingBackend("explicitly configured")
         return _BACKEND_SINGLETON
 
     can_import = importlib.util.find_spec("FlagEmbedding") is not None
     model_ref = _local_model_ref()
+    accelerated = _accelerator_available()
     should_try = _BACKEND in ("bge", "bge-m3") or (
         _BACKEND == "auto" and can_import and (model_ref or _ALLOW_DOWNLOAD)
+        and (accelerated or _ALLOW_CPU_BGE)
     )
     if should_try and can_import:
         try:
@@ -250,5 +283,7 @@ def get_backend():
             # available and the caller can inspect the backend name in results.
             pass
 
-    _BACKEND_SINGLETON = HashEmbeddingBackend()
+    reason = "CPU-safe auto selection" if _BACKEND == "auto" and not accelerated \
+        else "learned backend unavailable"
+    _BACKEND_SINGLETON = HashEmbeddingBackend(reason)
     return _BACKEND_SINGLETON
