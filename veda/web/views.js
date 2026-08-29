@@ -89,6 +89,96 @@ VIEWS.noproject = () =>
   '<button class="btn primary" id="createFirst">Create a project</button>' +
   '</div></section>';
 
+/* ===================================================== Field capture */
+VIEWS.capture = async (pid) => {
+  const r = await A('/projects/' + pid + '/field-captures?limit=30');
+  const captures = r.captures || [];
+  const recent = captures.length ? captures.map(c => {
+    const statusMap = { proposal_ready: 'green', confirmed_no_change: 'green',
+      needs_activity: 'amber', conflict: 'red' };
+    const detail = [c.activity_display_id, c.activity_name].filter(Boolean).join(' · ');
+    return '<article class="capture-history-item">' +
+      '<div class="capture-history-state"><i></i><span>' +
+      tagFor(c.event_state, {start: 'blue', progress: 'amber', finish: 'green'}) +
+      '</span></div><div class="capture-history-copy"><div><b>' +
+      E(detail || 'Activity not linked yet') + '</b><span class="mono">' +
+      E(day(c.occurred_at)) + '</span></div><p>' + E(c.confirmed_text) + '</p>' +
+      '<footer>' + tagFor(c.status, statusMap) +
+      (c.observed_progress !== null && c.observed_progress !== undefined
+        ? '<span>' + num(c.observed_progress) + '% complete</span>' : '') +
+      (c.remaining_days !== null && c.remaining_days !== undefined
+        ? '<span>' + num(c.remaining_days) + 'd remaining</span>' : '') +
+      ((c.media_file_ids || []).length ? '<span>' + int(c.media_file_ids.length) + ' media</span>' : '') +
+      ((c.proposal_ids || []).length ? '<button class="link" onclick="go(\'proposals\')">Review proposals</button>' : '') +
+      (c.status === 'needs_activity' && c.evidence_id
+        ? '<button class="link" onclick="go(\'evidence-detail\',{id:\'' + E(c.evidence_id) + '\'})">Link evidence</button>' : '') +
+      '</footer></div></article>';
+  }).join('') : empty('No field updates yet',
+    'The first confirmed update will appear here with its activity link and proposal state.');
+
+  return head('Field capture', 'Fast on site · confirmed by a person · safe offline',
+    '<button class="btn sm" onclick="go(\'files\')">Files</button>' +
+    '<button class="btn sm" onclick="go(\'proposals\')">Edit proposals</button>') +
+    '<div class="capture-status-row"><div class="capture-connectivity" id="capture-connectivity">Checking connection…</div>' +
+    '<div class="capture-outbox">Saved on device <b id="capture-outbox-count">0</b>' +
+    '<button class="btn sm" id="capture-sync-now">Sync now</button></div></div>' +
+    '<input id="capture-client-id" type="hidden">' +
+    '<div class="capture-layout"><section class="capture-composer">' +
+      '<div class="capture-section"><div class="capture-step"><span>1</span><div><b>What changed?</b>' +
+      '<small>Choose the event you personally observed.</small></div></div>' +
+      '<div class="capture-event-grid">' +
+        '<label class="capture-event-option"><input type="radio" name="capture-event" value="start"><span><b>Started</b><small>Work began on site</small></span></label>' +
+        '<label class="capture-event-option selected"><input type="radio" name="capture-event" value="progress" checked><span><b>Progress</b><small>Work advanced</small></span></label>' +
+        '<label class="capture-event-option"><input type="radio" name="capture-event" value="finish"><span><b>Finished</b><small>Scope is complete</small></span></label>' +
+      '</div><div class="capture-fields-two"><label><span>When observed</span>' +
+      '<input class="inp" id="capture-occurred" type="datetime-local"></label>' +
+      '<label><span>Your name / crew</span><input class="inp" id="capture-reporter" placeholder="e.g. S. Kumar · Piping A"></label></div>' +
+      '<div class="capture-fields-two" id="capture-progress-fields"><label><span>Measured progress % <em>optional</em></span>' +
+      '<input class="inp" id="capture-progress" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="e.g. 65"></label>' +
+      '<label><span>Remaining working days <em>optional</em></span><input class="inp" id="capture-remaining" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Only if explicitly known"></label></div>' +
+      '<div class="note" id="capture-finish-rule" hidden>Finish creates a governed Actual Finish, 100% complete, and zero remaining-duration proposal bundle.</div></div>' +
+
+      '<div class="capture-section"><div class="capture-step"><span>2</span><div><b>Capture the field truth</b>' +
+      '<small>Voice and photos remain attached to the confirmed words.</small></div></div>' +
+      '<div class="capture-action-grid"><button class="capture-action voice" id="capture-voice" type="button"><i>●</i><b>Record voice</b><small>Audio is kept as evidence</small></button>' +
+      '<button class="capture-action photo" id="capture-photo" type="button"><i>▣</i><b>Take photos</b><small>Use camera or gallery</small></button></div>' +
+      '<input type="file" id="capture-photo-file" accept="image/*" capture="environment" multiple hidden>' +
+      '<input type="file" id="capture-audio-file" accept="audio/*" capture hidden>' +
+      '<div id="capture-media-tray" class="capture-media-tray"></div>' +
+      '<label class="capture-wide-label"><span>Spoken or typed observation</span>' +
+      '<textarea class="inp" id="capture-original" rows="4" placeholder="Describe the work, exact area, quantities, blockers, and what you personally observed."></textarea></label>' +
+      '<div class="capture-transcript-source" id="capture-transcript-source">Type a note, or record voice for an optional on-device draft transcript.</div></div>' +
+
+      '<div class="capture-section"><div class="capture-step"><span>3</span><div><b>Place and activity</b>' +
+      '<small>Explicit selection prevents the wrong schedule activity from receiving actuals.</small></div></div>' +
+      '<label class="capture-wide-label"><span>Schedule activity <em>search by ID, name, or WBS</em></span>' +
+      '<input class="inp" id="capture-activity-search" autocomplete="off" placeholder="Start typing an activity…"></label>' +
+      '<div class="capture-activity-results" id="capture-activity-results"></div>' +
+      '<div class="capture-activity-selected" id="capture-activity-selected"></div>' +
+      '<div class="capture-fields-two"><label><span>Area / location label</span>' +
+      '<input class="inp" id="capture-location-label" placeholder="e.g. Unit 04 · Pipe rack B"></label>' +
+      '<div class="capture-location-box"><button class="btn" id="capture-location" type="button">Use device location</button>' +
+      '<small id="capture-location-status">Location is optional and permission-based.</small></div></div></div>' +
+
+      '<div class="capture-section capture-confirm-section"><div class="capture-step"><span>4</span><div><b>Confirm before sending</b>' +
+      '<small>VEDA uses these exact words; a transcript is never accepted silently.</small></div></div>' +
+      '<div class="capture-fields-two"><label><span>Language</span><select class="inp" id="capture-language">' +
+      '<option value="en">English</option><option value="hi-IN">हिन्दी</option>' +
+      '<option value="ar">العربية</option><option value="es">Español</option>' +
+      '<option value="fr">Français</option><option value="ur">اردو</option></select></label>' +
+      '<div class="capture-confirm-badge"><i>✓</i><span><b>Human confirmation</b><small>Required for every event</small></span></div></div>' +
+      '<label class="capture-wide-label"><span>Confirmed field update</span>' +
+      '<textarea class="inp" id="capture-confirmed" rows="5" placeholder="Review or translate the observation, then confirm the exact wording here."></textarea></label>' +
+      '<div class="capture-policy"><span>Evidence saved</span><i>→</i><span>Activity identity</span><i>→</i><span>Proposal only</span><i>→</i><span>Planner approval</span></div>' +
+      '<button class="btn primary capture-save" id="capture-save" type="button">Confirm & save update</button>' +
+      '<p class="capture-safety">Saving never writes to Primavera. If an official value differs, VEDA holds the conflict for a planner.</p></div>' +
+    '</section><aside class="capture-history">' + panel('Recent field updates <small>' + captures.length + '</small>',
+      '<div class="capture-history-list">' + recent + '</div>') + '</aside></div>';
+};
+VIEWS.bind_capture = (pid) => {
+  if (window.FieldCapture) window.FieldCapture.bind(pid);
+};
+
 /* ===================================================== 1. overview */
 VIEWS.overview = async (pid) => {
   const o = await A('/projects/' + pid + '/overview');
@@ -1574,13 +1664,27 @@ function proposalCard(p) {
 }
 
 VIEWS.proposals = async (pid) => {
-  const r = await A('/projects/' + pid + '/proposals');
+  const [r, p6] = await Promise.all([
+    A('/projects/' + pid + '/proposals'),
+    A('/integrations/primavera/status').catch(() => ({configured: false, gates: {}})),
+  ]);
+  const gates = p6.gates || {};
   return head('Proposed changes', 'Nothing is written without a dry-run and ' +
     'an approval') +
     '<div class="note warn" style="margin-bottom:14px">' +
     'Agent proposes → validators → Horizun dry-run → impact → human approval → ' +
     'verified write. VEDA reports success only after independently re-reading ' +
     'the value.</div>' +
+    panel('Primavera sandbox adapter', '<div class="body"><div class="integration-status">' +
+      '<div><span class="integration-beacon ' + (p6.configured ? 'ready' : '') + '"></span>' +
+      '<div><b>' + E(p6.configured ? 'P6 REST connection configured' : 'P6 REST connection not configured') + '</b>' +
+      '<small>' + E(p6.note || '') + '</small></div></div>' +
+      '<div class="integration-gates">' +
+      [['Sandbox', gates.sandbox_environment], ['Writes armed', p6.writes_armed],
+       ['Project allow-list', gates.project_allowlist], ['Activity IDs', gates.activity_id_mapping],
+       ['Duration units', gates.duration_conversion]].map(x =>
+        '<span class="' + (x[1] ? 'ok' : '') + '"><i>' + (x[1] ? '✓' : '–') + '</i>' + E(x[0]) + '</span>').join('') +
+      '</div></div><div class="note" style="margin-top:11px">The adapter maps only approved Actual Start, Actual Finish, Percent Complete, and Remaining Duration proposals. Production writes are disabled in this release; sandbox writes require OAuth, an explicit ProjectObjectId allow-list, and verified activity ID mapping.</div></div>') +
     (r.proposals.length
       ? r.proposals.map(proposalCard).join('')
       : panel('Proposed changes', empty('No proposed changes',

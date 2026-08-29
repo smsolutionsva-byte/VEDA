@@ -29,9 +29,13 @@ const post = (p, body) => api(p, {
    schedule says, what the field says, what needs a decision, and what
    the machinery is doing. */
 const NAV = [
-  ['Operate', [
-    ['overview', 'Control Room'], ['attention', 'Review Inbox', 'attention'],
-    ['ask', 'Ask VEDA'],
+  ['Workspace', [
+    ['capture', 'Capture field update'], ['files', 'Files'],
+    ['proposals', 'Edit / proposed changes'],
+    ['attention', 'Review Inbox', 'attention'],
+  ]],
+  ['Control', [
+    ['overview', 'Control Room'], ['ask', 'Ask VEDA'],
   ]],
   ['Field Truth', [
     ['evidence', 'Evidence', 'evidence'], ['observed', 'Field vs Schedule'],
@@ -40,10 +44,9 @@ const NAV = [
   ['Schedule', [
     ['activities', 'Activities', 'activities'], ['critical', 'Critical Path', 'critical'],
     ['milestones', 'Milestones', 'milestones'], ['quality', 'Schedule QA', 'qa_failed'],
-    ['proposals', 'Proposed Changes'],
   ]],
   ['Project Data', [
-    ['files', 'Sources'], ['outputs', 'Reports & Exports'], ['audit', 'Audit Trail'],
+    ['outputs', 'Reports & Exports'], ['audit', 'Audit Trail'],
   ]],
   ['Advanced', [
     ['wbs', 'WBS'], ['relationships', 'Relationships', 'relationships'],
@@ -87,6 +90,9 @@ function go(view, params) {
     S.agentCompletionTimer = null;
   }
   location.hash = view + (params && params.id ? '/' + params.id : '');
+  document.body.classList.remove('nav-open');
+  const navToggle = $('#nav-toggle');
+  if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
   renderRail(); syncAgentWatchdog(); render();
 }
 window.go = go;
@@ -481,7 +487,7 @@ function connectStream() {
       maybeLeaveCompletedRun(streamProject, j);
       return;
     }
-    if (['overview', 'attention', 'ask', 'evidence', 'outputs', 'observed',
+    if (['overview', 'capture', 'attention', 'ask', 'evidence', 'outputs', 'observed',
       'quality', 'activities', 'agent'].includes(S.view)) {
       render();
     }
@@ -515,6 +521,11 @@ async function init() {
   $('#theme-toggle').onclick = () => {
     const current = document.documentElement.dataset.theme || 'dark';
     applyTheme(current === 'dark' ? 'light' : 'dark', true);
+  };
+  const navToggle = $('#nav-toggle');
+  if (navToggle) navToggle.onclick = () => {
+    const open = document.body.classList.toggle('nav-open');
+    navToggle.setAttribute('aria-expanded', String(open));
   };
   const systemTheme = matchMedia('(prefers-color-scheme: light)');
   systemTheme.addEventListener('change', (e) => {
@@ -558,6 +569,9 @@ async function init() {
   // loadProjects owns project selection and therefore the project-scoped stream.
   refreshHealth();
   setInterval(refreshHealth, 30000);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  }
   window.addEventListener('focus', () => {
     if (S.project) { refreshCounts().then(() => render()); }
   });

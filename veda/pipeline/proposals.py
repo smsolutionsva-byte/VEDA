@@ -29,6 +29,7 @@ FIELD_TO_OP = {
     "start": "start",
     "finish": "finish",
     "duration": "duration",
+    "remainingDuration": "remainingDuration",
     "deadline": "deadline",
     "notes": "notes",
     "name": "name",
@@ -43,6 +44,7 @@ ACTIVITY_FIELD = {
     "start": "start",
     "finish": "finish",
     "duration": "duration_days",
+    "remainingDuration": "remaining_days",
     "deadline": "deadline",
     "notes": "notes",
     "name": "name",
@@ -57,6 +59,7 @@ TASK_QUERY_FIELD = {
     "start": "start",
     "finish": "finish",
     "duration": "duration",
+    "remainingDuration": "remainingDuration",
     "deadline": "deadline",
     "notes": "notes",
     "name": "name",
@@ -123,10 +126,30 @@ def create(project_id: str, *, target_uid: int | None = None,
            confidence: float = 0.5, job_id: str | None = None,
            provenance: str = "AI_INFERENCE", operation: str = "update",
            parent_uid: int | None = None, after_uid: int | None = None,
-           task_fields: dict | None = None) -> str:
+           task_fields: dict | None = None,
+           proposal_group_id: str | None = None,
+           source_event_id: str | None = None) -> str:
     operation = str(operation or "update").strip().lower()
     if operation not in {"update", "create", "delete"}:
         operation = "update"
+
+    if source_event_id and operation == "update":
+        existing = db.q1(
+            "SELECT * FROM proposals WHERE project_id=? AND source_event_id=? "
+            "AND target_uid=? AND field=? ORDER BY created_at DESC LIMIT 1",
+            [project_id, source_event_id, target_uid, field])
+        if existing:
+            merged_evidence = list(dict.fromkeys(
+                (db.jloads(existing.get("evidence_ids_json"), []) or []) +
+                list(evidence_ids or [])))
+            db.update("proposals", existing["id"], {
+                "evidence_ids_json": db.jdumps(merged_evidence),
+                "confidence": max(float(existing.get("confidence") or 0),
+                                  float(confidence or 0)),
+                "updated_at": db.now(),
+            })
+            validate(existing["id"])
+            return existing["id"]
 
     act = db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?",
                 [project_id, target_uid]) if target_uid is not None else None
@@ -163,6 +186,8 @@ def create(project_id: str, *, target_uid: int | None = None,
     pid = db.insert("proposals", {
         "project_id": project_id, "job_id": job_id,
         "target_type": target_type, "operation": operation,
+        "proposal_group_id": proposal_group_id,
+        "source_event_id": source_event_id,
         "target_uid": target_uid,
         "target_name": target_name or (act or {}).get("name"),
         "field": field, "payload_json": db.jdumps(payload),
@@ -549,7 +574,7 @@ def _matches(requested: Any, actual: Any, field: str) -> bool:
     if field in ("actualStart", "actualFinish", "start", "finish", "deadline",
                  "constraintDate"):
         return str(actual).split("T")[0] == str(requested).split("T")[0]
-    if field == "duration":
+    if field in ("duration", "remainingDuration"):
         a = str(actual).strip().lower().rstrip("d")
         b = str(requested).strip().lower().rstrip("d")
         try:

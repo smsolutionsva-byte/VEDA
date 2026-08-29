@@ -81,7 +81,23 @@ CODEX_MODEL = os.environ.get("VEDA_CODEX_MODEL", "").strip() or None
 AGENT_TIMEOUT = int(os.environ.get("VEDA_AGENT_TIMEOUT", "900"))
 # Local Antigravity is an inbox bridge. If no IDE agent claims a job quickly,
 # do not hold VEDA's single worker for the full reasoning timeout.
-AGENT_CLAIM_TIMEOUT = int(os.environ.get("VEDA_AGENT_CLAIM_TIMEOUT", "30"))
+AGENT_CLAIM_TIMEOUT = int(os.environ.get("VEDA_AGENT_CLAIM_TIMEOUT", "8"))
+
+# ----------------------------------------------------------- Primavera P6 REST
+# Writes are disabled by default and additionally constrained to an explicit
+# sandbox project allow-list. Credentials never leave the backend.
+P6_BASE_URL = os.environ.get("VEDA_P6_BASE_URL", "").strip().rstrip("/")
+P6_TOKEN_URL = os.environ.get("VEDA_P6_TOKEN_URL", "").strip()
+P6_CLIENT_ID = os.environ.get("VEDA_P6_CLIENT_ID", "").strip()
+P6_CLIENT_SECRET = os.environ.get("VEDA_P6_CLIENT_SECRET", "").strip()
+P6_ENVIRONMENT = os.environ.get("VEDA_P6_ENVIRONMENT", "sandbox").strip().lower()
+P6_WRITE_ENABLED = os.environ.get("VEDA_P6_WRITE_ENABLED", "0").lower() in ("1", "true", "yes")
+P6_ALLOWED_PROJECT_IDS = {x.strip() for x in
+                          os.environ.get("VEDA_P6_ALLOWED_PROJECT_IDS", "").split(",")
+                          if x.strip()}
+P6_UID_IS_OBJECT_ID = os.environ.get("VEDA_P6_UID_IS_OBJECT_ID", "0").lower() in ("1", "true", "yes")
+P6_HOURS_PER_DAY = float(os.environ["VEDA_P6_HOURS_PER_DAY"]) \
+    if os.environ.get("VEDA_P6_HOURS_PER_DAY") else None
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
 GEMINI_MODEL = os.environ.get("VEDA_GEMINI_MODEL", "gemini-2.0-flash")

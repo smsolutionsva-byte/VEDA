@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VEDA - Construction Project Intelligence</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0F1319">
 <script>
 (() => {
   let saved = null;
@@ -13,11 +15,12 @@
   document.documentElement.dataset.theme = saved || system;
 })();
 </script>
-<link rel="stylesheet" href="/static/app.css?v=1.23">
+<link rel="stylesheet" href="/static/app.css?v=1.24">
 </head>
 <body>
 <div id="app">
   <div class="topbar">
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open workspace navigation" aria-expanded="false">☰</button>
     <div class="brand"><b>VEDA</b><span>Project Intelligence</span></div>
     <select class="projpick" id="projpick"></select>
     <button class="btn sm" id="newproj">New project</button>
@@ -35,7 +38,8 @@
   <main class="main" id="main"></main>
 </div>
 <div class="toasts" id="toasts"></div>
-<script src="/static/views.js?v=1.23"></script>
-<script src="/static/app.js?v=1.23"></script>
+<script src="/static/views.js?v=1.24"></script>
+<script src="/static/field-capture.js?v=1.24"></script>
+<script src="/static/app.js?v=1.24"></script>
 </body>
 </html>

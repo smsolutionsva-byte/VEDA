@@ -399,7 +399,8 @@ def _summarise(checks: list) -> dict:
 # =====================================================================
 WRITABLE_FIELDS = {
     "percentComplete", "actualStart", "actualFinish", "start", "finish",
-    "duration", "deadline", "notes", "name", "constraintType", "constraintDate",
+    "duration", "remainingDuration", "deadline", "notes", "name",
+    "constraintType", "constraintDate",
 }
 CREATE_WRITABLE_FIELDS = WRITABLE_FIELDS | {
     "milestone", "active", "cost", "custom",
@@ -495,6 +496,17 @@ def validate_proposal(proposal: dict, activity: dict | None, *,
                 except (TypeError, ValueError):
                     checks.append(_r("progress_range", FAIL,
                                      "Proposed value '" + str(val) + "' is not a number."))
+            elif field == "remainingDuration":
+                try:
+                    remaining = float(str(val).lower().replace("days", "").replace("day", "").rstrip("d "))
+                    checks.append(_r(
+                        "remaining_duration", PASS if remaining >= 0 else FAIL,
+                        ("Proposed remaining duration " + str(remaining) +
+                         " day(s) is non-negative.") if remaining >= 0 else
+                        "Remaining duration cannot be negative."))
+                except (TypeError, ValueError):
+                    checks.append(_r("remaining_duration", FAIL,
+                                     "Proposed remaining duration is not numeric."))
             elif field in ("actualStart", "actualFinish", "start", "finish",
                            "deadline", "constraintDate"):
                 dv = _d(val)

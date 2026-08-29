@@ -583,10 +583,10 @@ def enrich_evidence_record(row: dict) -> dict:
     event=classify_event(out)
     out["asset_tags_json"]=db.jdumps(tags) if tags else None
     out["location_tags_json"]=db.jdumps(locs) if locs else None
-    out["action_type"]=event.get("action")
+    out["action_type"]=out.get("action_type") or event.get("action")
     out["event_type"]=out.get("event_type") or event.get("action")
-    out["event_state"]=event.get("state")
-    out["event_confidence"]=event.get("confidence")
+    out["event_state"]=out.get("event_state") or event.get("state")
+    out["event_confidence"]=out.get("event_confidence") if out.get("event_confidence") is not None else event.get("confidence")
     if out.get("observed_progress") is None and event.get("progress") is not None:
         out["observed_progress"]=event.get("progress")
     return out

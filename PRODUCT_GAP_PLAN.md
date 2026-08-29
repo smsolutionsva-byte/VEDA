@@ -22,9 +22,9 @@ The repository already contains unusually strong foundations for that thesis:
 | Priority | Gap | Why it matters | Current state |
 |---|---|---|---|
 | P0 | Explainable planner review inbox | This is the core field-to-schedule decision workflow and the clearest product differentiator. | First slice implemented: evidence, candidates, reasons, contradictions, confidence basis and governed action are shown together. |
-| P0 | Field-first capture | Supervisors still need a Files page or pasted text. The intended workflow is a fast mobile report with voice, photo, location, offline queue and confirmation. | Missing. |
-| P0 | Actuals proposal generation | Validated execution events exist, but the product does not yet consistently translate them into Actual Start, Actual Finish, Remaining Duration or Percent Complete proposals. | Partial infrastructure; incomplete end-to-end policy. |
-| P0 | Primavera adapter | Horizun/MS Project revision writes are implemented, but OIL's target system needs a real P6 REST/SyncService adapter with environment-safe simulation. | Missing. |
+| P0 | Field-first capture | Supervisors need a fast mobile report with voice, photo, location, offline queue and confirmation. | First end-to-end slice implemented: installable capture route, media/text/location, explicit multilingual confirmation, activity search, IndexedDB retry outbox and idempotent server persistence. Hardening remains. |
+| P0 | Actuals proposal generation | Confirmed execution events must become governed Actual Start, Actual Finish, Remaining Duration or Percent Complete proposals. | Deterministic, idempotent start/progress/finish policy implemented for confirmed field captures. Proposal-group approval and the P1 conflict workbench remain. |
+| P0 | Primavera adapter | OIL's target system needs real P6 REST/SyncService integration with environment-safe simulation. | Sandbox-first Activity API boundary implemented with OAuth/configuration, field mapping, ObjectId, allow-list and duration-unit gates. A real sandbox credentialed round trip remains. |
 | P1 | Exception-driven control room | The current overview is factually rigorous but dominated by technical schedule cards. A manager needs freshness, slippage, missing reports, conflicts and decisions first. | Partial. |
 | P1 | Conflict and duplicate workbench | Validators and source hashing exist, but planners need a dedicated workflow for conflicting dates, duplicate execution events and multi-activity statements. | Partial. |
 | P1 | Reporting freshness and SLA | There is no clear reporting-latency model by discipline, contractor, area or source. | Missing. |
@@ -74,9 +74,9 @@ The repository already contains unusually strong foundations for that thesis:
 ### Phase 1 — trusted reconciliation MVP
 
 1. Complete the explainable Review Inbox and keyboard-efficient review flow.
-2. Add an installable mobile capture route with text/photo first, then local speech-to-text.
-3. Convert confirmed start/progress/finish events into governed actuals proposals.
-4. Add a simulated P6 adapter contract and mapping tests using synthetic data.
+2. Harden the implemented installable mobile capture route and unmatched-activity review.
+3. Extend the implemented actuals policy with atomic proposal-group review and conflict records.
+4. Exercise the implemented P6 adapter contract against a credentialed sandbox.
 5. Add precision-at-threshold, review time and ingestion-to-link latency telemetry.
 
 Exit criteria:
@@ -89,7 +89,7 @@ Exit criteria:
 
 ### Phase 2 — operational pilot
 
-1. Offline capture queue, media compression and sync recovery.
+1. Media compression/retention policy and resumable sync for large captures.
 2. Project roles, WBS-scoped permissions and configurable approval policy.
 3. Dedicated conflict, duplicate and multi-match workflows.
 4. Reporting freshness by contractor, discipline and area.

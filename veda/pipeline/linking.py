@@ -528,6 +528,10 @@ def apply_cluster_answer(project_id: str, review: dict,
             "is_candidate": 0, "provenance": "HUMAN_INPUT",
         })
         db.update("evidence", ev["id"], {"state": "confirmed", "confidence": 0.95})
+        # A human identity decision is the point at which a field event may
+        # enter the actuals proposal policy. This still creates proposals only.
+        from . import actuals
+        actuals.generate_from_confirmed_evidence(project_id, ev["id"], int(chosen_uid))
         assigned += 1
 
     rebuild_observed_progress(project_id)

@@ -358,7 +358,7 @@ CREATE TABLE IF NOT EXISTS execution_events (
   canonical_key TEXT,
   activity_uid INTEGER,
   action_type TEXT, event_state TEXT, event_date TEXT,
-  observed_progress REAL, quantity REAL, unit TEXT,
+  observed_progress REAL, remaining_days REAL, quantity REAL, unit TEXT,
   confidence REAL, state TEXT DEFAULT 'observed',
   source_count INTEGER DEFAULT 0,
   provenance TEXT DEFAULT 'DERIVED',
@@ -375,6 +375,42 @@ CREATE TABLE IF NOT EXISTS execution_event_sources (
   created_at REAL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_exec_event_source ON execution_event_sources(execution_event_id, evidence_id);
+
+-- A field capture is the user-confirmed envelope around one observation. Its
+-- client id makes mobile/offline retries idempotent; media remains in the
+-- immutable files store and only ids/metadata live here.
+CREATE TABLE IF NOT EXISTS field_captures (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  client_capture_id TEXT NOT NULL,
+  status TEXT DEFAULT 'confirmed',
+  occurred_at TEXT,
+  event_state TEXT,
+  language TEXT DEFAULT 'en',
+  reporter TEXT,
+  original_text TEXT,
+  confirmed_text TEXT NOT NULL,
+  activity_uid INTEGER,
+  activity_display_id TEXT,
+  activity_name TEXT,
+  observed_progress REAL,
+  remaining_days REAL,
+  location_label TEXT,
+  latitude REAL,
+  longitude REAL,
+  location_accuracy_m REAL,
+  location_source TEXT,
+  media_file_ids_json TEXT,
+  evidence_id TEXT,
+  execution_event_id TEXT,
+  proposal_ids_json TEXT,
+  sync_source TEXT DEFAULT 'online',
+  created_at REAL, updated_at REAL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_field_capture_client
+  ON field_captures(project_id, client_capture_id);
+CREATE INDEX IF NOT EXISTS ix_field_capture_project
+  ON field_captures(project_id, created_at DESC);
 
 -- Activity identity across schedule revisions.  Stable UIDs are strongest;
 -- rename/split/merge hypotheses remain explicit and auditable.
@@ -486,6 +522,8 @@ CREATE TABLE IF NOT EXISTS proposals (
   job_id TEXT,
   target_type TEXT,
   operation TEXT DEFAULT 'update',
+  proposal_group_id TEXT,
+  source_event_id TEXT,
   target_uid INTEGER, target_name TEXT, field TEXT,
   payload_json TEXT,
   current_value TEXT, proposed_value TEXT,
@@ -509,7 +547,6 @@ CREATE TABLE IF NOT EXISTS proposals (
   provenance TEXT DEFAULT 'AI_INFERENCE',
   created_at REAL, updated_at REAL
 );
-
 CREATE TABLE IF NOT EXISTS artifacts (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -702,6 +739,10 @@ def init_db() -> None:
     if "sparse_json" not in rdcols:
         conn.execute("ALTER TABLE retrieval_documents ADD COLUMN sparse_json TEXT")
 
+    xcols = {r[1] for r in conn.execute("PRAGMA table_info(execution_events)").fetchall()}
+    if "remaining_days" not in xcols:
+        conn.execute("ALTER TABLE execution_events ADD COLUMN remaining_days REAL")
+
     # Legacy workflow migration: human attention is no longer a job status.
     # Analysis that had already finished but was labelled awaiting_review is
     # terminal work; the open review rows continue to represent the decision.
@@ -714,9 +755,14 @@ def init_db() -> None:
     for name, ddl in (
         ("operation", "ALTER TABLE proposals ADD COLUMN operation TEXT DEFAULT 'update'"),
         ("payload_json", "ALTER TABLE proposals ADD COLUMN payload_json TEXT"),
+        ("proposal_group_id", "ALTER TABLE proposals ADD COLUMN proposal_group_id TEXT"),
+        ("source_event_id", "ALTER TABLE proposals ADD COLUMN source_event_id TEXT"),
     ):
         if name not in pcols:
             conn.execute(ddl)
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_proposal_event_field "
+                 "ON proposals(project_id, source_event_id, target_uid, field) "
+                 "WHERE source_event_id IS NOT NULL")
     conn.commit()
     _COLS_CACHE.clear()
 

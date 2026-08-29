@@ -10,7 +10,6 @@ remain the authority for accepting a link.
 """
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import math
@@ -33,6 +32,7 @@ from ..resolution import ranker as engineering_ranker
 _SEARCH_CACHE: dict[str, tuple[tuple[int, float], list[dict]]] = {}
 _VECTOR_MATRIX_CACHE: dict[str, tuple[tuple[int, float], object]] = {}
 _BM25_CACHE: dict[str, tuple[tuple[int, float], dict]] = {}
+_LOGIC_MODE_UNSET = object()
 
 STOP = {"the", "and", "for", "with", "of", "to", "in", "on", "at", "a", "an",
         "works", "work", "site", "no", "nos", "shift", "day", "daily", "progress",
@@ -71,6 +71,22 @@ def _json(v: Any, default):
         return json.loads(str(v))
     except Exception:
         return default
+
+
+def _clone_candidate(c: dict) -> dict:
+    """Copy only the mutable ranking envelope, not the activity document.
+
+    Activity rows contain large cached retrieval payloads and are treated as
+    immutable. ``deepcopy``-ing them twice per evidence row accounted for a
+    material part of resolver latency without providing any isolation benefit.
+    """
+    return {
+        **c,
+        "activity": c.get("activity"),
+        "features": dict(c.get("features") or {}),
+        "supporting": list(c.get("supporting") or []),
+        "conflicting": list(c.get("conflicting") or []),
+    }
 
 
 def _custom_text(custom: Any) -> str:
@@ -607,7 +623,8 @@ def _out_of_sequence_mode(project_id: str) -> str | None:
     if "actual" in low and "date" in low: return "Actual Dates"
     return found
 
-def _graph_features(project_id: str, ev: dict, act: dict) -> tuple[float, list[str], list[str], dict]:
+def _graph_features(project_id: str, ev: dict, act: dict, *,
+                    logic_mode: Any = _LOGIC_MODE_UNSET) -> tuple[float, list[str], list[str], dict]:
     """Relationship-aware execution plausibility.
 
     FS/SS/FF/SF and lag are handled differently.  This is intentionally a soft
@@ -631,7 +648,8 @@ def _graph_features(project_id: str, ev: dict, act: dict) -> tuple[float, list[s
             "SELECT uid,status,actual_start,actual_finish,start,finish FROM activities "
             "WHERE project_id=? AND uid IN (" + ph + ")", [project_id] + related)}
     ed = _d(ev.get("date"))
-    logic_mode = _out_of_sequence_mode(project_id)
+    if logic_mode is _LOGIC_MODE_UNSET:
+        logic_mode = _out_of_sequence_mode(project_id)
 
     def readiness(rel: dict) -> float:
         p = rows.get(rel.get("pred_uid"), {})
@@ -768,7 +786,9 @@ def _date_corroboration(project_id: str, ev: dict, q: dict) -> tuple[float, list
         "nearest_other_date_days": min(other_dates) if other_dates else None,
     }
 
-def _signal_features(project_id: str, ev: dict, act: dict, meta: dict, q: dict) -> dict:
+def _signal_features(project_id: str, ev: dict, act: dict, meta: dict, q: dict,
+                     context: dict | None = None) -> dict:
+    context = context if context is not None else {}
     from ..pipeline.validators import discipline_key, major_discipline_key, chainage_values, chainage_window, source_class, SOURCE_TRUST
     ev_alias = set(q.get("positive_asset_aliases") or q["asset_aliases"])
     neg_alias = set(q.get("negative_asset_aliases") or [])
@@ -816,10 +836,21 @@ def _signal_features(project_id: str, ev: dict, act: dict, meta: dict, q: dict) 
     phase_score, phase_conflict_reason = event_model.phase_compatibility(event_info.get("phase"), activity_phase)
     phase_conflict = 1.0 if phase_conflict_reason else 0.0
 
-    snap = db.q1("SELECT data_date,status_date FROM schedule_snapshots WHERE project_id=? AND is_current=1 ORDER BY created_at DESC LIMIT 1", [project_id]) or {}
+    if "snapshot" not in context:
+        context["snapshot"] = db.q1(
+            "SELECT data_date,status_date FROM schedule_snapshots WHERE project_id=? "
+            "AND is_current=1 ORDER BY created_at DESC LIMIT 1", [project_id]) or {}
+    snap = context["snapshot"]
     tdetail = temporal_model.features(ev, act, snap, event_info)
-    corroboration, csup, ccon, cdetail = _date_corroboration(project_id, ev, q)
-    graph, gsup, gcon, gdetail = _graph_features(project_id, ev, act)
+    # Corroboration and Primavera OOS mode are evidence/project properties, not
+    # candidate properties. Compute them once instead of 24 times per row.
+    if "date_corroboration" not in context:
+        context["date_corroboration"] = _date_corroboration(project_id, ev, q)
+    corroboration, csup, ccon, cdetail = context["date_corroboration"]
+    if "logic_mode" not in context:
+        context["logic_mode"] = _out_of_sequence_mode(project_id)
+    graph, gsup, gcon, gdetail = _graph_features(
+        project_id, ev, act, logic_mode=context["logic_mode"])
     wdetail = wbs_model.features(ev, act)
     hist = sequence_model.score_candidate(project_id, act)
     source_trust = SOURCE_TRUST.get(source_class(ev.get("source_file"), ev.get("description")), 0.5)
@@ -1012,12 +1043,13 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     agent_by_uid = {int(a.get("activity_uid")): a for a in (agent_links or [])
                     if a.get("activity_uid") is not None}
     candidates = []
+    signal_context: dict = {}
     for position, i in enumerate(first):
         if position % 8 == 0:
             checkpoint()
         act = pool[i]
         meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
-        sf = _signal_features(project_id, ev, act, meta, q)
+        sf = _signal_features(project_id, ev, act, meta, q, signal_context)
         feat = {"dense": dense_norm[i], "dense_cosine": dense_raw[i],
                 "sparse": sparse_norm[i], "sparse_bm25": sparse_raw[i],
                 "bge_sparse": bge_sparse_norm[i], "bge_sparse_raw": bge_sparse_raw[i],
@@ -1046,7 +1078,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
             continue
         act = by_uid[uid]
         meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
-        sf = _signal_features(project_id, ev, act, meta, q)
+        sf = _signal_features(project_id, ev, act, meta, q, signal_context)
         feat = {"dense": 0.0, "dense_cosine": 0.0, "sparse": 0.0, "sparse_bm25": 0.0,
                 "bge_sparse": 0.0, "bge_sparse_raw": 0.0, "rrf": 0.0, "rerank": 0.0, **sf,
                 "agent_agreement": 1.0, "agent_confidence": float(ap.get("confidence") or 0.5)}
@@ -1059,7 +1091,8 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     # channel is allowed to add graph-only candidates.  This lets evaluation
     # compare both variants in ONE semantic retrieval pass, which is important
     # at 10k+ activities and prevents benchmarking cache/warmup artifacts.
-    base_ranked = engineering_ranker.rank(project_id, copy.deepcopy(candidates))
+    base_ranked = engineering_ranker.rank(
+        project_id, [_clone_candidate(c) for c in candidates])
     checkpoint()
     pre_workfront_candidates = base_ranked["candidates"]
 
@@ -1089,7 +1122,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
             ern=_normalize(err) if err else [0.0 for _ in extra_docs]
             for j,act in enumerate(extra_docs):
                 meta=act.get("_meta_obj") or _json(act.get("metadata_json"),{})
-                sf=_signal_features(project_id,ev,act,meta,q)
+                sf=_signal_features(project_id,ev,act,meta,q,signal_context)
                 dn=scale(edense[j],dlo,dhi); sn=scale(esparse[j],slo,shi)
                 feat={"dense":dn,"dense_cosine":edense[j],"sparse":sn,"sparse_bm25":esparse[j],
                       "bge_sparse":0.0,"bge_sparse_raw":0.0,"rrf":0.0,"rerank":ern[j] if j<len(ern) else 0.0,**sf,
@@ -1115,7 +1148,8 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     if use_workfront and candidates:
         from ..resolution import workfront as workfront_model
         # WorkfrontRank mutates scores/ranking, so preserve a separate expert output.
-        wf = workfront_model.rerank(project_id, ev, copy.deepcopy(candidates))
+        wf = workfront_model.rerank(
+            project_id, ev, [_clone_candidate(c) for c in candidates])
         workfront_candidates = wf["candidates"]
         workfront_diag = wf.get("diagnostics")
         if use_adaptive_gate:
@@ -1140,7 +1174,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     metarank_diag = None
     expert_errors = {}
     if use_metarank and engineering_candidates:
-        semantic_candidates = copy.deepcopy(engineering_candidates)
+        semantic_candidates = [_clone_candidate(c) for c in engineering_candidates]
         for c in semantic_candidates:
             f = c.get("features") or {}
             sem_score = (0.55 * float(f.get("rerank") or 0.0) +

@@ -21,7 +21,7 @@ Horizun's schedule calculation. It never mutates the real schedule.
 """
 from __future__ import annotations
 
-import json, math, re
+import functools, json, math, re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Callable
@@ -38,10 +38,15 @@ def _checkpoint(cancel_check: Callable[[], None] | None) -> None:
         cancel_check()
 
 
-def _date(v):
+@functools.lru_cache(maxsize=32768)
+def _date_text(v: str):
     if not v: return None
-    try: return datetime.strptime(str(v).split('T')[0], '%Y-%m-%d').date()
+    try: return datetime.strptime(v.split('T')[0], '%Y-%m-%d').date()
     except Exception: return None
+
+
+def _date(v):
+    return _date_text(str(v)) if v else None
 
 
 def _prefix(v: Any, levels: int = 3) -> str:
@@ -58,7 +63,7 @@ def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> d
     old = _CACHE.get(project_id)
     if old and old.get('sig') == key: return old
     acts = {int(a['uid']): a for a in db.q('SELECT * FROM activities WHERE project_id=? AND is_summary=0', [project_id]) if a.get('uid') is not None}
-    prefix_map=defaultdict(set); info={}; action_map=defaultdict(set); asset_map=defaultdict(set); location_map=defaultdict(set); discipline_map=defaultdict(set)
+    prefix_map=defaultdict(set); info={}; state={}; action_map=defaultdict(set); asset_map=defaultdict(set); location_map=defaultdict(set); discipline_map=defaultdict(set)
     for position, (uid,a) in enumerate(acts.items()):
         if position % 128 == 0: _checkpoint(cancel_check)
         pref=_prefix(a.get('wbs') or a.get('wbs_path'),3)
@@ -72,6 +77,13 @@ def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> d
                    'start_date':_date(a.get('start') or a.get('baseline_start')),
                    'finish_date':_date(a.get('finish') or a.get('baseline_finish')),
                    'prefix':pref}
+        status=str(a.get('status') or '').lower()
+        state[uid]={'actual_start_date':_date(a.get('actual_start')),
+                    'actual_finish_date':_date(a.get('actual_finish')),
+                    'planned_start_date':_date(a.get('start')),
+                    'planned_finish_date':_date(a.get('finish')),
+                    'status_started':status in {'in_progress','started','active'},
+                    'status_completed':status in {'complete','completed','finished'}}
         if action: action_map[action].add(uid)
         for al in aliases: asset_map[re.sub(r'[^a-z0-9]','',str(al).lower())].add(uid)
         for loc in locs: location_map[str(loc).lower()].add(uid)
@@ -81,7 +93,7 @@ def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> d
         if position % 256 == 0: _checkpoint(cancel_check)
         if r.get('pred_uid') is None or r.get('succ_uid') is None: continue
         p,s=int(r['pred_uid']),int(r['succ_uid']); preds[s].append(r); succs[p].append(r)
-    out={'sig':key,'acts':acts,'preds':preds,'succs':succs,'prefix_map':prefix_map,'info':info,
+    out={'sig':key,'acts':acts,'preds':preds,'succs':succs,'prefix_map':prefix_map,'info':info,'state':state,
          'action_map':action_map,'asset_map':asset_map,'location_map':location_map,'discipline_map':discipline_map}
     _CACHE[project_id]=out
     return out
@@ -97,14 +109,15 @@ def _schedule_mode(project_id: str) -> str:
     return 'Retained Logic'
 
 
-def _completed(a: dict, day) -> bool:
-    f=_date(a.get('actual_finish'))
-    return bool(f and (not day or f<=day)) or str(a.get('status') or '').lower() in {'complete','completed','finished'}
+def _completed(state: dict, day) -> bool:
+    f=state.get('actual_finish_date')
+    return bool(f and (not day or f<=day)) or bool(state.get('status_completed'))
 
 
-def _started(a: dict, day) -> bool:
-    s=_date(a.get('actual_start'))
-    return bool(s and (not day or s<=day)) or str(a.get('status') or '').lower() in {'in_progress','started','active'} or _completed(a,day)
+def _started(state: dict, day) -> bool:
+    s=state.get('actual_start_date'); f=state.get('actual_finish_date')
+    return (bool(s and (not day or s<=day)) or bool(state.get('status_started')) or
+            bool(f and (not day or f<=day)) or bool(state.get('status_completed')))
 
 
 def _pred_readiness(idx, uid, day, started_override:set[int], completed_override:set[int], target_state:str='start') -> tuple[float,int,list[dict]]:
@@ -117,18 +130,18 @@ def _pred_readiness(idx, uid, day, started_override:set[int], completed_override
     if not rels: return 1.0,0,[]
     vals=[]; detail=[]
     for r in rels:
-        p=int(r['pred_uid']); a=idx['acts'].get(p,{})
+        p=int(r['pred_uid']); a=idx['acts'].get(p,{}); pstate=idx['state'].get(p,{})
         typ=str(r.get('type') or 'FS').upper()[:2]; lag=float(r.get('lag_days') or 0.0)
-        pred_started = p in started_override or _started(a,day)
-        pred_completed = p in completed_override or _completed(a,day)
+        pred_started = p in started_override or _started(pstate,day)
+        pred_completed = p in completed_override or _completed(pstate,day)
         # For a START/PROGRESS observation, FF/SF do not make the activity start impossible.
         if target_state in {'start','progress','mixed'} and typ in {'FF','SF'}:
             ready=.85
         else:
             need_start = typ in {'SS','SF'}
             state_ok = pred_started if need_start else pred_completed
-            anchor = _date(a.get('actual_start') if need_start else a.get('actual_finish'))
-            planned = _date(a.get('start') if need_start else a.get('finish'))
+            anchor = pstate.get('actual_start_date' if need_start else 'actual_finish_date')
+            planned = pstate.get('planned_start_date' if need_start else 'planned_finish_date')
             if state_ok and day and anchor:
                 ready = 1.0 if anchor + timedelta(days=lag) <= day else .12
             elif state_ok:
@@ -162,7 +175,7 @@ def _continuity(idx, a_uid:int|None, b_uid:int|None)->float:
     if a_uid is None or b_uid is None:return .5
     ai=idx['info'].get(int(a_uid),{});bi=idx['info'].get(int(b_uid),{})
     if not ai or not bi:return .5
-    la=set(ai.get('locations') or ());lb=set(bi.get('locations') or ())
+    la=ai.get('locations') or ();lb=bi.get('locations') or ()
     loc=1.0 if la and lb and la&lb else .35
     wa=str(ai.get('prefix') or '');wb=str(bi.get('prefix') or '')
     wbs=1.0 if wa and wb and wa==wb else .30
@@ -236,7 +249,6 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
             # Continuing/finishing already-started work is a valid opportunistic action.
             for uid in started-done:
                 if uid not in pool:continue
-                a=idx['acts'].get(uid,{})
                 ready,_,_=_pred_readiness(idx,uid,day,started,done,'finish')
                 if uid in oos and mode=='Progress Override': ready=max(ready,.96)
                 elif uid in oos and mode=='Actual Dates': ready=max(ready,.84)
@@ -246,7 +258,7 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
             for uid in pool:
                 if uid in started or uid in done:continue
                 a=idx['acts'].get(uid,{})
-                if _completed(a,day):continue
+                if _completed(idx['state'].get(uid,{}),day):continue
                 ready,_,_=_pred_readiness(idx,uid,day,started,done,'start')
                 if ready<.10:continue
                 temp=_temporal_uid(idx,uid,day);cont=_continuity(idx,last,uid);critical=1.0 if a.get('critical') else .5
@@ -264,16 +276,18 @@ def _beam_future(idx,anchor_uid,day,started_override:set[int],completed_override
 
 
 def score_candidate(project_id:str,ev:dict,cand:dict,
-                    cancel_check: Callable[[], None] | None = None)->tuple[float,dict]:
+                    cancel_check: Callable[[], None] | None = None,
+                    _context: dict | None = None)->tuple[float,dict]:
     _checkpoint(cancel_check)
-    idx=_index(project_id,cancel_check=cancel_check);a=cand.get('activity') or {};uid=int(a.get('uid'));day=_date(ev.get('date'))
-    info=event_model.classify_event(ev);state=info.get('state');positive=state in {'finish','progress','start','mixed'}
+    ctx=_context or {}
+    idx=ctx.get('index') or _index(project_id,cancel_check=cancel_check);a=cand.get('activity') or {};uid=int(a.get('uid'));day=ctx.get('day') or _date(ev.get('date'))
+    info=ctx.get('event_info') or event_model.classify_event(ev);state=info.get('state');positive=state in {'finish','progress','start','mixed'}
     started=set();done=set()
     if state in {'start','progress','mixed'}:started.add(uid)
     elif state=='finish':started.add(uid);done.add(uid)
     pre_ready,pn,pdetail=_pred_readiness(idx,uid,day,set(),set(),state if positive else 'start')
     oos=bool(positive and pn and pre_ready<.50)
-    mode=_schedule_mode(project_id);ctx=_planning_context(ev);override_conf=float(ctx['precedence_override_confidence'])
+    mode=ctx.get('schedule_mode') or _schedule_mode(project_id);planning=ctx.get('planning_context') or _planning_context(ev);override_conf=float(planning['precedence_override_confidence'])
     oos_active={uid} if oos else set()
     temp=_temporal_uid(idx,uid,day);recent=_recent_context(idx,project_id,uid,day)
     future,path=_beam_future(idx,uid,day,started,done,oos_active,mode,depth=3,width=7,
@@ -294,7 +308,7 @@ def score_candidate(project_id:str,ev:dict,cand:dict,
         'replan_recent_state':recent,'replan_future_utility':future,'replan_unlock':unlock,
         'replan_oos_detected':oos,'replan_oos_mode':mode,'replan_override_context':override_conf,
         'replan_exception_explained':exception_explain,'replan_path':path,'replan_pred_count':pn,
-        'replan_pred_detail':pdetail,'replan_state_assimilated':state,'planning_context_source':ctx.get('source')}
+        'replan_pred_detail':pdetail,'replan_state_assimilated':state,'planning_context_source':planning.get('source')}
 
 
 def _recent_prefix_candidates(idx,project_id,day)->dict[int,float]:
@@ -357,6 +371,11 @@ def standalone_rank(project_id:str,ev:dict,limit:int=24,
 def rerank(project_id:str,ev:dict,candidates:list[dict],limit=24,
            cancel_check: Callable[[], None] | None = None)->dict:
     _checkpoint(cancel_check)
+    context={'index':_index(project_id,cancel_check=cancel_check),
+             'day':_date(ev.get('date')),
+             'event_info':event_model.classify_event(ev),
+             'schedule_mode':_schedule_mode(project_id),
+             'planning_context':_planning_context(ev)}
     prepared=[]
     for c0 in candidates:
         c={**c0,'features':dict(c0.get('features') or {})};f=c['features'];eng=float(f.get('engineering_rank_score',c.get('score') or 0.0));prepared.append((eng,c))
@@ -366,8 +385,8 @@ def rerank(project_id:str,ev:dict,candidates:list[dict],limit=24,
     for position, (eng,c) in enumerate(prepared):
         if position % 4 == 0: _checkpoint(cancel_check)
         uid=int(c['activity']['uid'])
-        if uid in deep_uids:rs,rf=score_candidate(project_id,ev,c,cancel_check=cancel_check)
+        if uid in deep_uids:rs,rf=score_candidate(project_id,ev,c,cancel_check=cancel_check,_context=context)
         else:rs=.5;rf={'rescheduler_score':.5,'replan_skipped':True}
         score=(1.0-alpha)*eng+alpha*rs;c['features'].update(rf);c['features']['rescheduler_authority']=alpha;c['score']=score;out.append(c)
     out.sort(key=lambda c:c['score'],reverse=True)
-    return {'candidates':out[:limit],'diagnostics':{'evaluated':len(deep_uids),'planner':'reality-first counterfactual rolling-horizon repair','depth':3,'beam_width':7,'engineering_margin':margin,'planner_authority':alpha,'schedule_mode':_schedule_mode(project_id)}}
+    return {'candidates':out[:limit],'diagnostics':{'evaluated':len(deep_uids),'planner':'reality-first counterfactual rolling-horizon repair','depth':3,'beam_width':7,'engineering_margin':margin,'planner_authority':alpha,'schedule_mode':context['schedule_mode']}}

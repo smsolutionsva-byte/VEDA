@@ -18,8 +18,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from .. import __version__, audit as audit_mod
 from .. import config, db, events, jobs, reviews
 from ..agent import registry
+from ..integrations import primavera
 from ..mcpc import horizun, schedule_ops
-from ..pipeline import ingest, linking, proposals, security
+from ..pipeline import actuals, field_capture, ingest, linking, proposals, security
 
 router = APIRouter(prefix="/api")
 
@@ -343,6 +344,59 @@ def overview(pid: str):
 # =====================================================================
 #  Files / upload  (spec 6)
 # =====================================================================
+
+@router.get("/projects/{pid}/field-captures")
+def field_captures(pid: str, limit: int = Query(100, le=500)):
+    _project_or_404(pid)
+    rows = field_capture.list_for_project(pid, limit=limit)
+    return {
+        "captures": rows,
+        "counts": {row["status"]: int(row["c"]) for row in db.q(
+            "SELECT status, COUNT(*) c FROM field_captures "
+            "WHERE project_id=? GROUP BY status", [pid])},
+    }
+
+
+@router.post("/projects/{pid}/field-captures")
+async def create_field_capture(pid: str, payload: str = Form(...),
+                               files: list[UploadFile] | None = File(None)):
+    _project_or_404(pid)
+    try:
+        body = json.loads(payload)
+        if not isinstance(body, dict):
+            raise ValueError("payload must be a JSON object")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(400, "invalid field-capture payload: " + str(exc)) from exc
+    if len(list(files or [])) > field_capture.MAX_ATTACHMENTS:
+        raise HTTPException(413, f"at most {field_capture.MAX_ATTACHMENTS} media attachments are allowed")
+    attachments = []
+    total_bytes = 0
+    for uploaded in list(files or []):
+        blob = await uploaded.read(field_capture.MAX_ATTACHMENT_BYTES + 1)
+        if len(blob) > field_capture.MAX_ATTACHMENT_BYTES:
+            raise HTTPException(413, (uploaded.filename or "field-media") +
+                                " exceeds the 25 MB field-capture limit")
+        total_bytes += len(blob)
+        if total_bytes > field_capture.MAX_TOTAL_BYTES:
+            raise HTTPException(413, "field-capture media exceeds 80 MB in total")
+        attachments.append((uploaded.filename or "field-media", blob,
+                            uploaded.content_type))
+    try:
+        capture = field_capture.store(pid, body, attachments)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"capture": capture,
+            "note": ("Field update was already synced; the retry was safely ignored."
+                     if capture.get("idempotent_replay") else
+                     "Confirmed field evidence stored; any resulting actuals remain proposals until approval.")}
+
+
+@router.post("/projects/{pid}/actuals/generate")
+def generate_actuals(pid: str):
+    _project_or_404(pid)
+    return actuals.generate_for_project(pid)
+
+
 async def _store_ingestion_batch(pid: str, files: list[UploadFile] | None,
                                  text: str = "", text_mode: str = "field_note",
                                  text_title: str = "",
@@ -1024,6 +1078,8 @@ def evidence_decision(pid: str, eid: str, body: dict = Body(...)):
     if decision == "accept_link" and uid is not None:
         act = db.q1("SELECT * FROM activities WHERE project_id=? AND uid=?",
                     [pid, uid])
+        if not act:
+            raise HTTPException(404, "the selected activity does not exist")
         from ..pipeline import validators
         v = validators.validate_link(e, act, project_id=pid)
         db.ex("UPDATE evidence_links SET is_candidate=1, human_decision='rejected' "
@@ -1043,6 +1099,7 @@ def evidence_decision(pid: str, eid: str, body: dict = Body(...)):
                 "supporting_signals": db.jdumps(["accepted by " + who]),
                 **patch})
         db.update("evidence", eid, {"state": "confirmed"})
+        actuals_result = actuals.generate_from_confirmed_evidence(pid, eid, int(uid))
         new_state = "confirmed"
     else:
         allowed = {"confirmed", "rejected", "duplicate", "conflicting",
@@ -1059,7 +1116,8 @@ def evidence_decision(pid: str, eid: str, body: dict = Body(...)):
                      approval=who, result=decision)
     linking.rebuild_observed_progress(pid)
     events.notify_ui(pid, "evidence_changed", {"evidence_id": eid})
-    return {"ok": True, "state": new_state}
+    return {"ok": True, "state": new_state,
+            "actuals": actuals_result if decision == "accept_link" and uid is not None else None}
 
 
 @router.get("/projects/{pid}/observed-progress")
@@ -1279,6 +1337,19 @@ def list_proposals(pid: str, state: str = ""):
     rows = [proposals.shape(p) for p in
             db.q(sql + " ORDER BY created_at DESC", params)]
     return {"proposals": rows}
+
+
+@router.get("/integrations/primavera/status")
+def primavera_status(probe: bool = False):
+    return primavera.probe_auth() if probe else primavera.status()
+
+
+@router.get("/integrations/primavera/proposals/{proposal_id}/preview")
+def primavera_proposal_preview(proposal_id: str):
+    try:
+        return primavera.preview_proposal(proposal_id)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @router.post("/proposals/{pid_}/dry-run")

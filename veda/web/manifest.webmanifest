@@ -1,0 +1,13 @@
+{
+  "name": "VEDA Field Intelligence",
+  "short_name": "VEDA",
+  "description": "Capture confirmed construction field actuals and route them through governed schedule controls.",
+  "start_url": "/#capture",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A0C0F",
+  "theme_color": "#0F1319",
+  "icons": [
+    {"src": "/static/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}

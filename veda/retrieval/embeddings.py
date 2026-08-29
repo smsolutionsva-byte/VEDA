@@ -16,6 +16,9 @@ import importlib.util
 import math
 import os
 import re
+import shutil
+import subprocess
+import sys
 from array import array
 from pathlib import Path
 from typing import Iterable
@@ -42,14 +45,29 @@ def _accelerator_available() -> bool:
         return False
     if requested.startswith("cuda") or requested in ("mps", "xpu"):
         return True
-    try:
-        import torch  # type: ignore
-        if bool(torch.cuda.is_available()):
-            return True
-        mps = getattr(getattr(torch, "backends", None), "mps", None)
-        return bool(mps and mps.is_available())
-    except Exception:
+    # Importing Torch solely to answer this question costs 10-20 seconds on
+    # ordinary Windows field laptops.  It also defeats the point of selecting
+    # the dependency-free hash backend.  Use the vendor's lightweight driver
+    # probe for the auto path; explicit CUDA/MPS/XPU selections above still let
+    # operators opt into other accelerators.
+    visible = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip().lower()
+    if visible in {"-1", "none", "void"}:
         return False
+    nvidia_smi = shutil.which("nvidia-smi")
+    if nvidia_smi:
+        try:
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+            probe = subprocess.run(
+                [nvidia_smi, "-L"], stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, timeout=2, check=False,
+                creationflags=flags)
+            if probe.returncode == 0:
+                return True
+        except Exception:
+            pass
+    # Apple-silicon Macs have an integrated Metal accelerator.  Detailed
+    # runtime compatibility is still validated when BgeM3Backend is created.
+    return bool(sys.platform == "darwin" and os.uname().machine == "arm64")
 
 
 def _norm(v: list[float]) -> list[float]:

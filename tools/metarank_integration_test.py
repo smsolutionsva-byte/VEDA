@@ -172,6 +172,13 @@ def engine_tests():
     finally:
         tree_resolver.rerank = original
 
+    # Windows will not remove the TemporaryDirectory while SQLite still owns
+    # the database handle. The production connection is process/thread local;
+    # close this isolated fixture explicitly before cleanup.
+    conn = getattr(db._local, "conn", None)
+    if conn is not None:
+        conn.close()
+        db._local.conn = None
     tmp.cleanup()
 
 

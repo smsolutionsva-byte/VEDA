@@ -200,6 +200,15 @@ def model_health() -> dict:
     return dict(_schema_health_cached(cfg_sig, ranker_sig, util_sigs))
 
 
+def warmup_models() -> dict:
+    """Load the frozen router off the first user request's critical path."""
+    health = model_health()
+    if health.get("ok"):
+        for path in [*UTILITY_MODELS.values(), RANKER_MODEL]:
+            _booster(path)
+    return health
+
+
 def query_features(ev: dict, experts: dict[str, list[dict]]) -> dict[str, float]:
     tags = [x for x in extract_asset_tags(
         ev.get("description"), ev.get("asset_tag"), ev.get("asset_tags"))
