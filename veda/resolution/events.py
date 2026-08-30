@@ -7,6 +7,7 @@ so a good activity match cannot accidentally become a false Actual Finish.
 """
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any
 
@@ -67,19 +68,30 @@ def _text(ev: dict | str | None) -> str:
     return str(ev or "")
 
 
-def detect_action(value: Any) -> dict:
-    text = " " + str(value or "").lower() + " "
+@functools.lru_cache(maxsize=65536)
+def _detect_action_core(text: str) -> tuple[tuple[str, str], ...]:
     found: list[tuple[str, str]] = []
     for action, aliases in ACTION_ALIASES.items():
         for alias in aliases:
             if alias in text:
                 found.append((action, alias))
                 break
+    return tuple(found)
+
+
+def detect_action(value: Any) -> dict:
+    """Canonical construction action for a name/description.
+
+    Every candidate scored, and every activity indexed, asks this question, so
+    the alias scan is memoised on the normalised text.  A fresh dict is still
+    returned to every caller; only the immutable match list is shared.
+    """
     # Some construction verbs are context-sensitive.  Prefer erection when the
     # explicit verb erect/position/mount is present; otherwise installation is a
     # broader action and remains separate.
-    action = found[0][0] if found else None
-    return {"action": action, "matches": [{"action": a, "phrase": p} for a, p in found],
+    found = _detect_action_core(" " + str(value or "").lower() + " ")
+    return {"action": found[0][0] if found else None,
+            "matches": [{"action": a, "phrase": p} for a, p in found],
             "confidence": 0.96 if found else 0.0}
 
 
@@ -93,6 +105,15 @@ PHASE_ALIASES: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+@functools.lru_cache(maxsize=65536)
+def _detect_phase_core(text: str) -> tuple[str, str] | None:
+    for phase, aliases in PHASE_ALIASES:
+        phrase = next((p for p in aliases if p in text), None)
+        if phrase:
+            return (phase, phrase)
+    return None
+
+
 def detect_phase(value: Any, action: str | None = None) -> dict:
     """Identify the lifecycle/workface phase independently of activity action.
 
@@ -100,11 +121,9 @@ def detect_phase(value: Any, action: str | None = None) -> dict:
     Precommissioning WBS branches.  Semantic similarity alone cannot resolve
     those siblings, so preserve phase as a structured discriminator.
     """
-    text = " " + str(value or "").lower() + " "
-    for phase, aliases in PHASE_ALIASES:
-        phrase = next((p for p in aliases if p in text), None)
-        if phrase:
-            return {"phase": phase, "phrase": phrase, "confidence": 0.96}
+    phrase_hit = _detect_phase_core(" " + str(value or "").lower() + " ")
+    if phrase_hit:
+        return {"phase": phrase_hit[0], "phrase": phrase_hit[1], "confidence": 0.96}
     if action == "fabrication":
         return {"phase": "fabrication", "phrase": "action:fabrication", "confidence": 0.84}
     if action == "commissioning":

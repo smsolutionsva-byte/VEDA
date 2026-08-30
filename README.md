@@ -31,6 +31,15 @@ as a schedule fact.
 
 ---
 
+## v0.3.3 — Hard-edge UI, execution rail, and resolver performance
+
+v0.3.3 resets the control-room experience to a heavyweight hard-edge visual system: every rounded corner was removed from the web styling, status marks became square, cards share a baseline in instrument rows, and panel headers wrap instead of colliding. The execution visualizer was rebuilt as a real top-to-bottom pipeline with every rail stage represented as a node, and chart colours were corrected for both dark and light themes.
+
+The release also fixes several regressions introduced during the visual rebuild: the "Decisions waiting on you" value no longer concatenates strings, the missing `.lab`/`.voice`/`.photo` styles and the undefined paper token were repaired, the no-project view closes correctly, and the dead `.bar.dual` rule plus duplicate `.gitignore` entries were removed. Performance work is substantial as well: the resolver path dropped from **43.4s to 10.7s** on the 120-evidence/900-activity benchmark with bit-identical decisions, and the execution agent wake path became signal-driven instead of polling.
+
+This version also adds the operational proof points for release confidence: all 11 offline repo checks pass, the retrieval edge-case suite passes, and the UI regression test confirms the execution bands and node counts remain aligned. See `V0.3.3_RELEASE_NOTES.md`.
+
+---
 
 ## v0.3.2 — Contextual Multi-Expert MetaRank
 

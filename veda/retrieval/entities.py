@@ -7,6 +7,7 @@ what is already an explicit key in the source text.
 """
 from __future__ import annotations
 
+import functools
 import json
 import re
 from typing import Any, Iterable
@@ -279,6 +280,23 @@ _SHORT_SITE = re.compile(r"\b(ps-?\d+|sv-?\d+|mlv-?\d+)\b", re.I)
 
 
 def extract_location_tags(*texts: Any) -> list[str]:
+    """Hierarchical location tags for a set of text/metadata fragments.
+
+    Every candidate scored asks this about the same activity path and the same
+    evidence text, so plain-text calls are memoised. Structured metadata is not
+    hashable and takes the uncached path.
+    """
+    if all(t is None or isinstance(t, str) for t in texts):
+        return list(_location_tags_cached(texts))
+    return _extract_location_tags(*texts)
+
+
+@functools.lru_cache(maxsize=32768)
+def _location_tags_cached(texts: tuple) -> tuple:
+    return tuple(_extract_location_tags(*texts))
+
+
+def _extract_location_tags(*texts: Any) -> list[str]:
     # Preserve key names when custom/raw metadata is structured. Turning
     # {"Area": "B", "Pipe Rack": "PR-02"} into a bare dict string loses
     # exactly the semantics location filtering needs.

@@ -5,6 +5,7 @@ conversation memory is never the only copy of anything that matters.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
@@ -620,6 +621,24 @@ CREATE TABLE IF NOT EXISTS agent_outbox (
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_outbox_inbox ON agent_outbox(inbox_id);
+
+-- Hot-path indexes for the control-room header and the resolver loop.  Every
+-- one of these backs a COUNT/lookup that used to force a full table scan on
+-- each dashboard refresh or each candidate scored.
+CREATE INDEX IF NOT EXISTS ix_issues_project ON issues(project_id, status);
+CREATE INDEX IF NOT EXISTS ix_risks_project ON risks(project_id, status);
+CREATE INDEX IF NOT EXISTS ix_prop_project ON proposals(project_id, approval_state);
+CREATE INDEX IF NOT EXISTS ix_qa_project ON qa_findings(project_id, status);
+CREATE INDEX IF NOT EXISTS ix_ms_project ON milestones(project_id);
+CREATE INDEX IF NOT EXISTS ix_wbs_project ON wbs_nodes(project_id);
+CREATE INDEX IF NOT EXISTS ix_res_project ON resources(project_id);
+CREATE INDEX IF NOT EXISTS ix_asg_project ON assignments(project_id);
+CREATE INDEX IF NOT EXISTS ix_art_project ON artifacts(project_id, kind, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_ev_project_file ON evidence(project_id, file_id);
+CREATE INDEX IF NOT EXISTS ix_ev_project_date ON evidence(project_id, date);
+CREATE INDEX IF NOT EXISTS ix_evl_project_rel ON evidence_links(project_id, relation, is_candidate);
+CREATE INDEX IF NOT EXISTS ix_aa_project ON agent_activity(project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_earned_project ON earned_value(project_id, scope, created_at DESC);
 """
 
 
@@ -632,8 +651,49 @@ def connect() -> sqlite3.Connection:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA busy_timeout=30000")
+        # WAL + synchronous=NORMAL is the standard durable-but-fast pairing: a
+        # commit still survives an application crash, only an OS/power loss can
+        # cost the last transactions.  With synchronous=FULL every single row
+        # write in the resolver loop paid an fsync, which dominated analysis
+        # latency far more than any model did.
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA temp_store=MEMORY")
+        conn.execute("PRAGMA cache_size=-32000")       # ~32 MB page cache
+        conn.execute("PRAGMA mmap_size=268435456")     # 256 MB, best-effort
+        conn.execute("PRAGMA wal_autocheckpoint=2000")
         _local.conn = conn
     return conn
+
+
+@contextlib.contextmanager
+def transaction():
+    """Group many writes into one commit.
+
+    ``ex``/``insert``/``update`` normally commit per statement so a crash never
+    leaves a half-written analysis.  Inside this block they defer to a single
+    commit at the end, which is what turns a per-row resolver write burst into
+    one durable transaction.  Nesting is safe; only the outermost block commits.
+    """
+    depth = getattr(_local, "batch_depth", 0)
+    _local.batch_depth = depth + 1
+    conn = connect()
+    try:
+        yield conn
+    except BaseException:
+        _local.batch_depth = depth
+        if depth == 0:
+            with contextlib.suppress(Exception):
+                conn.rollback()
+        raise
+    else:
+        _local.batch_depth = depth
+        if depth == 0:
+            conn.commit()
+
+
+def _autocommit(conn: sqlite3.Connection) -> None:
+    if not getattr(_local, "batch_depth", 0):
+        conn.commit()
 
 
 def init_db() -> None:
@@ -764,6 +824,11 @@ def init_db() -> None:
                  "ON proposals(project_id, source_event_id, target_uid, field) "
                  "WHERE source_event_id IS NOT NULL")
     conn.commit()
+    # Keep the query planner's statistics current.  Without this a database that
+    # grew from empty keeps planning COUNTs as if every table were tiny.
+    with contextlib.suppress(Exception):
+        conn.execute("ANALYZE")
+        conn.commit()
     _COLS_CACHE.clear()
 
 
@@ -789,7 +854,7 @@ def q1(sql: str, params: Iterable = ()):
 def ex(sql: str, params: Iterable = ()):
     conn = connect()
     cur = conn.execute(sql, tuple(params))
-    conn.commit()
+    _autocommit(conn)
     return cur
 
 
@@ -798,7 +863,36 @@ def exmany(sql: str, seq: list) -> None:
         return
     conn = connect()
     conn.executemany(sql, seq)
-    conn.commit()
+    _autocommit(conn)
+
+
+def insertmany(table: str, rows: list) -> list:
+    """Insert many homogeneous rows in one prepared statement + one commit.
+
+    Falls back to per-row ``insert`` when the rows do not share a column set, so
+    callers never have to reason about which shape they built.
+    """
+    if not rows:
+        return []
+    cols_ok = table_cols(table)
+    prepared, ids = [], []
+    keys = None
+    for row in rows:
+        clean = {k: v for k, v in row.items() if k in cols_ok and v is not None}
+        clean.setdefault("id", new_id())
+        if "created_at" in cols_ok and "created_at" not in clean:
+            clean["created_at"] = now()
+        if keys is None:
+            keys = list(clean)
+        elif list(clean) != keys:
+            # Mixed shapes: nothing has been executed yet, so discard the
+            # partially prepared batch and insert every row individually.
+            return [insert(table, pending) for pending in rows]
+        prepared.append([clean[k] for k in keys])
+        ids.append(clean["id"])
+    exmany("INSERT OR REPLACE INTO " + table + " (" + ",".join(keys) + ") VALUES (" +
+           ",".join("?" for _ in keys) + ")", prepared)
+    return ids
 
 
 _COLS_CACHE: dict = {}
@@ -830,6 +924,32 @@ def update(table: str, id_: str, row: dict) -> None:
         return
     sets = ",".join(k + "=?" for k in row)
     ex("UPDATE " + table + " SET " + sets + " WHERE id=?", list(row.values()) + [id_])
+
+
+_PROBE_CACHE: dict = {}
+PROBE_TTL = 0.5
+
+
+def cached_probe(key, loader, ttl: float = PROBE_TTL):
+    """Memoise a cheap "has this changed?" query for a fraction of a second.
+
+    The revision-scoped caches in the resolver ask this once per candidate
+    scored, which turned a free cache check into tens of thousands of SQLite
+    round trips per analysis. The window is short enough that a write landing
+    mid-batch is still picked up almost immediately, and every explicit cache
+    invalidation clears it outright.
+    """
+    stamp = time.monotonic()
+    hit = _PROBE_CACHE.get(key)
+    if hit is not None and (stamp - hit[0]) < ttl:
+        return hit[1]
+    value = loader()
+    _PROBE_CACHE[key] = (stamp, value)
+    return value
+
+
+def clear_probe_cache() -> None:
+    _PROBE_CACHE.clear()
 
 
 def jloads(s: Any, default=None):

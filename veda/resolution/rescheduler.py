@@ -56,10 +56,14 @@ def _prefix(v: Any, levels: int = 3) -> str:
     return '.'.join(parts[:levels])
 
 
+def _signature(project_id: str) -> tuple:
+    sig = db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?', [project_id]) or {'c':0,'u':0}
+    return (int(sig.get('c') or 0), float(sig.get('u') or 0.0))
+
+
 def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> dict:
     _checkpoint(cancel_check)
-    sig = db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?', [project_id]) or {'c':0,'u':0}
-    key = (int(sig.get('c') or 0), float(sig.get('u') or 0.0))
+    key = db.cached_probe(('replan_index', project_id), lambda: _signature(project_id))
     old = _CACHE.get(project_id)
     if old and old.get('sig') == key: return old
     acts = {int(a['uid']): a for a in db.q('SELECT * FROM activities WHERE project_id=? AND is_summary=0', [project_id]) if a.get('uid') is not None}
@@ -120,14 +124,45 @@ def _started(state: dict, day) -> bool:
             bool(f and (not day or f<=day)) or bool(state.get('status_completed')))
 
 
+def _memo(idx, name: str) -> dict:
+    """Per-index scratch memo, bounded so a long multi-date run cannot grow it."""
+    store=idx.setdefault('_memo',{})
+    cache=store.get(name)
+    if cache is None or len(cache)>200000:
+        cache=store[name]={}
+    return cache
+
+
 def _pred_readiness(idx, uid, day, started_override:set[int], completed_override:set[int], target_state:str='start') -> tuple[float,int,list[dict]]:
     """Soft relationship satisfaction for the hypothesized event state.
 
     FS/SS constrain starts; FF/SF primarily constrain finishes. Lag is honored
     against actual anchors when available and planned anchors only as a weak prior.
+
+    The beam explores many hypothetical worlds that differ only in a handful of
+    activities. When none of *this* activity's predecessors is one of them the
+    answer cannot depend on the hypothesis, so it is memoised per (uid, day,
+    target) -- an exact result, not an approximation.
     """
     rels=idx['preds'].get(uid,[])
     if not rels: return 1.0,0,[]
+    hypothetical=bool(started_override or completed_override) and any(
+        int(r['pred_uid']) in started_override or int(r['pred_uid']) in completed_override
+        for r in rels if r.get('pred_uid') is not None)
+    if not hypothetical:
+        cache=_memo(idx,'ready')
+        key=(uid,day,target_state)
+        hit=cache.get(key)
+        if hit is not None:
+            score,count,detail=hit
+            return score,count,list(detail)
+        score,count,detail=_compute_pred_readiness(idx,rels,day,frozenset(),frozenset(),target_state)
+        cache[key]=(score,count,detail)
+        return score,count,list(detail)
+    return _compute_pred_readiness(idx,rels,day,started_override,completed_override,target_state)
+
+
+def _compute_pred_readiness(idx, rels, day, started_override, completed_override, target_state:str) -> tuple[float,int,list[dict]]:
     vals=[]; detail=[]
     for r in rels:
         p=int(r['pred_uid']); a=idx['acts'].get(p,{}); pstate=idx['state'].get(p,{})
@@ -158,6 +193,15 @@ def _pred_readiness(idx, uid, day, started_override:set[int], completed_override
 
 def _temporal_uid(idx,uid,day)->float:
     if not day:return .5
+    cache=_memo(idx,'temporal'); key=(uid,day)
+    hit=cache.get(key)
+    if hit is not None:return hit
+    value=_compute_temporal_uid(idx,uid,day)
+    cache[key]=value
+    return value
+
+
+def _compute_temporal_uid(idx,uid,day)->float:
     inf=idx['info'].get(uid,{})
     s=inf.get('start_date');f=inf.get('finish_date')
     if s and f:
@@ -173,6 +217,15 @@ def _continuity(idx, a_uid:int|None, b_uid:int|None)->float:
     thousands of times per evidence row made Rescheduler dominate runtime.
     """
     if a_uid is None or b_uid is None:return .5
+    cache=_memo(idx,'continuity'); key=(int(a_uid),int(b_uid))
+    hit=cache.get(key)
+    if hit is not None:return hit
+    value=_compute_continuity(idx,int(a_uid),int(b_uid))
+    cache[key]=value
+    return value
+
+
+def _compute_continuity(idx, a_uid:int, b_uid:int)->float:
     ai=idx['info'].get(int(a_uid),{});bi=idx['info'].get(int(b_uid),{})
     if not ai or not bi:return .5
     la=ai.get('locations') or ();lb=bi.get('locations') or ()

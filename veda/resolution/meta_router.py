@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import json
 import math
+import time
 from pathlib import Path
 from typing import Any
 
@@ -192,20 +193,101 @@ def _schema_health_cached(config_sig, ranker_sig, utility_sigs):
     }
 
 
-def model_health() -> dict:
-    """Return frozen-model/schema health without loading any query data."""
+_HEALTH_TTL = 30.0
+_health_snapshot: tuple[float, dict] | None = None
+
+
+def model_health(*, fresh: bool = False) -> dict:
+    """Return frozen-model/schema health without loading any query data.
+
+    ``rank`` asks this once per observation, and the underlying check stats six
+    model files.  Frozen release models do not change under a running server, so
+    the answer is held for a short TTL; ``fresh=True`` forces a real re-stat for
+    the /health endpoint and for warmup.
+    """
+    global _health_snapshot
+    if not fresh and _health_snapshot is not None:
+        stamp, snapshot = _health_snapshot
+        if (time.monotonic() - stamp) < _HEALTH_TTL:
+            return dict(snapshot)
     cfg_sig = _path_signature(CONFIG_FILE)
     ranker_sig = _path_signature(RANKER_MODEL)
     util_sigs = tuple(_path_signature(UTILITY_MODELS[e]) for e in EXPERTS)
-    return dict(_schema_health_cached(cfg_sig, ranker_sig, util_sigs))
+    snapshot = dict(_schema_health_cached(cfg_sig, ranker_sig, util_sigs))
+    snapshot["fast_predict_verified"] = _INPLACE_OK
+    _health_snapshot = (time.monotonic(), snapshot)
+    return dict(snapshot)
+
+
+# ``inplace_predict`` skips DMatrix construction, which dominates runtime when
+# each call scores a handful of rows -- exactly VEDA's per-observation shape.
+# It is only used after warmup has proved, on this machine's xgboost build, that
+# it reproduces DMatrix predictions bit-for-bit within float tolerance.  A frozen
+# release model must not change its ranking to go faster.
+_INPLACE_OK: bool | None = None
+_INPLACE_TOLERANCE = 1e-6
+
+
+def _predict_dmatrix(booster, matrix, names: list[str]):
+    import xgboost as xgb
+    return booster.predict(xgb.DMatrix(matrix, feature_names=names),
+                           validate_features=False)
+
+
+def _predict(booster, matrix, names: list[str]):
+    """Score a small matrix with the cheapest verified path."""
+    if _INPLACE_OK:
+        try:
+            return booster.inplace_predict(matrix)
+        except Exception:
+            pass
+    return _predict_dmatrix(booster, matrix, names)
+
+
+def _verify_inplace_path(booster, names: list[str]) -> bool:
+    """Return True only when inplace and DMatrix predictions agree."""
+    try:
+        import numpy as np
+        probes = np.asarray([
+            [0.0] * len(names),
+            [0.5] * len(names),
+            list(np.linspace(0.0, 1.0, len(names))),
+        ], dtype=np.float32)
+        reference = np.asarray(_predict_dmatrix(booster, probes, names), dtype=np.float64)
+        fast = np.asarray(booster.inplace_predict(probes), dtype=np.float64)
+        return bool(reference.shape == fast.shape and
+                    np.allclose(reference, fast, rtol=0.0, atol=_INPLACE_TOLERANCE))
+    except Exception:
+        return False
 
 
 def warmup_models() -> dict:
     """Load the frozen router off the first user request's critical path."""
-    health = model_health()
+    health = model_health(fresh=True)
     if health.get("ok"):
         for path in [*UTILITY_MODELS.values(), RANKER_MODEL]:
             _booster(path)
+        # Prove the fast prediction path reproduces the frozen model exactly,
+        # then run one throwaway prediction per model so xgboost's first-call
+        # allocation happens here rather than inside the first observation the
+        # operator is waiting on.
+        global _INPLACE_OK
+        try:
+            import numpy as np
+            checks = [(_booster(UTILITY_MODELS[e]), QUERY_FEATURES) for e in EXPERTS]
+            checks.append((_booster(RANKER_MODEL), CAND_FEATURES))
+            loaded = [(b, names) for b, names in checks if b]
+            _INPLACE_OK = bool(loaded) and all(
+                _verify_inplace_path(b, names) for b, names in loaded)
+            for b, names in loaded:
+                _predict(b, np.zeros((1, len(names)), dtype=np.float32), names)
+        except Exception:
+            _INPLACE_OK = False
+        # The snapshot taken above predates the fast-path verdict; drop it so the
+        # next health read reports the verified state.
+        global _health_snapshot
+        _health_snapshot = None
+        health = model_health()
     return health
 
 
@@ -351,12 +433,11 @@ def candidate_rows(ev: dict, experts: dict[str, list[dict]], utilities=None):
 def predict_utilities(q: dict[str, float]) -> dict[str, float]:
     try:
         import numpy as np
-        import xgboost as xgb
-        dm = xgb.DMatrix(np.asarray([[q[k] for k in QUERY_FEATURES]], dtype=float), feature_names=QUERY_FEATURES)
+        row = np.asarray([[q[k] for k in QUERY_FEATURES]], dtype=np.float32)
         out = {}
         for e in EXPERTS:
             b = _booster(UTILITY_MODELS[e])
-            out[e] = float(b.predict(dm)[0]) if b else 0.5
+            out[e] = float(_predict(b, row, QUERY_FEATURES)[0]) if b else 0.5
         return {e: max(0.0, min(1.0, p)) for e, p in out.items()}
     except Exception:
         return {e: 0.5 for e in EXPERTS}
@@ -419,9 +500,8 @@ def rank(ev: dict, experts: dict[str, list[dict]], limit: int = 24) -> dict:
 
     try:
         import numpy as np
-        import xgboost as xgb
-        X = np.asarray([[r["features"].get(k, 0.0) for k in CAND_FEATURES] for r in rows], dtype=float)
-        pred = booster.predict(xgb.DMatrix(X, feature_names=CAND_FEATURES))
+        X = np.asarray([[r["features"].get(k, 0.0) for k in CAND_FEATURES] for r in rows], dtype=np.float32)
+        pred = _predict(booster, X, CAND_FEATURES)
         cand = []
         for r, raw in zip(rows, pred):
             raw = float(raw)

@@ -10,11 +10,13 @@ remain the authority for accepting a link.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import math
 import os
 import re
+import time
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Callable
@@ -32,7 +34,59 @@ from ..resolution import ranker as engineering_ranker
 _SEARCH_CACHE: dict[str, tuple[tuple[int, float], list[dict]]] = {}
 _VECTOR_MATRIX_CACHE: dict[str, tuple[tuple[int, float], object]] = {}
 _BM25_CACHE: dict[str, tuple[tuple[int, float], dict]] = {}
+# Revision-scoped views that used to be re-read from SQLite for every candidate
+# of every evidence row.  They describe the schedule revision, not the query, so
+# one build per revision is both correct and orders of magnitude cheaper.
+_GRAPH_CACHE: dict[str, tuple[tuple, dict]] = {}
+_LOGIC_MODE_CACHE: dict[str, tuple[tuple, Any]] = {}
+_CORROBORATION_CACHE: dict[str, tuple[tuple, list[dict]]] = {}
+_PRIORS_CACHE: dict[str, tuple[tuple, dict]] = {}
+_DOC_SIG_CACHE: dict[str, tuple[float, tuple[int, float]]] = {}
+_DOC_SIG_TTL = 0.75
 _LOGIC_MODE_UNSET = object()
+
+
+def _row_signature(sql: str, project_id: str) -> tuple:
+    row = db.q1(sql, [project_id]) or {}
+    return (int(row.get("c") or 0), int(row.get("m") or 0))
+
+
+def _document_signature(project_id: str, *, fresh: bool = False) -> tuple[int, float]:
+    """Cheap revision fingerprint for the retrieval caches.
+
+    hybrid_search asks for this several times per evidence row.  A sub-second
+    TTL keeps a batch of rows on one lookup while still noticing a re-index
+    immediately after it commits.
+    """
+    if not fresh:
+        cached = _DOC_SIG_CACHE.get(project_id)
+        if cached and (time.monotonic() - cached[0]) < _DOC_SIG_TTL:
+            return cached[1]
+    row = db.q1(
+        "SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) u FROM retrieval_documents "
+        "WHERE project_id=?", [project_id]) or {"c": 0, "u": 0}
+    sig = (int(row.get("c") or 0), float(row.get("u") or 0.0))
+    _DOC_SIG_CACHE[project_id] = (time.monotonic(), sig)
+    return sig
+
+
+def _schedule_signature(project_id: str) -> tuple:
+    """Signature for schedule-shaped caches (relationships / snapshot / evidence).
+
+    Asked once per candidate scored, so the probe itself is TTL-cached; without
+    that the cache check costs more round trips than the cache saves.
+    """
+    return db.cached_probe(("schedule_sig", project_id),
+                           lambda: _read_schedule_signature(project_id))
+
+
+def _read_schedule_signature(project_id: str) -> tuple:
+    rel = db.q1("SELECT COUNT(*) c, COALESCE(MAX(rowid),0) m FROM relationships "
+                "WHERE project_id=?", [project_id]) or {}
+    act = db.q1("SELECT COUNT(*) c, COALESCE(MAX(rowid),0) m FROM activities "
+                "WHERE project_id=?", [project_id]) or {}
+    return (int(rel.get("c") or 0), int(rel.get("m") or 0),
+            int(act.get("c") or 0), int(act.get("m") or 0))
 
 STOP = {"the", "and", "for", "with", "of", "to", "in", "on", "at", "a", "an",
         "works", "work", "site", "no", "nos", "shift", "day", "daily", "progress",
@@ -53,13 +107,21 @@ def _tokens(text: str | None) -> list[str]:
     return out
 
 
-def _d(v: Any):
-    if not v:
-        return None
+@functools.lru_cache(maxsize=65536)
+def _parse_date(text: str):
     try:
-        return datetime.strptime(str(v).split("T")[0], "%Y-%m-%d").date()
+        return datetime.strptime(text.split("T")[0], "%Y-%m-%d").date()
     except ValueError:
         return None
+
+
+def _d(v: Any):
+    """Parse a stored ISO date.
+
+    Schedule and evidence dates repeat constantly across candidates, so the
+    parse is memoised on the raw text rather than re-run per comparison.
+    """
+    return _parse_date(str(v)) if v else None
 
 
 def _json(v: Any, default):
@@ -126,7 +188,6 @@ def _asset_assertions(text: str, items: list[dict]) -> dict:
     """Separate positively asserted asset mentions from blocked/pending ones."""
     segments = [x.strip() for x in re.split(r"[;\n]+", str(text or "")) if x.strip()] or [str(text or "")]
     positive: set[str] = set(); negative: set[str] = set(); detail=[]
-    from .entities import tag_aliases
     for item in items or []:
         if not isinstance(item, dict) or item.get("type") == "document":
             continue
@@ -199,10 +260,7 @@ def _cached_documents(project_id: str) -> list[dict]:
     activity for each DPR row, so cache those immutable search views and use a
     cheap DB signature for invalidation.
     """
-    sigrow = db.q1(
-        "SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) u FROM retrieval_documents "
-        "WHERE project_id=?", [project_id]) or {"c": 0, "u": 0}
-    sig = (int(sigrow.get("c") or 0), float(sigrow.get("u") or 0.0))
+    sig = _document_signature(project_id)
     cached = _SEARCH_CACHE.get(project_id)
     if cached and cached[0] == sig:
         return cached[1]
@@ -242,10 +300,18 @@ def _cached_documents(project_id: str) -> list[dict]:
 
 
 def invalidate_search_cache(project_id: str | None = None) -> None:
+    caches = (_SEARCH_CACHE, _VECTOR_MATRIX_CACHE, _BM25_CACHE, _GRAPH_CACHE,
+              _LOGIC_MODE_CACHE, _CORROBORATION_CACHE, _PRIORS_CACHE, _DOC_SIG_CACHE)
     if project_id is None:
-        _SEARCH_CACHE.clear(); _VECTOR_MATRIX_CACHE.clear(); _BM25_CACHE.clear()
+        for cache in caches:
+            cache.clear()
+        sequence_model.invalidate_cache()
+        db.clear_probe_cache()
     else:
-        _SEARCH_CACHE.pop(project_id, None); _VECTOR_MATRIX_CACHE.pop(project_id,None); _BM25_CACHE.pop(project_id,None)
+        for cache in caches:
+            cache.pop(project_id, None)
+        sequence_model.invalidate_cache(project_id)
+        db.clear_probe_cache()
 
 
 def index_project(project_id: str, force: bool = False,
@@ -377,10 +443,31 @@ def _discipline(act: dict) -> str | None:
 
 
 def _context_wbs_priors(project_id: str, ev: dict) -> Counter:
-    """Learn repeated crew/contractor/source attribution from human-confirmed links."""
+    """Learn repeated crew/contractor/source attribution from human-confirmed links.
+
+    Many evidence rows in one batch share a crew/contractor/source file, so the
+    three-table join is memoised on that attribution key.  Accepting a human
+    decision changes evidence_links, which moves the signature and rebuilds it.
+    """
+    key = tuple(str(ev.get(col) or "").strip() for col in ("crew", "contractor", "source_file"))
+    if not any(key):
+        return Counter()
+    sig = db.cached_probe(("accepted_links_sig", project_id), lambda: _row_signature(
+        "SELECT COUNT(*) c, COALESCE(MAX(rowid),0) m FROM evidence_links "
+        "WHERE project_id=? AND human_decision='accepted'", project_id))
+    bucket = _PRIORS_CACHE.get(project_id)
+    if bucket is None or bucket[0] != sig:
+        bucket = _PRIORS_CACHE[project_id] = (sig, {})
+    if key in bucket[1]:
+        return bucket[1][key]
+    counter = _read_wbs_priors(project_id, key)
+    bucket[1][key] = counter
+    return counter
+
+
+def _read_wbs_priors(project_id: str, key: tuple) -> Counter:
     clauses, params = [], [project_id]
-    for col in ("crew", "contractor", "source_file"):
-        val = str(ev.get(col) or "").strip()
+    for col, val in zip(("crew", "contractor", "source_file"), key):
         if val:
             clauses.append("e." + col + "=?")
             params.append(val)
@@ -402,6 +489,48 @@ def _context_wbs_priors(project_id: str, ev: dict) -> Counter:
     return c
 
 
+def _doc_meta(d: dict) -> dict:
+    meta = d.get("_meta_obj")
+    if meta is None:
+        meta = _json(d.get("metadata_json"), {})
+        d["_meta_obj"] = meta
+    return meta
+
+
+def _doc_location_set(d: dict) -> set:
+    cached = d.get("_loc_set")
+    if cached is None:
+        cached = set(_doc_meta(d).get("location_tags") or [])
+        d["_loc_set"] = cached
+    return cached
+
+
+def _doc_event_set(d: dict) -> set:
+    cached = d.get("_event_set")
+    if cached is None:
+        cached = set(_doc_meta(d).get("event_types") or [])
+        d["_event_set"] = cached
+    return cached
+
+
+def _doc_asset_alias_set(d: dict) -> set:
+    cached = d.get("_alias_set")
+    if cached is None:
+        cached = set(_doc_meta(d).get("asset_aliases") or [])
+        d["_alias_set"] = cached
+    return cached
+
+
+def _doc_window(d: dict) -> tuple:
+    """Parsed (start, finish) for temporal narrowing, computed once per revision."""
+    cached = d.get("_date_window")
+    if cached is None:
+        cached = (_d(d.get("actual_start") or d.get("start") or d.get("baseline_start")),
+                  _d(d.get("actual_finish") or d.get("finish") or d.get("baseline_finish")))
+        d["_date_window"] = cached
+    return cached
+
+
 def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[list[dict], dict]:
     q = _evidence_query(ev)
     priors = _context_wbs_priors(project_id, ev)
@@ -420,26 +549,19 @@ def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[l
     physical_aliases = set()
     for item in q.get("asset_tags") or []:
         if not isinstance(item, dict) or item.get("type") != "document":
-            from .entities import tag_aliases
             physical_aliases.update(tag_aliases(item.get("tag") if isinstance(item, dict) else str(item)))
     physical_aliases &= set(q.get("anchor_asset_aliases") or physical_aliases)
     if physical_aliases:
-        anchored = []
-        for d in all_docs:
-            meta = d.get("_meta_obj") or _json(d.get("metadata_json"), {})
-            if physical_aliases & set(meta.get("asset_aliases") or []):
-                anchored.append(d)
+        anchored = [d for d in all_docs if physical_aliases & _doc_asset_alias_set(d)]
         if anchored:
             anchor_uids = {int(d["uid"]) for d in anchored if d.get("uid") is not None}
             expanded_uids = set(anchor_uids)
             if anchor_uids:
-                ph = ",".join("?" for _ in anchor_uids)
-                rels = db.q("SELECT pred_uid,succ_uid FROM relationships WHERE project_id=? "
-                            "AND (pred_uid IN (" + ph + ") OR succ_uid IN (" + ph + "))",
-                            [project_id] + list(anchor_uids) + list(anchor_uids))
-                for r in rels:
-                    if r.get("pred_uid") is not None: expanded_uids.add(int(r["pred_uid"]))
-                    if r.get("succ_uid") is not None: expanded_uids.add(int(r["succ_uid"]))
+                adjacency = _schedule_graph(project_id)["by_uid"]
+                for anchor in anchor_uids:
+                    for r in adjacency.get(anchor, ()):
+                        if r.get("pred_uid") is not None: expanded_uids.add(int(r["pred_uid"]))
+                        if r.get("succ_uid") is not None: expanded_uids.add(int(r["succ_uid"]))
             # Add siblings under the nearest WBS parent; this catches L6 field
             # detail mapped to a coarser L5 work package.
             prefixes = set()
@@ -467,7 +589,7 @@ def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[l
             all_docs = hit
 
     if q["location_tags"]:
-        maybe_filter("location", lambda d: bool(q["location_tags"] & set(_json(d.get("metadata_json"), {}).get("location_tags") or [])))
+        maybe_filter("location", lambda d: bool(q["location_tags"] & _doc_location_set(d)))
 
     qdisc = None
     from ..pipeline.validators import discipline_key, major_discipline_key
@@ -476,12 +598,11 @@ def _metadata_candidates(project_id: str, ev: dict, docs: list[dict]) -> tuple[l
         maybe_filter("discipline", lambda d: _discipline(d) == qdisc)
 
     if q.get("event_type") and q["event_type"] not in ("start", "finish"):
-        maybe_filter("event_type", lambda d: q["event_type"] in set(_json(d.get("metadata_json"), {}).get("event_types") or []), min_keep=6)
+        maybe_filter("event_type", lambda d: q["event_type"] in _doc_event_set(d), min_keep=6)
 
     if q["date"]:
         def in_temporal_neighborhood(d):
-            s = _d(d.get("actual_start") or d.get("start") or d.get("baseline_start"))
-            f = _d(d.get("actual_finish") or d.get("finish") or d.get("baseline_finish"))
+            s, f = _doc_window(d)
             if not s and not f:
                 return True
             lo = (s or f) - timedelta(days=75)
@@ -596,6 +717,16 @@ def _temporal_features(ev: dict, act: dict, event: str | None) -> tuple[float, l
 
 
 def _out_of_sequence_mode(project_id: str) -> str | None:
+    sig = _schedule_signature(project_id)
+    cached = _LOGIC_MODE_CACHE.get(project_id)
+    if cached and cached[0] == sig:
+        return cached[1]
+    mode = _read_out_of_sequence_mode(project_id)
+    _LOGIC_MODE_CACHE[project_id] = (sig, mode)
+    return mode
+
+
+def _read_out_of_sequence_mode(project_id: str) -> str | None:
     snap = db.q1("SELECT info_json FROM schedule_snapshots WHERE project_id=? AND is_current=1 ORDER BY created_at DESC LIMIT 1", [project_id])
     obj = _json((snap or {}).get("info_json"), {})
     wanted = {"outofsequencescheduletype", "out_of_sequence_schedule_type", "outofsequencelogic",
@@ -623,6 +754,31 @@ def _out_of_sequence_mode(project_id: str) -> str | None:
     if "actual" in low and "date" in low: return "Actual Dates"
     return found
 
+def _schedule_graph(project_id: str) -> dict:
+    """Relationship adjacency + predecessor/successor status, built per revision.
+
+    ``_graph_features`` runs once per candidate, so the old two-queries-per-call
+    shape meant ~50 SQLite round trips for every evidence row.  The graph is a
+    property of the schedule revision, so build it once and share it.
+    """
+    sig = _schedule_signature(project_id)
+    cached = _GRAPH_CACHE.get(project_id)
+    if cached and cached[0] == sig:
+        return cached[1]
+    by_uid: dict[Any, list[dict]] = {}
+    for rel in db.q("SELECT * FROM relationships WHERE project_id=?", [project_id]):
+        for key in (rel.get("pred_uid"), rel.get("succ_uid")):
+            if key is None:
+                continue
+            by_uid.setdefault(key, []).append(rel)
+    activities = {r["uid"]: r for r in db.q(
+        "SELECT uid,status,actual_start,actual_finish,start,finish FROM activities "
+        "WHERE project_id=?", [project_id]) if r.get("uid") is not None}
+    graph = {"by_uid": by_uid, "activities": activities}
+    _GRAPH_CACHE[project_id] = (sig, graph)
+    return graph
+
+
 def _graph_features(project_id: str, ev: dict, act: dict, *,
                     logic_mode: Any = _LOGIC_MODE_UNSET) -> tuple[float, list[str], list[str], dict]:
     """Relationship-aware execution plausibility.
@@ -633,20 +789,13 @@ def _graph_features(project_id: str, ev: dict, act: dict, *,
     uid = act.get("uid")
     if uid is None:
         return 0.5, [], [], {}
-    rels = db.q("SELECT * FROM relationships WHERE project_id=? AND (pred_uid=? OR succ_uid=?)",
-                [project_id, uid, uid])
+    graph = _schedule_graph(project_id)
+    rels = graph["by_uid"].get(uid, ())
     if not rels:
         return 0.5, [], [], {"relationship_count": 0}
     pred_rels = [r for r in rels if r.get("succ_uid") == uid and r.get("pred_uid") is not None]
     succ_rels = [r for r in rels if r.get("pred_uid") == uid and r.get("succ_uid") is not None]
-    related = list(dict.fromkeys([r.get("pred_uid") for r in pred_rels] +
-                                 [r.get("succ_uid") for r in succ_rels]))
-    rows = {}
-    if related:
-        ph = ",".join("?" for _ in related)
-        rows = {r["uid"]: r for r in db.q(
-            "SELECT uid,status,actual_start,actual_finish,start,finish FROM activities "
-            "WHERE project_id=? AND uid IN (" + ph + ")", [project_id] + related)}
+    rows = graph["activities"]
     ed = _d(ev.get("date"))
     if logic_mode is _LOGIC_MODE_UNSET:
         logic_mode = _out_of_sequence_mode(project_id)
@@ -719,6 +868,51 @@ def _graph_features(project_id: str, ev: dict, act: dict, *,
 
 
 
+def _corroboration_corpus(project_id: str) -> list[dict]:
+    """Decoded dated-evidence corpus for one project.
+
+    Date corroboration compares one row against every other dated row, so
+    decoding tags/locations inside that loop made the pass quadratic in tag
+    extraction.  Decode once per evidence generation and keep only the fields
+    the comparison actually reads.
+    """
+    sig = db.cached_probe(("evidence_sig", project_id), lambda: _row_signature(
+        "SELECT COUNT(*) c, COALESCE(MAX(rowid),0) m FROM evidence WHERE project_id=?",
+        project_id))
+    cached = _CORROBORATION_CACHE.get(project_id)
+    if cached and cached[0] == sig:
+        return cached[1]
+    corpus = []
+    for r in db.q(
+        "SELECT id,file_id,source_file,date,description,raw_json,asset_tags_json,"
+        "location_tags_json,event_type FROM evidence "
+        "WHERE project_id=? AND date IS NOT NULL", [project_id],
+    ):
+        rd = _d(r.get("date"))
+        if not rd:
+            continue
+        rtags = _json(r.get("asset_tags_json"), None)
+        if rtags is None:
+            rtags = extract_asset_tags(r.get("description"))
+        # Derive the canonical action the same way _evidence_query does rather
+        # than reading whatever happens to be persisted yet.  Linking writes
+        # exactly this value back, so the two sides agree, and corroboration no
+        # longer depends on which rows of the batch were resolved first.
+        event = (event_model.classify_event(r).get("action") or
+                 r.get("event_type") or primary_event_type(r.get("description")))
+        corpus.append({
+            "id": r.get("id") or "",
+            "date": rd,
+            "aliases": asset_alias_set(rtags),
+            "locations": set(_json(r.get("location_tags_json"), []) or
+                             extract_location_tags(r.get("description"))),
+            "event": event,
+            "source": str(r.get("file_id") or r.get("source_file") or r.get("id")),
+        })
+    _CORROBORATION_CACHE[project_id] = (sig, corpus)
+    return corpus
+
+
 def _date_corroboration(project_id: str, ev: dict, q: dict) -> tuple[float, list[str], list[str], dict]:
     """Cross-check an observed event date against independent contemporaneous evidence.
 
@@ -729,26 +923,18 @@ def _date_corroboration(project_id: str, ev: dict, q: dict) -> tuple[float, list
     ed = q.get("date")
     if not ed:
         return 0.5, [], [], {"independent_sources": 0}
-    rows = db.q(
-        "SELECT id,file_id,source_file,date,description,asset_tags_json,location_tags_json,event_type "
-        "FROM evidence WHERE project_id=? AND date IS NOT NULL AND id<>?",
-        [project_id, ev.get("id") or ""],
-    )
+    rows = _corroboration_corpus(project_id)
+    self_id = ev.get("id") or ""
     qaliases = set(q.get("asset_aliases") or [])
     qloc = set(q.get("location_tags") or [])
     qevent = q.get("event_type")
     near_sources, other_dates = set(), []
     relevant = 0
     for r in rows:
-        rd = _d(r.get("date"))
-        if not rd:
+        if r["id"] == self_id:
             continue
-        rtags = _json(r.get("asset_tags_json"), None)
-        if rtags is None:
-            rtags = extract_asset_tags(r.get("description"))
-        raliases = asset_alias_set(rtags)
-        rloc = set(_json(r.get("location_tags_json"), []) or extract_location_tags(r.get("description")))
-        revent = r.get("event_type") or primary_event_type(r.get("description"))
+        rd = r["date"]
+        raliases, rloc, revent = r["aliases"], r["locations"], r["event"]
 
         # Require an identity anchor. Exact asset is strongest; without a tag,
         # require both location and action to avoid correlating unrelated work.
@@ -760,9 +946,8 @@ def _date_corroboration(project_id: str, ev: dict, q: dict) -> tuple[float, list
             continue
         relevant += 1
         delta = abs((rd - ed).days)
-        source = str(r.get("file_id") or r.get("source_file") or r.get("id"))
         if delta <= 1:
-            near_sources.add(source)
+            near_sources.add(r["source"])
         elif delta <= 21:
             other_dates.append(delta)
 
@@ -988,8 +1173,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
     dense_raw = None
     try:
         import numpy as np
-        sigrow = db.q1("SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) u FROM retrieval_documents WHERE project_id=?", [project_id]) or {"c":0,"u":0}
-        sig=(int(sigrow.get("c") or 0),float(sigrow.get("u") or 0.0))
+        sig=_document_signature(project_id)
         cached_mat=_VECTOR_MATRIX_CACHE.get(project_id)
         if cached_mat and cached_mat[0]==sig:
             qn=np.asarray(qvec,dtype=np.float32); qnorm=float(np.linalg.norm(qn)) or 1.0; qn=qn/qnorm
@@ -1014,10 +1198,8 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         br = _rank(bge_sparse_raw)
         rrf = [v + 1 / (60 + br[i]) for i,v in enumerate(rrf)]
     # Add exact tag ranking as a third retrieval channel when available.
-    tag_hits = []
-    for d in pool:
-        meta = d.get("_meta_obj") or _json(d.get("metadata_json"), {})
-        tag_hits.append(1.0 if set(q.get("anchor_asset_aliases") or q["asset_aliases"]) & set(meta.get("asset_aliases") or []) else 0.0)
+    anchor_aliases = set(q.get("anchor_asset_aliases") or q["asset_aliases"])
+    tag_hits = [1.0 if anchor_aliases & _doc_asset_alias_set(d) else 0.0 for d in pool]
     if any(tag_hits):
         tr = _rank(tag_hits)
         rrf = [v + 1 / (60 + tr[i]) for i, v in enumerate(rrf)]
@@ -1048,7 +1230,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         if position % 8 == 0:
             checkpoint()
         act = pool[i]
-        meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
+        meta = _doc_meta(act)
         sf = _signal_features(project_id, ev, act, meta, q, signal_context)
         feat = {"dense": dense_norm[i], "dense_cosine": dense_raw[i],
                 "sparse": sparse_norm[i], "sparse_bm25": sparse_raw[i],
@@ -1077,7 +1259,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
         if uid in present or uid not in by_uid:
             continue
         act = by_uid[uid]
-        meta = act.get("_meta_obj") or _json(act.get("metadata_json"), {})
+        meta = _doc_meta(act)
         sf = _signal_features(project_id, ev, act, meta, q, signal_context)
         feat = {"dense": 0.0, "dense_cosine": 0.0, "sparse": 0.0, "sparse_bm25": 0.0,
                 "bge_sparse": 0.0, "bge_sparse_raw": 0.0, "rrf": 0.0, "rerank": 0.0, **sf,
@@ -1121,7 +1303,7 @@ def hybrid_search(project_id: str, ev: dict, top_k: int = 8,
             except Exception: err=None
             ern=_normalize(err) if err else [0.0 for _ in extra_docs]
             for j,act in enumerate(extra_docs):
-                meta=act.get("_meta_obj") or _json(act.get("metadata_json"),{})
+                meta=_doc_meta(act)
                 sf=_signal_features(project_id,ev,act,meta,q,signal_context)
                 dn=scale(edense[j],dlo,dhi); sn=scale(esparse[j],slo,shi)
                 feat={"dense":dn,"dense_cosine":edense[j],"sparse":sn,"sparse_bm25":esparse[j],

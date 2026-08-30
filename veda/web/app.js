@@ -7,17 +7,48 @@ const S = {
   agentCompletionTimer: null,
   agentWatchTimer: null, agentWatchProject: null, agentJobFingerprint: null,
   agentSyncBusy: false, renderVersion: 0,
+  renderedView: null, renderedProject: null, agentPaintTimer: null,
 };
 
 const $ = (s, r) => (r || document).querySelector(s);
+
+/* ------------------------------------------------------ read coalescing
+   A live run fires many events, and each one asks the header and the current
+   view for state. Several of those are the same GET issued microseconds apart
+   (the control room re-reads /overview right after the header did). Share a
+   read for a fraction of a second, and drop the whole cache the moment anything
+   is written, so a refresh never shows a value older than the last mutation. */
+const READ_TTL = 400;
+const _reads = new Map();
+
+function invalidateReads() { _reads.clear(); }
+
 const api = async (path, opts) => {
-  const r = await fetch('/api' + path, opts);
-  if (!r.ok) {
-    let msg = r.status + ' ' + r.statusText;
-    try { const j = await r.json(); msg = j.detail || msg; } catch (e) {}
-    throw new Error(msg);
+  const isRead = !opts || !opts.method || opts.method === 'GET';
+  if (isRead) {
+    const hit = _reads.get(path);
+    if (hit && (performance.now() - hit.at) < READ_TTL) return hit.promise;
+  } else {
+    invalidateReads();
   }
-  return r.json();
+  const request = (async () => {
+    const r = await fetch('/api' + path, opts);
+    if (!r.ok) {
+      let msg = r.status + ' ' + r.statusText;
+      try { const j = await r.json(); msg = j.detail || msg; } catch (e) {}
+      throw new Error(msg);
+    }
+    return r.json();
+  })();
+  if (isRead) {
+    _reads.set(path, { at: performance.now(), promise: request });
+    // A failed read must not be replayed to later callers.
+    request.catch(() => _reads.delete(path));
+  } else {
+    // Whatever the write did, the next read has to see it.
+    request.then(invalidateReads, invalidateReads);
+  }
+  return request;
 };
 const post = (p, body) => api(p, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -110,16 +141,20 @@ async function render() {
     return;
   }
   const fn = VIEWS[S.view] || VIEWS.overview;
-  // Keep the live execution canvas mounted while an SSE refresh is fetched.
-  // Replacing it with a spinner on every event makes genuine progress look static.
-  if (!(S.view === 'agent' && main.querySelector('.intelligence-run'))) {
-    main.innerHTML = '<div class="empty">Loading…</div>';
-  }
+  // A live refresh re-renders the same view. Blanking it to a spinner on every
+  // event makes real progress look like a stall and throws away the reader's
+  // scroll position, so only show the placeholder on a genuine view change.
+  const sameView = S.renderedView === renderView && S.renderedProject === renderProject;
+  const scroll = sameView ? main.scrollTop : 0;
+  if (!sameView && main.childElementCount) main.innerHTML = '<div class="empty">Loading…</div>';
   try {
     const html = await fn(renderProject, S.params);
     if (version !== S.renderVersion || renderProject !== S.project ||
         renderView !== S.view) return;
     main.innerHTML = html;
+    if (sameView && scroll) main.scrollTop = scroll;
+    S.renderedView = renderView;
+    S.renderedProject = renderProject;
     if (VIEWS['bind_' + renderView]) VIEWS['bind_' + renderView](renderProject, S.params);
     syncAgentWatchdog();
   } catch (e) {
@@ -128,6 +163,7 @@ async function render() {
     main.innerHTML = '<div class="panel"><div class="body">' +
       '<div class="note danger"><b>Could not load this view.</b><br>' +
       esc(e.message) + '</div></div></div>';
+    S.renderedView = null;
     syncAgentWatchdog();
   }
 }
@@ -388,7 +424,9 @@ async function activateCurrentProject(pid) {
    fingerprints while the execution view is visible. */
 function stopAgentWatchdog() {
   if (S.agentWatchTimer) clearInterval(S.agentWatchTimer);
+  if (S.agentPaintTimer) clearInterval(S.agentPaintTimer);
   S.agentWatchTimer = null;
+  S.agentPaintTimer = null;
   S.agentWatchProject = null;
   S.agentJobFingerprint = null;
   S.agentSyncBusy = false;
@@ -455,7 +493,24 @@ function syncAgentWatchdog() {
   stopAgentWatchdog();
   S.agentWatchProject = S.project;
   const projectId = S.project;
-  S.agentWatchTimer = setInterval(() => pollAgentState(projectId), 720);
+  // Two separate clocks. The stage animation is presentation only, so it
+  // repaints locally at the playback cadence and never touches the network.
+  // Durable job/activity state is reconciled on a slower beat, because SSE is
+  // the fast path and this only has to cover a suspended tab or a dropped
+  // connection.
+  S.agentPaintTimer = setInterval(() => repaintRunPresentation(projectId), 320);
+  S.agentWatchTimer = setInterval(() => pollAgentState(projectId), 1500);
+}
+
+function repaintRunPresentation(projectId) {
+  if (S.view !== 'agent' || S.project !== projectId) return;
+  if (!runPresentationBehind()) return;
+  // Local repaint from the payload the last full render already fetched.
+  if (!VIEWS.paintRun(projectId)) { render(); return; }
+  if (!runPresentationBehind()) {
+    const snap = VIEWS._agentSnapshot;
+    maybeLeaveCompletedRun(projectId, snap && snap.pid === projectId ? snap.job : null);
+  }
 }
 
 function bindNoProject() {

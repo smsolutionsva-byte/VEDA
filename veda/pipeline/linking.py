@@ -295,15 +295,15 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
             stats["quarantined"] += 1
             continue
 
-        db.ex("DELETE FROM evidence_links WHERE evidence_id=? AND "
-              "(human_decision IS NULL OR human_decision='')", [ev["id"]])
-
         event_info = event_model.classify_event(ev)
-        db.update("evidence", ev["id"], {
-            "action_type": event_info.get("action"), "event_state": event_info.get("state"),
-            "event_confidence": event_info.get("confidence"),
-            "event_type": ev.get("event_type") or event_info.get("action"),
-        })
+        with db.transaction():
+            db.ex("DELETE FROM evidence_links WHERE evidence_id=? AND "
+                  "(human_decision IS NULL OR human_decision='')", [ev["id"]])
+            db.update("evidence", ev["id"], {
+                "action_type": event_info.get("action"), "event_state": event_info.get("state"),
+                "event_confidence": event_info.get("confidence"),
+                "event_type": ev.get("event_type") or event_info.get("action"),
+            })
         # Refresh local copy because dynamically-added fields may be used below.
         ev = {**ev, "action_type": event_info.get("action"), "event_state": event_info.get("state")}
 
@@ -360,30 +360,33 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
                                                   best_features.get("raw_score") or 0.0) or 0.0)
         rank_score = float(best.get("score") or 0.0)
         committed_uid = best["activity"]["uid"] if state == "linked" else None
-        db.insert("evidence_links", {
-            "project_id": project_id, "evidence_id": ev["id"],
-            "activity_uid": best["activity"]["uid"],
-            "activity_name": best["activity"]["name"],
-            "confidence": float(cal.get("probability") or 0.0),
-            "retrieval_score": retrieval_score, "rank_score": rank_score,
-            "calibrated_probability": float(cal.get("probability") or 0.0),
-            "calibration_mode": cal.get("mode"),
-            "calibration_is_empirical": 1 if cal.get("is_calibrated") else 0,
-            "calibration_model_version": cal.get("model_version"),
-            "feature_json": db.jdumps(best_features),
-            "policy_json": db.jdumps(policy),
-            "prediction_set_json": db.jdumps(policy.get("candidate_set") or {}),
-            "policy_decision": policy.get("decision"),
-            "recommended_uid": best["activity"]["uid"], "committed_uid": committed_uid,
-            "relation": relation,
-            "supporting_signals": db.jdumps(best["supporting"]),
-            "conflicting_signals": db.jdumps(best["conflicting"]),
-            "validator_result": vres["result"], "validator_json": db.jdumps(vres),
-            "is_candidate": is_cand,
-            "provenance": "AI_INFERENCE" if best.get("from_agent") else "DETERMINISTIC_CALCULATION",
-        })
-        for alt in cands[1:4]:
+        # One transaction per evidence row: the recommended link, its alternates
+        # and the resulting state must all land together, and grouping them also
+        # collapses five fsyncs into one.
+        with db.transaction():
             db.insert("evidence_links", {
+                "project_id": project_id, "evidence_id": ev["id"],
+                "activity_uid": best["activity"]["uid"],
+                "activity_name": best["activity"]["name"],
+                "confidence": float(cal.get("probability") or 0.0),
+                "retrieval_score": retrieval_score, "rank_score": rank_score,
+                "calibrated_probability": float(cal.get("probability") or 0.0),
+                "calibration_mode": cal.get("mode"),
+                "calibration_is_empirical": 1 if cal.get("is_calibrated") else 0,
+                "calibration_model_version": cal.get("model_version"),
+                "feature_json": db.jdumps(best_features),
+                "policy_json": db.jdumps(policy),
+                "prediction_set_json": db.jdumps(policy.get("candidate_set") or {}),
+                "policy_decision": policy.get("decision"),
+                "recommended_uid": best["activity"]["uid"], "committed_uid": committed_uid,
+                "relation": relation,
+                "supporting_signals": db.jdumps(best["supporting"]),
+                "conflicting_signals": db.jdumps(best["conflicting"]),
+                "validator_result": vres["result"], "validator_json": db.jdumps(vres),
+                "is_candidate": is_cand,
+                "provenance": "AI_INFERENCE" if best.get("from_agent") else "DETERMINISTIC_CALCULATION",
+            })
+            db.insertmany("evidence_links", [{
                 "project_id": project_id, "evidence_id": ev["id"],
                 "activity_uid": alt["activity"]["uid"], "activity_name": alt["activity"]["name"],
                 "confidence": None, "retrieval_score": float(alt.get("features",{}).get("pre_meta_raw_score",
@@ -394,12 +397,11 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
                 "conflicting_signals": db.jdumps(alt["conflicting"]),
                 "is_candidate": 1, "recommended_uid": best["activity"]["uid"],
                 "provenance": "DETERMINISTIC_CALCULATION",
-            })
-
-        db.update("evidence", ev["id"], {"state": state,
-                 "confidence": float(cal.get("probability") or 0.0)})
-        if state == "linked":
-            _upsert_execution_event(project_id, ev, best, event_info, cal)
+            } for alt in cands[1:4]])
+            db.update("evidence", ev["id"], {"state": state,
+                     "confidence": float(cal.get("probability") or 0.0)})
+            if state == "linked":
+                _upsert_execution_event(project_id, ev, best, event_info, cal)
 
     checkpoint()
     report("resolver_validating",
@@ -552,23 +554,32 @@ def rebuild_observed_progress(project_id: str) -> None:
         "AND l.relation IN ('supporting') AND l.is_candidate=0 "
         "AND e.state IN ('linked','confirmed') "
         "GROUP BY l.activity_uid", [project_id])
+    if not rows:
+        return
+    # One read of the official percentages instead of one query per activity,
+    # and one transaction instead of one commit per rebuilt row.
+    official_by_uid = {r["uid"]: r.get("percent_complete") for r in db.q(
+        "SELECT uid, percent_complete FROM activities WHERE project_id=?",
+        [project_id]) if r.get("uid") is not None}
+    stamp = db.now()
+    payload = []
     for r in rows:
-        act = db.q1("SELECT percent_complete, name FROM activities "
-                    "WHERE project_id=? AND uid=?", [project_id, r["uid"]])
-        official = (act or {}).get("percent_complete")
+        official = official_by_uid.get(r["uid"])
         observed = r.get("max_obs")
         basis = "max reported observed_progress across linked evidence"
         if observed is None:
-            observed = None
             basis = ("no evidence row states a progress percentage; " +
                      str(int(r["n"])) + " linked record(s) with quantity " +
                      str(round(r.get("qty") or 0, 1)))
-        db.insert("observed_progress", {
+        payload.append({
             "project_id": project_id, "activity_uid": r["uid"],
             "official_percent": official, "observed_percent": observed,
             "delta": (round(observed - official, 1)
                       if observed is not None and official is not None else None),
             "evidence_count": int(r["n"]), "as_of": r.get("as_of"),
             "basis": basis, "provenance": "DERIVED",
-            "updated_at": db.now(),
+            "updated_at": stamp,
         })
+    with db.transaction():
+        for row in payload:
+            db.insert("observed_progress", row)

@@ -87,7 +87,7 @@ VIEWS.noproject = () =>
   '(XER, MPP, MSPDI XML, PMXML, Asta) together with the DPRs, registers and ' +
   'reports that describe what actually happened on site.</p>' +
   '<button class="btn primary" id="createFirst">Create a project</button>' +
-  '</div></section>';
+  '</div></div>';
 
 /* ===================================================== Field capture */
 VIEWS.capture = async (pid) => {
@@ -98,10 +98,10 @@ VIEWS.capture = async (pid) => {
       needs_activity: 'amber', conflict: 'red' };
     const detail = [c.activity_display_id, c.activity_name].filter(Boolean).join(' · ');
     return '<article class="capture-history-item">' +
-      '<div class="capture-history-state"><i></i><span>' +
+      '<div class="capture-history-state"><i></i></div>' +
+      '<div class="capture-history-copy"><div>' +
       tagFor(c.event_state, {start: 'blue', progress: 'amber', finish: 'green'}) +
-      '</span></div><div class="capture-history-copy"><div><b>' +
-      E(detail || 'Activity not linked yet') + '</b><span class="mono">' +
+      '<b>' + E(detail || 'Activity not linked yet') + '</b><span class="mono">' +
       E(day(c.occurred_at)) + '</span></div><p>' + E(c.confirmed_text) + '</p>' +
       '<footer>' + tagFor(c.status, statusMap) +
       (c.observed_progress !== null && c.observed_progress !== undefined
@@ -310,7 +310,7 @@ VIEWS.overview = async (pid) => {
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Decisions waiting on you', int(c.pending_reviews || 0) + int(c.pending_proposals || 0),
+    stat('Decisions waiting on you', int(Number(c.pending_reviews || 0) + Number(c.pending_proposals || 0)),
       int(c.pending_reviews || 0) + ' evidence/security decision(s) · ' + int(c.pending_proposals || 0) + ' schedule-change approval(s)',
       (c.pending_reviews || c.pending_proposals) ? 'warm' : 'good') +
     stat('Open derived issues', int(c.open_issues || 0), 'stored issue records derived from rules/analysis; not a count of failed schedule-QA checks',
@@ -952,9 +952,9 @@ function sCurve(series) {
   const yC = (v) => H - 22 - (v / maxC) * (H - 46);
   const bw = Math.max(3, (W - pad * 2) / series.length - 5);
   const bars = series.map((s, i) =>
-    '<rect x="' + (x(i) - bw / 2) + '" y="' +
+    '<rect class="c-bar" x="' + (x(i) - bw / 2) + '" y="' +
     (H - 22 - (per[i] / maxP) * (H - 60)) + '" width="' + bw + '" height="' +
-    ((per[i] / maxP) * (H - 60)) + '" fill="#1F5D6E" opacity=".55"/>').join('');
+    ((per[i] / maxP) * (H - 60)) + '"/>').join('');
   const line = series.map((s, i) => (i ? 'L' : 'M') + x(i) + ' ' + yC(cum[i]))
     .join(' ');
   const labels = series.map((s, i) => (i % Math.ceil(series.length / 8) === 0)
@@ -966,9 +966,9 @@ function sCurve(series) {
     [0, .25, .5, .75, 1].map(f => '<line class="grid-l" x1="' + pad + '" x2="' +
       (W - pad) + '" y1="' + yC(maxC * f) + '" y2="' + yC(maxC * f) + '"/>').join('') +
     bars +
-    '<path d="' + line + '" fill="none" stroke="#45C8E8" stroke-width="2"/>' +
-    series.map((s, i) => '<circle cx="' + x(i) + '" cy="' + yC(cum[i]) +
-      '" r="2.5" fill="#45C8E8"/>').join('') +
+    '<path class="c-line" d="' + line + '" fill="none" stroke-width="2"/>' +
+    series.map((s, i) => '<rect class="c-dot" x="' + (x(i) - 2.5) + '" y="' +
+      (yC(cum[i]) - 2.5) + '" width="5" height="5"/>').join('') +
     labels + '</svg>' +
     '<div class="key" style="margin-top:8px"><span class="lbl">Cumulative</span>' +
     '<span class="tag blue">line</span><span class="lbl">Per period</span>' +
@@ -1831,7 +1831,7 @@ function runState(level, ctx, guarded) {
   return 'pending';
 }
 
-function runNode(level, ctx, title, question, meta, delay, guarded) {
+function runNode(level, ctx, title, question, meta, guarded) {
   const state = runState(level, ctx, guarded);
   const slug = String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const marker = state === 'done' ? '✓' : state === 'failed' ? '!' :
@@ -1843,11 +1843,6 @@ function runNode(level, ctx, title, question, meta, delay, guarded) {
     (meta ? '<small>' + E(meta) + '</small>' : '') + '</div></div>';
 }
 
-function runConnector(level, ctx) {
-  return '<div class="arch-connector ' + runState(level, ctx, false) +
-    '" aria-hidden="true"><i></i></div>';
-}
-
 function runDuration(job) {
   if (!job) return 'Awaiting a run';
   const start = Number(job.started_at || job.created_at || 0);
@@ -1856,6 +1851,31 @@ function runDuration(job) {
   const seconds = Math.max(0, Math.round(end - start));
   if (seconds < 60) return seconds + 's elapsed';
   return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's elapsed';
+}
+
+/* The execution map is one pipeline drawn top to bottom.  Every stage of the
+   run is present exactly once, in the same order and with the same ordinals as
+   the progress rail above it, so the rail and the map can never disagree.  A
+   stage is a labelled band; a band is a CSS grid, so nodes inside a fan-out sit
+   in their own columns and connectors are real elements between bands. */
+const RUN_STAGES = [
+  [0, 'Sources'], [1, 'Schedule'], [2, 'Evidence'], [3, 'Reasoning'],
+  [4, 'Resolver'], [5, 'Validation'], [6, 'Controls'], [7, 'Decision'],
+];
+
+function runBand(cols, nodes) {
+  return '<div class="arch-band cols-' + cols + '">' + nodes.join('') + '</div>';
+}
+
+function runRail(level, ctx, kind) {
+  // kind: '' (stem) | 'split' | 'merge', optionally with a width modifier.
+  return '<div class="arch-rail ' + (kind || '') + ' ' + runState(level, ctx, false) +
+    '" aria-hidden="true"><i></i></div>';
+}
+
+function runStage(label, body, guard) {
+  return '<div class="arch-stage' + (guard ? ' guard' : '') + '">' +
+    '<div class="arch-stage-label">' + E(label) + '</div>' + body + '</div>';
 }
 
 function executionMap(job, activity) {
@@ -1869,10 +1889,65 @@ function executionMap(job, activity) {
   const statusClass = ctx.status === 'done' ? 'done' :
     (ctx.status === 'failed' || ctx.status === 'cancelled') ? 'failed' :
     ctx.status === 'empty' ? 'idle' : 'running';
-  const milestones = [
-    [0, 'Sources'], [1, 'Schedule'], [2, 'Evidence'], [3, 'Reasoning'],
-    [4, 'Resolver'], [6, 'Controls'], [7, 'Decision'],
-  ];
+
+  const map =
+    runStage('Intake', runBand(1, [
+      runNode(0, ctx, 'Field observation', 'What changed on site?',
+        'DPR · note · report · image'),
+    ])) +
+    runRail(1, ctx) +
+    runStage('Schedule and field record', runBand(2, [
+      runNode(1, ctx, 'Horizun snapshot', 'What does the plan say?',
+        'Activities · logic · dates · float'),
+      runNode(2, ctx, 'Evidence extraction', 'What did the documents record?',
+        'Rows · quantities · provenance'),
+    ])) +
+    runRail(3, ctx) +
+    runStage('Reasoning', runBand(1, [
+      runNode(3, ctx, 'Reasoning provider', 'What does the agent propose?',
+        'Structured output only · never a schedule fact'),
+    ])) +
+    runRail(4, ctx) +
+    runStage('Resolver ensemble',
+      runBand(1, [
+        runNode(4, ctx, 'Semantic candidate floor', 'Which activities are plausible?',
+          'Candidate retrieval · no forced match'),
+      ]) +
+      runRail(4, ctx, 'split mid') +
+      runBand(3, [
+        runNode(4, ctx, 'Engineering', 'What?', 'Scope and workface semantics'),
+        runNode(4, ctx, 'Tree', 'Where?', 'WBS · location · hierarchy'),
+        runNode(4, ctx, 'Rescheduler v2', 'Changed world?', 'Revision-aware candidates'),
+      ]) +
+      runRail(4, ctx, 'merge mid') +
+      runBand(1, [
+        runNode(4, ctx, 'Candidate union', 'Four candidate lists converge',
+          'Stable activity identity retained'),
+      ]) +
+      runRail(4, ctx, 'split wide') +
+      runBand(2, [
+        runNode(4, ctx, 'Expert utility predictors', '', 'Specialist ranking signals'),
+        runNode(4, ctx, 'Candidate-level evidence', '', 'Support · conflict · provenance'),
+      ]) +
+      runRail(4, ctx, 'merge wide') +
+      runBand(1, [
+        runNode(4, ctx, 'LambdaMART MetaRank', 'Which activity best explains it?',
+          'Learned ensemble · evidence-aware'),
+      ]) +
+      runRail(4, ctx) +
+      runBand(1, [
+        runNode(4, ctx, 'Final activity rank', 'Best supported identity',
+          'Ranking margin · not a probability'),
+      ])) +
+    runRail(5, ctx) +
+    runStage('Governed decision boundary', runBand(5, [
+      runNode(5, ctx, 'Calibration', '', 'Uncertainty made explicit'),
+      runNode(5, ctx, 'Deterministic validators', '', 'Rules · dates · relationships'),
+      runNode(6, ctx, 'Risk policy', '', 'Safe action boundary'),
+      runNode(7, ctx, 'Review / identity link', '',
+        needsReview ? 'Human decision required' : 'No forced identity'),
+      runNode(8, ctx, 'Schedule-write gates', '', 'Human approval only', true),
+    ]), true);
 
   return '<section class="intelligence-run ' + statusClass + '" aria-label="VEDA execution status"' +
     ' data-run-job="' + E(job ? job.id : '') + '"' +
@@ -1883,13 +1958,13 @@ function executionMap(job, activity) {
     '<header class="run-header"><div class="run-title">' +
       '<div class="eyebrow">Persisted execution intelligence</div>' +
       '<h2>Field truth → governed schedule decision</h2>' +
-      '<p>Every highlight is derived from the latest stored job phase. ' +
-      'The resolver ensemble is shown as one governed execution stage.</p></div>' +
+      '<p>Every highlight is derived from the latest stored job phase. Nothing ' +
+      'below is animated ahead of what VEDA has actually persisted.</p></div>' +
       '<div class="run-status"><span class="run-beacon" aria-hidden="true"></span>' +
       '<div><b>' + E(statusLabel) + '</b><small>' + E(phaseLabel) + ' · ' +
       E(runDuration(job)) + '</small></div></div></header>' +
     '<div class="run-milestones" aria-label="Execution stages">' +
-      milestones.map(([level, label]) => {
+      RUN_STAGES.map(([level, label]) => {
         const state = runState(level, ctx, false);
         return '<div class="run-milestone ' + state + '"' +
           (state === 'active' ? ' aria-current="step"' : '') + '>' +
@@ -1897,39 +1972,7 @@ function executionMap(job, activity) {
       }).join('') + '</div>' +
     '<div class="architecture-map">' +
       '<div class="map-caption"><span>Live architecture</span>' +
-      '<small>WHAT × WHERE × CHANGED WORLD</small></div>' +
-      runNode(0, ctx, 'Field observation', 'What changed on site?',
-        'DPR · note · report · image', 0, false) +
-      runConnector(4, ctx) +
-      runNode(4, ctx, 'Semantic candidate floor', 'Which activities are plausible?',
-        'Candidate retrieval · no forced match', 80, false) +
-      '<div class="arch-fork ' + runState(4, ctx, false) + '">' +
-        runNode(4, ctx, 'Engineering', 'WHAT?', 'Scope and workface semantics', 150, false) +
-        runNode(4, ctx, 'Tree', 'WHERE?', 'WBS · location · hierarchy', 230, false) +
-        runNode(4, ctx, 'Rescheduler v2', 'CHANGED WORLD?', 'Revision-aware candidate lists', 310, false) +
-      '</div>' +
-      runConnector(4, ctx) +
-      runNode(4, ctx, 'Candidate union', 'Four candidate lists converge',
-        'Stable activity identity retained', 390, false) +
-      '<div class="arch-split ' + runState(4, ctx, false) + '">' +
-        runNode(4, ctx, 'Expert utility predictors', '', 'Specialist ranking signals', 470, false) +
-        runNode(4, ctx, 'Candidate-level evidence', '', 'Support · conflict · provenance', 540, false) +
-      '</div>' +
-      runConnector(4, ctx) +
-      runNode(4, ctx, 'LambdaMART MetaRank', 'Which activity best explains the observation?',
-        'Learned ensemble · evidence-aware', 620, false) +
-      runConnector(4, ctx) +
-      runNode(4, ctx, 'Final activity rank', 'Best supported identity',
-        'Confidence remains calibrated', 700, false) +
-      '<div class="gate-chain">' +
-        runNode(5, ctx, 'Calibration', '', 'Uncertainty made explicit', 780, false) +
-        runNode(5, ctx, 'Deterministic validators', '', 'Rules · dates · relationships', 850, false) +
-        runNode(6, ctx, 'Risk policy', '', 'Safe action boundary', 920, false) +
-        runNode(7, ctx, 'Review / identity link', '',
-          needsReview ? 'Human decision required' : 'No forced identity', 990, false) +
-        runNode(8, ctx, 'Schedule-write gates', '', 'Human approval only', 1060, true) +
-      '</div>' +
-    '</div>' +
+      '<small>WHAT × WHERE × CHANGED WORLD</small></div>' + map + '</div>' +
     '<footer class="run-footer"><div class="run-legend">' +
       '<span class="done"><i></i>Persisted complete</span>' +
       '<span class="active"><i></i>Current stage</span>' +
@@ -1950,6 +1993,8 @@ VIEWS.agent = async (pid) => {
   const currentActivity = j
     ? act.activity.filter(a => String(a.job_id || '') === String(j.id || ''))
     : [];
+  // Keep the payload so the stage animation can advance without re-fetching.
+  VIEWS._agentSnapshot = { pid: pid, job: j, activity: currentActivity };
   return head('Execution intelligence', 'A live, evidence-safe view of VEDA’s ' +
     'persisted run state') +
     executionMap(j, currentActivity) +
@@ -1990,6 +2035,18 @@ VIEWS.agent = async (pid) => {
       int(c.duration_ms) + 'ms</span></span></div>').join('')
       : empty('No MCP calls yet', '')) + '</div>') +
     '</div></details>';
+};
+
+/* Repaint only the execution map from the payload the last full render already
+   fetched. The stage playback is presentation, so advancing it must not cost a
+   round trip; durable state still arrives via SSE and the reconcile poll. */
+VIEWS.paintRun = (pid) => {
+  const snap = VIEWS._agentSnapshot;
+  if (!snap || snap.pid !== pid) return false;
+  const mounted = document.querySelector('#main .intelligence-run');
+  if (!mounted) return false;
+  mounted.outerHTML = executionMap(snap.job, snap.activity);
+  return true;
 };
 
 /* ==================================================== 22. Jobs */
@@ -2049,9 +2106,7 @@ VIEWS.files = async (pid) => {
 
   return head('Files', 'v0.1.2 multi-source inbox — immutable, incremental, auditable') +
     panel('Add project sources', '<div class="body">' +
-      '<div id="ingestdrop" tabindex="0" style="border:1px dashed var(--ink-3);' +
-      'border-radius:9px;padding:18px;text-align:center;cursor:pointer;' +
-      'background:var(--paper-2)">' +
+      '<div id="ingestdrop" tabindex="0">' +
       '<div style="font-weight:650;margin-bottom:5px">Drop many files here</div>' +
       '<div style="color:var(--ink-3);font-size:12px;margin-bottom:11px">' +
       'Schedules + DPRs + spreadsheets + scanned PDFs/photos can arrive together. ' +
@@ -2267,10 +2322,10 @@ VIEWS.bind_files = (pid) => {
   if (folderInp) folderInp.onchange = () => { addFiles(folderInp.files); folderInp.value = ''; };
   if (dz) {
     dz.onclick = (e) => { if (!e.target.closest('button')) inp.click(); };
-    dz.ondragover = (e) => { e.preventDefault(); dz.style.opacity = '.72'; };
-    dz.ondragleave = () => { dz.style.opacity = '1'; };
+    dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('drag'); };
+    dz.ondragleave = () => { dz.classList.remove('drag'); };
     dz.ondrop = async (e) => {
-      e.preventDefault(); dz.style.opacity = '1';
+      e.preventDefault(); dz.classList.remove('drag');
       const items = Array.from((e.dataTransfer && e.dataTransfer.items) || []);
       const entries = items.map(x => x.webkitGetAsEntry ? x.webkitGetAsEntry() : null).filter(Boolean);
       if (entries.some(x => x.isDirectory)) {

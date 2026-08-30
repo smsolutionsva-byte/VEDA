@@ -24,8 +24,46 @@ INBOX_TIMEOUT = int(config.AGENT_TIMEOUT)
 # bridge is useful only when something is actively polling /api/agent/inbox;
 # without this guard one missing watcher stalls every project for 15 minutes.
 CLAIM_TIMEOUT = max(1, min(INBOX_TIMEOUT, int(config.AGENT_CLAIM_TIMEOUT)))
-# How often to poll the outbox for a result (seconds)
-POLL_INTERVAL = 2.0
+
+# The bridge is now signal-driven: the HTTP handlers that claim a job and post a
+# result wake this waiter directly, so a finished job is observed in roughly the
+# time one SQLite read takes rather than up to a full poll interval.  Polling
+# remains only as a safety net for a result written by another process, and it
+# backs off from a fast first check to a quiet steady state.
+POLL_MIN = 0.05
+POLL_MAX = 1.0
+POLL_GROWTH = 1.6
+
+# inbox_id -> Event.  Set by notify() from the API layer.
+_SIGNALS: dict = {}
+_SIGNAL_LOCK = threading.Lock()
+
+
+def _signal_for(inbox_id: str) -> threading.Event:
+    with _SIGNAL_LOCK:
+        ev = _SIGNALS.get(inbox_id)
+        if ev is None:
+            ev = _SIGNALS[inbox_id] = threading.Event()
+        return ev
+
+
+def _release_signal(inbox_id: str) -> None:
+    with _SIGNAL_LOCK:
+        _SIGNALS.pop(inbox_id, None)
+
+
+def notify(inbox_id: str | None) -> None:
+    """Wake the waiter for one inbox item.
+
+    Called by the agent-bridge HTTP routes the moment an item is claimed or a
+    result is posted.  Safe to call for an unknown id.
+    """
+    if not inbox_id:
+        return
+    with _SIGNAL_LOCK:
+        ev = _SIGNALS.get(inbox_id)
+    if ev is not None:
+        ev.set()
 
 
 class LocalAntigravityProvider(AgentProvider):
@@ -77,8 +115,9 @@ class LocalAntigravityProvider(AgentProvider):
         })
         session.meta["inbox_id"] = inbox_id
         self._sessions[sid] = session
+        _signal_for(inbox_id)
 
-        # Start a background thread that polls for the result
+        # Start a background thread that waits for the bridge to answer.
         q: queue.Queue = queue.Queue()
         self._queues[sid] = q
         self._cancel[sid] = False
@@ -99,6 +138,7 @@ class LocalAntigravityProvider(AgentProvider):
             "status": "pending",
         })
         meta["inbox_id"] = inbox_id
+        _signal_for(inbox_id)
         q: queue.Queue = queue.Queue()
         self._queues[session.session_id] = q
         self._cancel[session.session_id] = False
@@ -116,6 +156,7 @@ class LocalAntigravityProvider(AgentProvider):
         if inbox_id:
             db.update("agent_inbox", inbox_id, {
                 "status": "cancelled", "finished_at": db.now()})
+            notify(inbox_id)
 
     def _wait_for_result(self, session: AgentSession, inbox_id: str,
                          q: queue.Queue) -> None:
@@ -130,6 +171,8 @@ class LocalAntigravityProvider(AgentProvider):
         result_deadline = started + INBOX_TIMEOUT
         claimed = False
         processing_announced = False
+        wake = _signal_for(inbox_id)
+        backoff = POLL_MIN
         try:
             while time.time() < result_deadline:
                 if self._cancel.get(session.session_id):
@@ -194,7 +237,15 @@ class LocalAntigravityProvider(AgentProvider):
                         "status": "timeout", "finished_at": db.now()})
                     break
 
-                time.sleep(POLL_INTERVAL)
+                # Sleep until the bridge signals, the backoff elapses, or the
+                # relevant deadline arrives -- whichever comes first.
+                deadline = claim_deadline if not claimed else result_deadline
+                budget = max(0.0, min(deadline, result_deadline) - time.time())
+                if wake.wait(timeout=min(backoff, budget) if budget else 0.0):
+                    wake.clear()
+                    backoff = POLL_MIN
+                else:
+                    backoff = min(POLL_MAX, backoff * POLL_GROWTH)
             else:
                 q.put(AgentEvent(
                     "error",
@@ -206,6 +257,7 @@ class LocalAntigravityProvider(AgentProvider):
             q.put(AgentEvent("error",
                              label=type(exc).__name__ + ": " + str(exc)))
         finally:
+            _release_signal(inbox_id)
             q.put(None)
 
     async def stream_events(self, session: AgentSession) -> AsyncIterator[AgentEvent]:

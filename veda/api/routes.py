@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import __version__, audit as audit_mod
 from .. import config, db, events, jobs, reviews
-from ..agent import registry
+from ..agent import local_antigravity, registry
 from ..integrations import primavera
 from ..mcpc import horizun, schedule_ops
 from ..pipeline import actuals, field_capture, ingest, linking, proposals, security
@@ -93,25 +93,50 @@ def mcp_tools():
 def list_projects():
     rows = db.q("SELECT * FROM projects WHERE status<>'deleting' "
                 "ORDER BY created_at DESC")
+    if not rows:
+        return {"projects": rows}
+    # Six grouped reads for the whole list rather than six per project: the
+    # picker is refreshed whenever a project is created, switched or deleted.
+    tallies = {}
+    for table, key, where in (("files", "files", ""), ("activities", "activities", ""),
+                              ("evidence", "evidence", ""), ("issues", "issues", ""),
+                              ("risks", "risks", ""),
+                              ("reviews", "open_reviews", " WHERE status='open'")):
+        for row in db.q("SELECT project_id, COUNT(*) c FROM " + table + where +
+                        " GROUP BY project_id"):
+            tallies.setdefault(row["project_id"], {})[key] = int(row["c"] or 0)
     for r in rows:
-        snap = _snapshot(r["id"])
-        r["snapshot"] = snap
-        r["counts"] = {
-            "files": _count("files", r["id"]),
-            "activities": _count("activities", r["id"]),
-            "evidence": _count("evidence", r["id"]),
-            "issues": _count("issues", r["id"]),
-            "risks": _count("risks", r["id"]),
-            "open_reviews": (db.q1("SELECT COUNT(*) c FROM reviews WHERE "
-                                   "project_id=? AND status='open'",
-                                   [r["id"]]) or {}).get("c", 0),
-        }
+        r["snapshot"] = _snapshot(r["id"])
+        counts = tallies.get(r["id"], {})
+        r["counts"] = {k: counts.get(k, 0) for k in
+                       ("files", "activities", "evidence", "issues", "risks", "open_reviews")}
     return {"projects": rows}
 
 
 def _count(table: str, pid: str) -> int:
     return (db.q1("SELECT COUNT(*) c FROM " + table + " WHERE project_id=?",
                   [pid]) or {}).get("c", 0)
+
+
+# Tables the control-room header counts on every refresh.  They are read in one
+# statement rather than one round trip each: the header is re-requested on every
+# live event, so twenty separate prepares showed up as dashboard lag.
+_OVERVIEW_COUNT_TABLES = ("milestones", "relationships", "resources", "assignments",
+                          "evidence", "issues", "risks", "files", "artifacts",
+                          "activities", "wbs_nodes")
+
+
+def _counts_bundle(pid: str) -> dict:
+    selects = ", ".join(
+        "(SELECT COUNT(*) FROM " + t + " WHERE project_id=?) AS " + t
+        for t in _OVERVIEW_COUNT_TABLES)
+    extra = (", (SELECT COUNT(*) FROM issues WHERE project_id=? AND status='open') AS open_issues"
+             ", (SELECT COUNT(*) FROM risks WHERE project_id=? AND status='open') AS open_risks"
+             ", (SELECT COUNT(*) FROM reviews WHERE project_id=? AND status='open') AS pending_reviews"
+             ", (SELECT COUNT(*) FROM proposals WHERE project_id=? AND approval_state='pending') AS pending_proposals")
+    params = [pid] * (len(_OVERVIEW_COUNT_TABLES) + 4)
+    row = db.q1("SELECT " + selects + extra, params) or {}
+    return {k: int(v or 0) for k, v in row.items()}
 
 
 @router.post("/projects")
@@ -147,25 +172,32 @@ def delete_project(pid: str):
 
 
 def _field_evidence_context(pid: str) -> dict:
-    total = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=?", [pid]) or {}).get("c", 0))
-    source_files = int((db.q1("SELECT COUNT(DISTINCT file_id) c FROM evidence WHERE project_id=? AND file_id IS NOT NULL", [pid]) or {}).get("c", 0))
-    progress_records = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observed_progress IS NOT NULL", [pid]) or {}).get("c", 0))
-    latest = (db.q1("SELECT MAX(date) d FROM evidence WHERE project_id=? AND date IS NOT NULL AND TRIM(date)!=''", [pid]) or {}).get("d")
-    linked_records = int((db.q1(
-        "SELECT COUNT(DISTINCT e.id) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
+    # Nine correlated aggregates over evidence/links; one statement instead of
+    # nine so the header stays cheap while a run is streaming events.
+    agg = db.q1(
+        "SELECT COUNT(*) total, "
+        "       COUNT(DISTINCT CASE WHEN file_id IS NOT NULL THEN file_id END) source_files, "
+        "       SUM(CASE WHEN observed_progress IS NOT NULL THEN 1 ELSE 0 END) progress_records, "
+        "       MAX(CASE WHEN date IS NOT NULL AND TRIM(date)<>'' THEN date END) latest, "
+        "       SUM(CASE WHEN state IN ('needs_review','conflicting','new','processing') "
+        "                THEN 1 ELSE 0 END) unresolved, "
+        "       SUM(CASE WHEN state='deferred' THEN 1 ELSE 0 END) deferred "
+        "FROM evidence WHERE project_id=?", [pid]) or {}
+    linked = db.q1(
+        "SELECT COUNT(DISTINCT e.id) records, COUNT(DISTINCT l.activity_uid) activities "
+        "FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
         "WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 "
-        "AND l.relation='supporting' AND e.state IN ('linked','confirmed')", [pid, pid]) or {}).get("c", 0))
-    linked_activities = int((db.q1(
-        "SELECT COUNT(DISTINCT l.activity_uid) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id "
-        "WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 "
-        "AND l.relation='supporting' AND e.state IN ('linked','confirmed') "
-        "AND l.activity_uid IS NOT NULL", [pid, pid]) or {}).get("c", 0))
+        "AND l.relation='supporting' AND e.state IN ('linked','confirmed')", [pid, pid]) or {}
+    total = int(agg.get("total") or 0)
+    source_files = int(agg.get("source_files") or 0)
+    progress_records = int(agg.get("progress_records") or 0)
+    latest = agg.get("latest")
+    reviewed_or_unresolved = int(agg.get("unresolved") or 0)
+    deferred = int(agg.get("deferred") or 0)
+    linked_records = int(linked.get("records") or 0)
+    linked_activities = int(linked.get("activities") or 0)
     numeric_observed_activities = int((db.q1(
         "SELECT COUNT(*) c FROM observed_progress WHERE project_id=? AND observed_percent IS NOT NULL", [pid]) or {}).get("c", 0))
-    reviewed_or_unresolved = int((db.q1(
-        "SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN "
-        "('needs_review','conflicting','new','processing')", [pid]) or {}).get("c", 0))
-    deferred = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state='deferred'", [pid]) or {}).get("c", 0))
     return {
         "record_count": total,
         "source_file_count": source_files,
@@ -284,8 +316,9 @@ def overview(pid: str):
         completed_late_count = int(snap.get("completed_late_count") or 0)
 
     field_context = _field_evidence_context(pid)
-    open_issues = int((db.q1("SELECT COUNT(*) c FROM issues WHERE project_id=? AND status='open'", [pid]) or {}).get("c", 0))
-    open_risks = int((db.q1("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status='open'", [pid]) or {}).get("c", 0))
+    bundle = _counts_bundle(pid)
+    open_issues = bundle["open_issues"]
+    open_risks = bundle["open_risks"]
     count_view = {
         "open_issues": open_issues,
         "open_risks": open_risks,
@@ -300,33 +333,29 @@ def overview(pid: str):
         "quality": quality,
         "field_context": field_context,
         "counts": {
-            "activities": int((snap or {}).get("task_count") or _count("activities", pid)),
-            "wbs": int((snap or {}).get("wbs_count") or _count("wbs_nodes", pid)),
+            "activities": int((snap or {}).get("task_count") or bundle["activities"]),
+            "wbs": int((snap or {}).get("wbs_count") or bundle["wbs_nodes"]),
             "summary_activities": int((snap or {}).get("summary_activity_count") or 0),
             "loe": int((snap or {}).get("loe_count") or 0),
-            "milestones": _count("milestones", pid),
-            "relationships": _count("relationships", pid),
-            "resources": _count("resources", pid),
-            "assignments": _count("assignments", pid),
-            "evidence": _count("evidence", pid),
-            "issues": _count("issues", pid),
-            "risks": _count("risks", pid),
+            "milestones": bundle["milestones"],
+            "relationships": bundle["relationships"],
+            "resources": bundle["resources"],
+            "assignments": bundle["assignments"],
+            "evidence": bundle["evidence"],
+            "issues": bundle["issues"],
+            "risks": bundle["risks"],
             "open_issues": open_issues,
             "open_risks": open_risks,
-            "files": _count("files", pid),
-            "artifacts": _count("artifacts", pid),
+            "files": bundle["files"],
+            "artifacts": bundle["artifacts"],
             "critical": critical_count,
             # Back-compat: "late" now consistently means currently overdue.
             # Preserve NULL when the status boundary is unavailable.
             "late": overdue_count,
             "overdue": overdue_count,
             "completed_late": completed_late_count,
-            "pending_reviews": (db.q1("SELECT COUNT(*) c FROM reviews WHERE "
-                                      "project_id=? AND status='open'",
-                                      [pid]) or {}).get("c", 0),
-            "pending_proposals": (db.q1("SELECT COUNT(*) c FROM proposals WHERE "
-                                        "project_id=? AND approval_state='pending'",
-                                        [pid]) or {}).get("c", 0),
+            "pending_reviews": bundle["pending_reviews"],
+            "pending_proposals": bundle["pending_proposals"],
             "unresolved_evidence": field_context.get("unresolved_record_count", 0),
             "deferred_evidence": field_context.get("deferred_record_count", 0),
         },
@@ -1458,6 +1487,9 @@ def agent_inbox():
         return {"item": None}
     db.update("agent_inbox", item["id"], {
         "status": "claimed", "claimed_at": db.now()})
+    # Wake the waiting provider thread instead of letting it discover the claim
+    # on its next poll -- this is what makes the bridge feel immediate.
+    local_antigravity.notify(item["id"])
     # Gather project context for the agent
     project = db.q1("SELECT * FROM projects WHERE id=?",
                     [item["project_id"]]) or {}
@@ -1526,6 +1558,7 @@ def agent_result(body: dict = Body(...)):
     })
     db.update("agent_inbox", inbox_id, {
         "status": "done", "finished_at": db.now()})
+    local_antigravity.notify(inbox_id)
     return {"ok": True, "outbox_id": oid}
 
 

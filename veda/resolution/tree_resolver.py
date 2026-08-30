@@ -58,10 +58,16 @@ def _discipline_from_path(a: dict) -> str:
     return p[-1].lower() if p else ''
 
 
+def _signature(project_id: str) -> tuple:
+    sig=db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?',[project_id]) or {'c':0,'u':0}
+    return (int(sig.get('c') or 0),float(sig.get('u') or 0.0))
+
+
 def _index(project_id: str, cancel_check: Callable[[], None] | None = None) -> dict:
     _checkpoint(cancel_check)
-    sig=db.q1('SELECT COUNT(*) c, COALESCE(MAX(created_at),0) u FROM activities WHERE project_id=?',[project_id]) or {'c':0,'u':0}
-    key=(int(sig.get('c') or 0),float(sig.get('u') or 0.0))
+    # score_activity() calls this once per candidate, so the freshness probe is
+    # held briefly rather than issued tens of thousands of times per analysis.
+    key=db.cached_probe(('tree_index', project_id), lambda: _signature(project_id))
     old=_CACHE.get(project_id)
     if old and old.get('sig')==key: return old
     acts=db.q('SELECT * FROM activities WHERE project_id=? AND is_summary=0',[project_id])
