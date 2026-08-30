@@ -598,6 +598,22 @@ CREATE TABLE IF NOT EXISTS kv (
   k TEXT PRIMARY KEY, v TEXT, updated_at REAL
 );
 
+-- VEDA Anywhere (opt-in browser companion). One row per paired browser.
+-- The raw bearer token is never stored; only its SHA-256 digest.  Revoking a
+-- row severs the extension without touching the operator's other sessions.
+CREATE TABLE IF NOT EXISTS anywhere_tokens (
+  id TEXT PRIMARY KEY,
+  token_sha256 TEXT NOT NULL,
+  label TEXT,
+  user_agent TEXT,
+  scopes TEXT DEFAULT 'ask,capture',
+  revoked INTEGER DEFAULT 0,
+  created_at REAL,
+  last_used_at REAL,
+  last_seen_origin TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_anywhere_tokens_digest ON anywhere_tokens(token_sha256);
+
 CREATE TABLE IF NOT EXISTS agent_inbox (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,

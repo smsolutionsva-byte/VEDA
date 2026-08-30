@@ -1173,6 +1173,9 @@ def _apply_security_answer(job_id: str, project_id: str, review: dict) -> dict:
 # ----------------------------------------------------------------- question
 def _run_question(job_id: str, project_id: str, payload: dict) -> dict:
     question = payload.get("question") or ""
+    # A VEDA Anywhere question wraps the selection as quoted untrusted data; the
+    # human-readable question is carried separately for display/audit.
+    display_question = (payload.get("display_question") or question or "").strip()
     project = db.q1("SELECT * FROM projects WHERE id=?", [project_id]) or {}
     snap = db.q1("SELECT * FROM schedule_snapshots WHERE project_id=? "
                  "AND is_current=1 ORDER BY created_at DESC LIMIT 1", [project_id])
@@ -1183,15 +1186,15 @@ def _run_question(job_id: str, project_id: str, payload: dict) -> dict:
     answer = result.summary or "No grounded answer could be produced."
     db.insert("artifacts", {
         "project_id": project_id, "job_id": job_id, "kind": "answer",
-        "title": question[:180] or "Project question", "format": "markdown",
+        "title": display_question[:180] or "Project question", "format": "markdown",
         "description": answer[:4000],
         "provenance": "AI_INFERENCE" if used != "deterministic"
         else "DETERMINISTIC_CALCULATION"})
     audit.record(project_id, actor="human", actor_type="human",
-                 action="question_asked", job_id=job_id, new_value=question[:500],
-                 result="answered")
+                 action="question_asked", job_id=job_id,
+                 new_value=display_question[:500], result="answered")
     step(job_id, project_id, "output_ready", "Answer ready")
-    return {"question": question, "answer": answer, "provider": used,
+    return {"question": display_question, "answer": answer, "provider": used,
             "findings": [f.model_dump() for f in result.schedule_findings]}
 
 

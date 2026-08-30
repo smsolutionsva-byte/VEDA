@@ -87,6 +87,9 @@ VIEWS.noproject = () =>
   '(XER, MPP, MSPDI XML, PMXML, Asta) together with the DPRs, registers and ' +
   'reports that describe what actually happened on site.</p>' +
   '<button class="btn primary" id="createFirst">Create a project</button>' +
+  '<p style="color:var(--ink-3);font-size:12px;margin-bottom:0">' +
+  'Workspace settings — <a class="link" onclick="go(\'anywhere\')">VEDA Anywhere</a> ' +
+  'and <a class="link" onclick="go(\'system\')">System / MCP</a> — do not need a project.</p>' +
   '</div></div>';
 
 /* ===================================================== Field capture */
@@ -1922,8 +1925,8 @@ VIEWS.ask = async (pid) => {
   }));
   if (unresolved) {
     const live = unresolved.status === 'queued' || unresolved.status === 'running';
-    const q = (unresolved.result && unresolved.result.input &&
-      unresolved.result.input.question) || 'Question in progress…';
+    const qin = (unresolved.result && unresolved.result.input) || {};
+    const q = qin.display_question || qin.question || 'Question in progress…';
     turns.unshift({
       kind: live ? 'pending' : 'failed', id: unresolved.id, jobId: unresolved.id,
       question: q, error: unresolved.error, created_at: unresolved.created_at,
@@ -2895,6 +2898,344 @@ VIEWS.bind_system = () => {
     window.toast('Active provider changed to ' + b.dataset.prov, 'good');
     window.render();
   });
+};
+
+/* ============================================== VEDA Anywhere (browser companion)
+   Opt-in bridge into the tools a project team already uses. Disabled by default.
+   The extension only ever sends VEDA text the operator explicitly selected and
+   explicitly submitted - it never reads, scrapes or monitors a page. This view
+   is the control plane: enable/disable, pair a browser, and scope website
+   access. It reads /anywhere/config, which never invokes the agent. */
+VIEWS._anywhere = VIEWS._anywhere || { pairPoll: null, pairUntil: 0 };
+
+const ANYWHERE_RULES = [
+  'Does not continuously monitor web pages',
+  'Does not scrape page content or collect browsing history',
+  'Does not inspect chat messages or watch keyboard input',
+  'Does not auto-send selected text, URLs or page contents',
+  'No background AI analysis of any page',
+];
+
+function anywhereExtension() {
+  const el = document.documentElement;
+  const v = el.getAttribute('data-veda-anywhere') ||
+    (window.__vedaAnywhere && window.__vedaAnywhere.version);
+  return v ? { installed: true, version: String(v) } : { installed: false, version: null };
+}
+
+function anywhereStatePill(enabled, connected, installed) {
+  if (!installed) return '<span class="aw-pill warn">Extension not installed</span>';
+  if (!connected) return '<span class="aw-pill">Not connected</span>';
+  return enabled
+    ? '<span class="aw-pill ok">Active</span>'
+    : '<span class="aw-pill">Connected · disabled</span>';
+}
+
+VIEWS.anywhere = async () => {
+  const cfg = await A('/anywhere/config');
+  const ext = anywhereExtension();
+  VIEWS._anywhere.cfg = cfg;
+  const s = cfg.settings || {};
+  const tokens = cfg.tokens || [];
+  const connected = (cfg.active_token_count || 0) > 0;
+  const projects = cfg.projects || [];
+  const install = cfg.install || {};
+  const defProject = s.default_project_id ||
+    (projects[0] && projects[0].id) || '';
+
+  const privacyPanel = panel(
+    'Privacy-first by design <small>opt-in · nothing automatic</small>',
+    '<div class="body"><div class="aw-hero">' +
+      '<p><b>Bring VEDA to where project information already lives</b> — Teams, ' +
+      'Slack, Gmail, WhatsApp Web, an internal portal or a project dashboard — ' +
+      'without leaving your current workflow.</p>' +
+      '<div class="aw-flow"><span>You select text</span><i>→</i>' +
+      '<span>You invoke VEDA</span><i>→</i><span>Only the selection is read</span>' +
+      '<i>→</i><span>You choose Ask or Capture</span></div>' +
+      '<div class="aw-receives"><i>■</i><div><b>During normal browsing, VEDA receives nothing.</b>' +
+      '<small>The companion is inert until you explicitly select text and invoke it.</small></div></div>' +
+      '<ul class="aw-rules">' + ANYWHERE_RULES.map(r => '<li>' + E(r) + '</li>').join('') + '</ul>' +
+    '</div></div>');
+
+  const statusPanel = panel(
+    'VEDA Anywhere <small>' + E(cfg.server_version || '') + '</small>' +
+      '<div class="spacer"></div>' + anywhereStatePill(s.enabled, connected, ext.installed),
+    '<div class="body"><div class="aw-enable">' +
+      '<div><b>' + (s.enabled ? 'VEDA Anywhere is enabled' : 'VEDA Anywhere is disabled') + '</b>' +
+      '<small>' + (s.enabled
+        ? 'The paired browser can send selected text for Ask VEDA and Capture in VEDA.'
+        : 'Turn this on to use VEDA on other websites. It stays off until you enable it here, and you can disable it again at any time.') +
+      '</small></div><div class="spacer"></div>' +
+      '<button class="btn ' + (s.enabled ? 'danger' : 'primary') + '" id="aw-toggle">' +
+      (s.enabled ? 'Disable VEDA Anywhere' : 'Enable VEDA Anywhere') + '</button></div>' +
+      (s.enabled && !connected
+        ? '<div class="note warn" style="margin-top:11px">Enabled, but no browser is paired yet. Connect the extension below.</div>'
+        : '') +
+    '</div>');
+
+  let extBody;
+  if (!ext.installed) {
+    extBody = '<div class="body"><div class="aw-install">' +
+      '<div class="aw-install-head"><b>Browser companion not installed</b>' +
+      '<small>VEDA Anywhere needs the desktop browser extension (Chrome / Edge).</small></div>' +
+      '<ol class="aw-steps">' +
+      (install.load_unpacked_steps || []).map(x => '<li>' + E(x) + '</li>').join('') +
+      '</ol>' +
+      '<label class="aw-path"><span>Extension folder</span>' +
+      '<input class="inp mono" id="aw-path" readonly value="' + E(install.unpacked_path || '') + '"></label>' +
+      '<button class="btn" id="aw-copy-path">Copy folder path</button>' +
+      '<p class="aw-hint">After loading it, return here and choose <b>Connect extension</b>. ' +
+      'This page detects the companion automatically once it is installed.</p>' +
+      '</div></div>';
+  } else {
+    const companions = tokens.length
+      ? tokens.map(t => '<div class="aw-companion"><div><b>' + E(t.label || 'Browser companion') +
+          '</b><small class="mono">' + E((t.user_agent || 'unknown browser').slice(0, 72)) + '</small>' +
+          '<small>Paired ' + (t.created_at ? new Date(t.created_at * 1000).toLocaleString() : '—') +
+          (t.last_used_at ? ' · last used ' + new Date(t.last_used_at * 1000).toLocaleString() : ' · not used yet') +
+          '</small></div><div class="spacer"></div>' +
+          '<button class="btn sm danger" data-aw-revoke="' + E(t.id) + '">Revoke</button></div>').join('')
+      : '<div class="empty"><b>No browser paired yet</b>Generate a pairing code and confirm it in the extension.</div>';
+    extBody = '<div class="body">' +
+      '<div class="aw-connect-row"><div><b>' + (connected ? 'Companion connected' : 'Pair this browser') +
+      '</b><small>Pairing generates a short-lived code and exchanges it for a secure token ' +
+      'scoped to this VEDA workspace. The extension reuses your existing project access — ' +
+      'it can never reach a project you cannot open here.</small></div><div class="spacer"></div>' +
+      '<button class="btn primary" id="aw-connect">' + (connected ? 'Pair another browser' : 'Connect extension') +
+      '</button></div>' +
+      '<div id="aw-pair-slot"></div>' +
+      '<div class="aw-companions">' + companions + '</div>' +
+      (tokens.length ? '<button class="btn sm" id="aw-revoke-all">Revoke all companions</button>' : '') +
+      '</div>';
+  }
+  const extPanel = panel('Browser companion' +
+    (ext.installed ? ' <small>detected · v' + E(ext.version) + '</small>' : ''), extBody);
+
+  const sitesPanel = panel('Website access <small>prefer least privilege</small>',
+    '<div class="body"><div class="aw-mode">' +
+      '<label class="aw-radio' + (s.site_access_mode === 'selected' ? ' selected' : '') +
+      '"><input type="radio" name="aw-mode" value="selected"' +
+      (s.site_access_mode === 'selected' ? ' checked' : '') + '>' +
+      '<span><b>Selected websites only</b><small>Recommended. The companion only offers VEDA on the domains you list.</small></span></label>' +
+      '<label class="aw-radio' + (s.site_access_mode === 'all' ? ' selected' : '') +
+      '"><input type="radio" name="aw-mode" value="all"' +
+      (s.site_access_mode === 'all' ? ' checked' : '') + '>' +
+      '<span><b>All websites</b><small>Broader. Only choose this if you need VEDA on many internal tools. You can still invoke it manually per page.</small></span></label>' +
+    '</div>' +
+    '<div class="aw-sites' + (s.site_access_mode === 'all' ? ' dim' : '') + '" id="aw-sites">' +
+      (s.allowed_sites || []).map(h => '<span class="aw-site">' + E(h) +
+        '<button type="button" data-aw-site="' + E(h) + '" aria-label="Remove ' + E(h) + '">×</button></span>').join('') +
+      (!(s.allowed_sites || []).length ? '<span class="aw-site-empty">No sites yet</span>' : '') +
+    '</div>' +
+    '<div class="aw-site-add"><input class="inp" id="aw-site-input" placeholder="add a domain, e.g. internal.company.com" autocomplete="off">' +
+    '<button class="btn" id="aw-site-add">Add site</button></div>' +
+    '<p class="aw-hint">The extension enforces its own browser permissions too. VEDA only ever ' +
+    'processes a selection you explicitly send — this list just controls where the ' +
+    'VEDA action appears.</p>' +
+    '</div>');
+
+  const projectPanel = panel('Active project <small>always shown before any capture</small>',
+    '<div class="body"><div class="aw-project">' +
+      (projects.length
+        ? '<label><span>Default project for the companion</span>' +
+          '<select class="inp" id="aw-project">' +
+          projects.map(p => '<option value="' + E(p.id) + '"' +
+            (p.id === defProject ? ' selected' : '') + '>' + E(p.name) + '</option>').join('') +
+          '</select></label>' +
+          '<p class="aw-hint">Users may belong to several projects. The extension always shows the ' +
+          'active project in its popup and on every capture confirmation, and lets you switch ' +
+          'it per capture — VEDA never submits to a project without showing which one is active.</p>' +
+          '<button class="btn sm" id="aw-new-project">+ New project</button>'
+        : '<div class="note warn"><b>No projects yet.</b> VEDA Anywhere can be set up now, but Ask VEDA ' +
+          'and Capture in VEDA need a project. Create one to start using the companion.</div>' +
+          '<button class="btn primary" id="aw-new-project" style="margin-top:11px">Create a project</button>') +
+    '</div></div>');
+
+  return head('VEDA Anywhere', 'Opt-in browser companion') +
+    privacyPanel + statusPanel + extPanel + sitesPanel + projectPanel;
+};
+
+function anywhereRenderPairSlot(code, expiresAt) {
+  const slot = document.getElementById('aw-pair-slot');
+  if (!slot) return;
+  if (!code) { slot.innerHTML = ''; return; }
+  slot.innerHTML = '<div class="aw-code-card"><div class="aw-code-head"><b>Pairing code</b>' +
+    '<small id="aw-code-countdown">expires soon</small></div>' +
+    '<div class="aw-code mono">' + E(code) + '</div>' +
+    '<ol class="aw-code-steps"><li>Click the <b>VEDA Anywhere</b> icon in your browser toolbar</li>' +
+    '<li>Paste this code and choose <b>Pair with code</b></li></ol>' +
+    '<p class="aw-hint">The extension connects only when you enter this code. It is valid once, for a few minutes. This page updates automatically once paired.</p>' +
+    '<button class="btn sm" id="aw-copy-code">Copy code</button> ' +
+    '<button class="btn sm" id="aw-cancel-pair">Cancel</button></div>';
+  const cd = document.getElementById('aw-code-countdown');
+  const tick = () => {
+    if (!document.getElementById('aw-code-countdown')) return;
+    const left = Math.max(0, Math.round((expiresAt * 1000 - Date.now()) / 1000));
+    cd.textContent = left ? 'expires in ' + left + 's' : 'expired';
+  };
+  tick();
+  const copy = document.getElementById('aw-copy-code');
+  if (copy) copy.onclick = () => {
+    navigator.clipboard.writeText(code).then(() => window.toast('Pairing code copied', 'good'),
+      () => window.toast('Could not copy', 'bad'));
+  };
+  const cancel = document.getElementById('aw-cancel-pair');
+  if (cancel) cancel.onclick = async () => {
+    anywhereStopPairPoll();
+    try { await window.api('/anywhere/pair', { method: 'DELETE' }); } catch (_) {}
+    anywhereRenderPairSlot(null);
+  };
+  clearInterval(VIEWS._anywhere.cdTimer);
+  VIEWS._anywhere.cdTimer = setInterval(tick, 1000);
+}
+
+function anywhereStopPairPoll() {
+  clearInterval(VIEWS._anywhere.pairPoll);
+  clearInterval(VIEWS._anywhere.cdTimer);
+  VIEWS._anywhere.pairPoll = null;
+}
+
+VIEWS.bind_anywhere = () => {
+  const cfg = VIEWS._anywhere.cfg || {};
+  const startCount = cfg.active_token_count || 0;
+
+  // Ask the injected bridge (if any) to announce itself, so a freshly installed
+  // extension is detected without a manual reload.
+  try {
+    window.postMessage({ source: 'veda-web', channel: 'veda-anywhere', type: 'ping' }, location.origin);
+  } catch (_) {}
+
+  VIEWS._anywhere.sawExtension = anywhereExtension().installed;
+
+  // Listen once for the bridge announcing that the extension is installed, so a
+  // freshly loaded extension is detected without a manual page reload.
+  if (!VIEWS._anywhere.msgBound) {
+    VIEWS._anywhere.msgBound = true;
+    window.addEventListener('message', (e) => {
+      if (e.source !== window || e.origin !== location.origin) return;
+      const d = e.data || {};
+      if (d.channel !== 'veda-anywhere' || d.source !== 'veda-anywhere') return;
+      if (d.type === 'hello' || d.type === 'pong') {
+        try { document.documentElement.setAttribute('data-veda-anywhere', String(d.version)); } catch (_) {}
+        if (window.S && window.S.view === 'anywhere' && !VIEWS._anywhere.sawExtension) window.render();
+      }
+    });
+  }
+
+  const toggle = document.getElementById('aw-toggle');
+  if (toggle) toggle.onclick = async () => {
+    toggle.disabled = true;
+    try {
+      const next = !(cfg.settings && cfg.settings.enabled);
+      await P('/anywhere/enable', { enabled: next });
+      window.toast(next ? 'VEDA Anywhere enabled' : 'VEDA Anywhere disabled', 'good');
+      window.render();
+    } catch (e) {
+      toggle.disabled = false;
+      window.toast('Could not update: ' + e.message, 'bad');
+    }
+  };
+
+  const copyPath = document.getElementById('aw-copy-path');
+  if (copyPath) copyPath.onclick = () => {
+    const v = (document.getElementById('aw-path') || {}).value || '';
+    navigator.clipboard.writeText(v).then(() => window.toast('Folder path copied', 'good'),
+      () => window.toast('Could not copy', 'bad'));
+  };
+
+  const connect = document.getElementById('aw-connect');
+  if (connect) connect.onclick = async () => {
+    connect.disabled = true;
+    try {
+      const r = await P('/anywhere/pair', {});
+      anywhereRenderPairSlot(r.code, r.expires_at);
+      // No automatic hand-off. The operator copies this code and enters it in
+      // the extension. We only watch for the token to appear.
+      anywhereStopPairPoll();
+      VIEWS._anywhere.pairUntil = Date.now() + (r.ttl_seconds || 300) * 1000;
+      VIEWS._anywhere.pairPoll = setInterval(async () => {
+        // Stop if the operator navigated away or the code expired.
+        if (!window.S || window.S.view !== 'anywhere' ||
+            Date.now() > VIEWS._anywhere.pairUntil) {
+          anywhereStopPairPoll();
+          anywhereRenderPairSlot(null);
+          return;
+        }
+        try {
+          const c = await A('/anywhere/config');
+          if ((c.active_token_count || 0) > startCount) {
+            anywhereStopPairPoll();
+            window.toast('Browser companion connected', 'good');
+            if (window.S && window.S.view === 'anywhere') window.render();
+          }
+        } catch (_) {}
+      }, 2000);
+    } catch (e) {
+      window.toast('Could not start pairing: ' + e.message, 'bad');
+    } finally {
+      connect.disabled = false;
+    }
+  };
+
+  document.querySelectorAll('[data-aw-revoke]').forEach(b => b.onclick = async () => {
+    if (!confirm('Revoke this browser companion? It will need to pair again.')) return;
+    try {
+      await P('/anywhere/tokens/' + encodeURIComponent(b.dataset.awRevoke) + '/revoke', {});
+      window.toast('Companion revoked', 'good');
+      window.render();
+    } catch (e) { window.toast('Could not revoke: ' + e.message, 'bad'); }
+  });
+
+  const revokeAll = document.getElementById('aw-revoke-all');
+  if (revokeAll) revokeAll.onclick = async () => {
+    if (!confirm('Revoke every paired browser companion?')) return;
+    try {
+      await P('/anywhere/tokens/revoke-all', {});
+      window.toast('All companions revoked', 'good');
+      window.render();
+    } catch (e) { window.toast('Could not revoke: ' + e.message, 'bad'); }
+  };
+
+  document.querySelectorAll('[name="aw-mode"]').forEach(r => r.onchange = async () => {
+    try {
+      await P('/anywhere/config', { site_access_mode: r.value });
+      window.render();
+    } catch (e) { window.toast('Could not update: ' + e.message, 'bad'); }
+  });
+
+  const sites = (cfg.settings && cfg.settings.allowed_sites) || [];
+  const saveSites = async (next) => {
+    try {
+      await P('/anywhere/config', { allowed_sites: next });
+      window.render();
+    } catch (e) { window.toast('Could not update site list: ' + e.message, 'bad'); }
+  };
+  document.querySelectorAll('[data-aw-site]').forEach(b => b.onclick = () =>
+    saveSites(sites.filter(h => h !== b.dataset.awSite)));
+  const addSite = document.getElementById('aw-site-add');
+  const siteInput = document.getElementById('aw-site-input');
+  const doAdd = () => {
+    const v = (siteInput.value || '').trim();
+    if (!v) return;
+    saveSites(sites.concat([v]));
+  };
+  if (addSite) addSite.onclick = doAdd;
+  if (siteInput) siteInput.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doAdd(); }
+  };
+
+  const proj = document.getElementById('aw-project');
+  if (proj) proj.onchange = async () => {
+    try {
+      await P('/anywhere/config', { default_project_id: proj.value });
+      window.toast('Default companion project updated', 'good');
+    } catch (e) { window.toast('Could not update: ' + e.message, 'bad'); }
+  };
+
+  const newProj = document.getElementById('aw-new-project');
+  if (newProj && window.openNewProjectDialog) {
+    newProj.onclick = () => window.openNewProjectDialog();
+  }
 };
 
 window.VIEWS = VIEWS;

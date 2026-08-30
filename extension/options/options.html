@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="options.css">
+  <title>VEDA Anywhere — Options</title>
+</head>
+<body>
+  <div class="ow-wrap">
+    <header class="ow-head">
+      <span class="ow-brand">VEDA</span><span class="ow-sub">Anywhere</span>
+      <span class="ow-spacer"></span>
+      <span id="ow-state" class="ow-pill">…</span>
+    </header>
+
+    <section class="ow-card">
+      <h2>Privacy</h2>
+      <p class="ow-lead">VEDA Anywhere is a bridge, not a monitor. It is disabled by
+        default and does nothing until you explicitly select text and invoke VEDA.</p>
+      <ul class="ow-rules">
+        <li>Never continuously monitors or reads web pages</li>
+        <li>Never scrapes page content or collects browsing history</li>
+        <li>Never inspects chat messages or watches keyboard input</li>
+        <li>Never auto-sends selected text, URLs or page contents</li>
+        <li>No background AI analysis of any page</li>
+      </ul>
+      <p class="ow-lead"><b>During normal browsing, VEDA receives nothing.</b></p>
+    </section>
+
+    <section class="ow-card">
+      <h2>VEDA backend</h2>
+      <p class="ow-lead">Where your VEDA app is running. The default is
+        <code>http://127.0.0.1:8770</code>. Change this only if you started VEDA on
+        a different host or port.</p>
+      <label class="ow-field"><span>VEDA URL</span>
+        <input type="text" id="ow-base" placeholder="http://127.0.0.1:8770" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="ow-inline">
+        <button id="ow-save-base" class="ow-btn primary" type="button">Save &amp; grant access</button>
+        <button id="ow-reset-base" class="ow-btn" type="button">Reset to default</button>
+      </div>
+      <div id="ow-base-status"></div>
+    </section>
+
+    <section class="ow-card">
+      <h2>Connection</h2>
+      <div id="ow-conn"></div>
+    </section>
+
+    <section class="ow-card">
+      <h2>Website access</h2>
+      <p class="ow-lead">Website access, the active project and the on/off switch are
+        managed in the VEDA app so they stay consistent with your account. This
+        keeps one source of truth.</p>
+      <button id="ow-open-settings" class="ow-btn" type="button">Open VEDA Anywhere settings</button>
+    </section>
+
+    <footer class="ow-foot">
+      <span id="ow-version" class="ow-muted"></span>
+    </footer>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

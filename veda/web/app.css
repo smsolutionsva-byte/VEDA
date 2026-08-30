@@ -1733,3 +1733,108 @@ html[data-theme="light"] .capture-confirm-section { background: linear-gradient(
   .capture-outbox .btn { margin-left: auto; min-height: 38px; }
   .capture-location-box { align-items: flex-start; flex-direction: column; }
 }
+
+/* ===================================================== VEDA Anywhere */
+.aw-pill { font: 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em;
+  padding: 4px 8px; border: 1px solid var(--line-3); color: var(--ink-2);
+  background: var(--surface-2); white-space: nowrap; }
+.aw-pill.ok { color: var(--ok); border-color: rgba(67,208,127,.45); }
+.aw-pill.warn { color: var(--warn); border-color: rgba(255,176,32,.45); }
+
+.aw-hero p { margin: 0 0 12px; color: var(--ink-2); max-width: 74ch; }
+.aw-hero p b { color: var(--ink); }
+.aw-flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--line-2); background: #0D1116;
+  font: 11px/1.3 var(--mono); color: var(--ink-2); }
+.aw-flow i { color: var(--mcp); font-style: normal; }
+.aw-flow span { text-transform: uppercase; letter-spacing: .04em; }
+.aw-receives { display: flex; gap: 11px; align-items: flex-start; margin-top: 12px;
+  padding: 12px 13px; border: 1px solid rgba(69,200,232,.32);
+  border-left: 3px solid var(--mcp); background: rgba(69,200,232,.06); }
+.aw-receives i { color: var(--mcp); font-style: normal; font-size: 10px; margin-top: 3px; }
+.aw-receives b { display: block; font-size: 13px; }
+.aw-receives small { display: block; margin-top: 3px; color: var(--ink-3); }
+.aw-rules { margin: 13px 0 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
+.aw-rules li { position: relative; padding-left: 17px; font-size: 12px; color: var(--ink-2); }
+.aw-rules li::before { content: '×'; position: absolute; left: 2px; top: -1px;
+  color: var(--danger); font-family: var(--mono); font-weight: 600; }
+
+.aw-enable { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.aw-enable b { display: block; font-size: 14px; }
+.aw-enable small { display: block; margin-top: 4px; color: var(--ink-3);
+  font-size: 12px; max-width: 66ch; }
+.aw-enable .btn { flex: none; }
+
+.aw-install-head b, .aw-connect-row b { display: block; font-size: 13.5px; }
+.aw-install-head small, .aw-connect-row small { display: block; margin-top: 4px;
+  color: var(--ink-3); font-size: 12px; max-width: 70ch; }
+.aw-steps { margin: 13px 0; padding-left: 20px; color: var(--ink-2); font-size: 12.5px; }
+.aw-steps li { margin: 4px 0; }
+.aw-path { display: flex; flex-direction: column; gap: 5px; margin-bottom: 9px; }
+.aw-path span { font: 9.5px/1 var(--mono); text-transform: uppercase;
+  letter-spacing: .16em; color: var(--ink-4); }
+.aw-path .inp { min-width: 100%; font-size: 11.5px; }
+.aw-hint { margin: 11px 0 0; color: var(--ink-3); font-size: 11.5px; max-width: 74ch; }
+.aw-hint b { color: var(--ink-2); }
+
+.aw-connect-row { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 12px; }
+.aw-connect-row .btn { flex: none; }
+.aw-code-card { border: 1px solid rgba(69,200,232,.35); background: rgba(69,200,232,.05);
+  padding: 13px; margin-bottom: 13px; }
+.aw-code-head { display: flex; align-items: baseline; gap: 10px; }
+.aw-code-head b { font-size: 12px; }
+.aw-code-head small { font: 10px/1 var(--mono); color: var(--warn);
+  text-transform: uppercase; letter-spacing: .08em; }
+.aw-code { font-size: 26px; font-weight: 500; letter-spacing: .12em; margin: 9px 0;
+  color: var(--mcp); user-select: all; }
+.aw-code-card p { margin: 0 0 10px; color: var(--ink-3); font-size: 12px; max-width: 66ch; }
+.aw-code-steps { margin: 4px 0 10px; padding-left: 20px; color: var(--ink-2); font-size: 12px; }
+.aw-code-steps li { margin: 3px 0; }
+.aw-project .btn { margin-top: 4px; }
+
+.aw-companions { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.aw-companion { display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--line-2); background: var(--surface); }
+.aw-companion b { font-size: 12.5px; }
+.aw-companion small { display: block; margin-top: 2px; color: var(--ink-3); font-size: 11px; }
+
+.aw-mode { display: grid; gap: 9px; margin-bottom: 13px; }
+.aw-radio { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px;
+  border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; }
+.aw-radio input { margin-top: 3px; flex: none; accent-color: var(--mcp); }
+.aw-radio b { display: block; font-size: 12.5px; }
+.aw-radio small { display: block; margin-top: 3px; color: var(--ink-3); font-size: 11.5px; }
+.aw-radio.selected { border-color: var(--mcp); background: rgba(69,200,232,.06); }
+
+.aw-sites { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px;
+  border: 1px solid var(--line-2); background: #0D1116; min-height: 44px; align-items: flex-start; }
+.aw-sites.dim { opacity: .5; }
+.aw-site { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px;
+  border: 1px solid var(--line-3); background: var(--surface-2);
+  font: 11.5px/1 var(--mono); color: var(--ink); }
+.aw-site button { border: 0; background: var(--surface-4); color: var(--ink-2);
+  width: 18px; height: 18px; cursor: pointer; line-height: 1; }
+.aw-site button:hover { background: var(--danger); color: #fff; }
+.aw-site-empty { color: var(--ink-4); font: 11px/1.6 var(--mono); }
+.aw-site-add { display: flex; gap: 8px; margin-top: 10px; }
+.aw-site-add .inp { flex: 1; }
+
+.aw-project { display: grid; gap: 4px; }
+.aw-project label { display: grid; gap: 5px; max-width: 420px; }
+.aw-project label span { font: 9.5px/1 var(--mono); text-transform: uppercase;
+  letter-spacing: .16em; color: var(--ink-4); }
+
+html[data-theme="light"] :is(.aw-flow, .aw-sites) { background: #F1F5F7; }
+html[data-theme="light"] :is(.aw-companion, .aw-radio, .aw-site, .aw-pill) { background: #FFF; }
+html[data-theme="light"] .aw-radio.selected { background: #EAF7FA; }
+html[data-theme="light"] .aw-receives { background: #EAF7FA; }
+html[data-theme="light"] .aw-code-card { background: #EAF7FA; }
+html[data-theme="light"] .aw-site button { background: #E3EAF0; }
+
+@media (max-width: 720px) {
+  .aw-rules { grid-template-columns: 1fr; }
+  .aw-enable, .aw-connect-row { flex-direction: column; align-items: stretch; }
+  .aw-enable .btn, .aw-connect-row .btn { width: 100%; }
+}

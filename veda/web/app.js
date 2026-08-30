@@ -83,7 +83,8 @@ const NAV = [
     ['wbs', 'WBS'], ['relationships', 'Relationships', 'relationships'],
     ['baselines', 'Baselines'], ['resources', 'Resources', 'resources'],
     ['assignments', 'Assignments', 'assignments'], ['timephased', 'Timephased'],
-    ['ev', 'Earned Value'], ['eps', 'EPS'], ['system', 'System / MCP'],
+    ['ev', 'Earned Value'], ['eps', 'EPS'],
+    ['anywhere', 'VEDA Anywhere'], ['system', 'System / MCP'],
   ]],
 ];
 
@@ -128,19 +129,26 @@ function go(view, params) {
 }
 window.go = go;
 
+/* Views that are workspace-level, not project-level: they read config or
+   runtime state, never a project, so they stay reachable before the first
+   project exists. */
+const PROJECT_OPTIONAL_VIEWS = new Set(['anywhere', 'system']);
+
 /* ------------------------------------------------------------ render */
 async function render() {
   const main = $('#main');
   const version = ++S.renderVersion;
   const renderProject = S.project;
   const renderView = S.view;
-  if (!S.project) {
+  if (!S.project && !PROJECT_OPTIONAL_VIEWS.has(renderView)) {
     main.innerHTML = VIEWS.noproject();
     bindNoProject();
     syncAgentWatchdog();
+    S.renderedView = 'noproject';
+    S.renderedProject = null;
     return;
   }
-  const fn = VIEWS[S.view] || VIEWS.overview;
+  const fn = VIEWS[S.view] || (S.project ? VIEWS.overview : VIEWS.noproject);
   // A live refresh re-renders the same view. Blanking it to a spinner on every
   // event makes real progress look like a stall and throws away the reader's
   // scroll position, so only show the placeholder on a genuine view change.
@@ -155,6 +163,7 @@ async function render() {
     if (sameView && scroll) main.scrollTop = scroll;
     S.renderedView = renderView;
     S.renderedProject = renderProject;
+    if (fn === VIEWS.noproject) bindNoProject();
     if (window.bindThinkToggles) window.bindThinkToggles(main);
     if (VIEWS['bind_' + renderView]) VIEWS['bind_' + renderView](renderProject, S.params);
     syncAgentWatchdog();
@@ -261,6 +270,7 @@ function closeNewProjectDialog() {
   if (old) old.remove();
 }
 
+window.openNewProjectDialog = openNewProjectDialog;
 function openNewProjectDialog() {
   closeNewProjectDialog();
   const scrim = document.createElement('div');
@@ -690,16 +700,30 @@ async function init() {
     toast('Analysis started for the current project.', 'good');
     go('agent');
   };
+  // A deep link the browser companion uses to send the operator straight into
+  // project creation without needing a project to already exist.
+  const consumeNewProjectHash = () => {
+    if (location.hash.replace('#', '').split('/')[0] === 'new-project') {
+      history.replaceState(null, '', location.pathname + location.search +
+        (S.view ? '#' + S.view : ''));
+      openNewProjectDialog();
+      return true;
+    }
+    return false;
+  };
+
   window.addEventListener('hashchange', () => {
+    if (consumeNewProjectHash()) return;
     const [v, id] = location.hash.replace('#', '').split('/');
     if (v && v !== S.view) { S.view = v; S.params = id ? { id: id } : {};
                              renderRail(); syncAgentWatchdog(); render(); }
   });
   const [v, id] = location.hash.replace('#', '').split('/');
-  if (v) { S.view = v; S.params = id ? { id: id } : {}; }
+  if (v && v !== 'new-project') { S.view = v; S.params = id ? { id: id } : {}; }
   renderRail();
   await loadProjects();
   // loadProjects owns project selection and therefore the project-scoped stream.
+  consumeNewProjectHash();
   refreshHealth();
   setInterval(refreshHealth, 30000);
   setInterval(tickThinking, 1000);

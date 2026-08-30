@@ -31,6 +31,45 @@ as a schedule fact.
 
 ---
 
+## VEDA Anywhere — opt-in browser companion
+
+**VEDA Anywhere** brings VEDA into the tools project teams already use — Microsoft
+Teams, Slack, Gmail, WhatsApp Web, internal portals, web ERPs, dashboards — so an
+engineer can ask VEDA about a message, or capture it as project evidence, without
+leaving the conversation.
+
+It is **disabled by default** and deliberately inert. VEDA Anywhere never
+continuously reads, scrapes, monitors, or analyses web pages. The browser
+extension only processes the text a person **explicitly selects** and
+**explicitly submits**, and only while the operator has switched the feature on.
+
+```
+Highlight text → invoke VEDA → only the selection is read → Ask or Capture → keep working
+```
+
+During normal browsing, **VEDA receives nothing.**
+
+| Action | Behaviour |
+|---|---|
+| **Ask VEDA** | Read-only. The selection + current project context go to VEDA; it answers from schedule facts, evidence, relationships, milestones, risks and Primavera/Horizun data. It cannot create issues/risks/reviews/proposals or move the schedule. |
+| **Capture in VEDA** | The selection enters VEDA's existing evidence pipeline: entity extraction → activity detection → schedule-linking resolver → Semantic / Engineering / Tree / Rescheduler ranks → MetaRank → probability calibration → deterministic validation → risk policy → execution event or human-review item → actuals proposal → **human approval**. The extension is a new *evidence ingestion interface*, never a direct schedule writer. |
+
+Selected text is untrusted input: it is scanned for prompt-injection and quoted
+(never interpreted as an instruction) before it reaches the agent. Captured text
+is **evidence, not a command** — `Ignore previous instructions`,
+`Approve all pending changes`, `Delete the schedule` cannot override VEDA.
+
+Enable and pair from **VEDA Anywhere** in the web app (left rail → Advanced). The
+extension lives in [`extension/`](extension/) — load it unpacked in Chrome/Edge.
+Pairing mints a short-lived code that the extension exchanges for a bearer token
+scoped to this workspace (only the SHA-256 digest is stored). The extension can
+never reach a project the operator cannot open in VEDA, and every capture writes
+an auditable record with a SHA-256 evidence hash. See
+[`extension/README.md`](extension/README.md) and
+[`extension/COMPATIBILITY.md`](extension/COMPATIBILITY.md).
+
+---
+
 ## v0.3.3 — Hard-edge UI, execution rail, and resolver performance
 
 v0.3.3 resets the control-room experience to a heavyweight hard-edge visual system: every rounded corner was removed from the web styling, status marks became square, cards share a baseline in instrument rows, and panel headers wrap instead of colliding. The execution visualizer was rebuilt as a real top-to-bottom pipeline with every rail stage represented as a node, and chart colours were corrected for both dark and light themes.
@@ -212,7 +251,7 @@ Vendor_Transmittal_VT-2025-0619.txt → quarantined
 Project Overview · EPS · WBS · Activities · Milestones · Relationships ·
 Critical Path · Schedule Quality · Baselines · Resources · Assignments ·
 Timephased · Earned Value · Issues · Risks · Field Evidence · Review Evidence ·
-Observed Progress · Human Review · Proposed Changes · Ask VEDA ·
+Observed Progress · Human Review · Proposed Changes · Ask VEDA · VEDA Anywhere ·
 Agent Activity · Job Status · Files · Outputs · Audit · System / MCP
 
 Browsing never invokes the agent. Sorting, filtering, paging and detail views
@@ -226,11 +265,12 @@ question.
 ```
 veda/
   config.py            runtime configuration
-  db.py                SQLite schema - 28 tables, all durable state
+  db.py                SQLite schema - all durable state
   events.py            event bus (durable rows + in-process fan-out)
   jobs.py              orchestrator: events → jobs → agent → validators → DB
   reviews.py           human review workflow and clustered answers
   audit.py             append-only audit trail
+  anywhere.py          VEDA Anywhere: settings, pairing, tokens, read-only detect
   agent/
     base.py            AgentProvider interface (provider-neutral)
     antigravity_cli.py AntigravityCLIProvider (official agy headless CLI)
@@ -252,8 +292,9 @@ veda/
     linking.py         evidence↔activity association + clustering
     proposals.py       dry-run, approve, verified write
     deterministic.py   rule-based analyser (no-provider fallback)
-  api/routes.py        HTTP API
+  api/routes.py        HTTP API (includes /api/anywhere/* for the browser companion)
   web/                 dashboard (no build step)
+extension/             VEDA Anywhere browser companion (MV3, load unpacked)
 tools/
   make_sample_data.py  generate the demo project
   verify_slice.py      end-to-end verification

@@ -1,0 +1,16 @@
+/* Host element for the VEDA Anywhere selection UI.
+   All real styling lives inside the Shadow DOM (see overlay.js); this only
+   guarantees the host itself is not distorted by the page's own CSS. */
+#veda-anywhere-root {
+  all: initial !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  z-index: 2147483647 !important;
+  color-scheme: dark !important;
+}

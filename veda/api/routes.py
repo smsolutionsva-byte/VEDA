@@ -16,6 +16,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, Query, Request, 
 from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import __version__, audit as audit_mod
+from .. import anywhere as anywhere_mod
 from .. import config, db, events, jobs, reviews
 from ..agent import local_antigravity, registry
 from ..integrations import primavera
@@ -1631,3 +1632,446 @@ async def stream(request: Request, project_id: str = ""):
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache",
                                       "X-Accel-Buffering": "no"})
+
+
+# =====================================================================
+#  VEDA Anywhere - opt-in browser companion
+# =====================================================================
+#  Disabled by default.  The extension only ever submits text a person
+#  explicitly selected and explicitly sent.  Every capture is evidence that
+#  flows through the existing reconciliation/review/approval/audit pipeline;
+#  Ask VEDA is read-only.  Selected text is scanned for prompt injection and
+#  quoted as untrusted data before it reaches the reasoning agent.
+
+def _anywhere_token(request: Request) -> dict:
+    row = anywhere_mod.verify_token(request.headers.get("authorization"),
+                                    origin=request.headers.get("origin"))
+    if not row:
+        raise HTTPException(401, "Connect the VEDA Anywhere browser extension first.")
+    return row
+
+
+def _anywhere_ctx(request: Request, *, scope: str | None = None) -> dict:
+    token = _anywhere_token(request)
+    if not anywhere_mod.is_enabled():
+        raise HTTPException(403, "VEDA Anywhere is disabled. Enable it in the VEDA web app.")
+    if scope and scope not in [s for s in str(token.get("scopes") or "").split(",")]:
+        raise HTTPException(403, "This companion is not permitted to " + scope + ".")
+    return {"token": token}
+
+
+def _anywhere_project(pid: str | None) -> dict:
+    if not pid:
+        raise HTTPException(400, "project_id is required")
+    p = _project_or_404(str(pid))
+    if p.get("status") == "deleting":
+        raise HTTPException(409, "That project is being deleted.")
+    return p
+
+
+def _anywhere_project_list() -> list[dict]:
+    return [{"id": r["id"], "name": r["name"], "client": r.get("client"),
+             "location": r.get("location")}
+            for r in db.q("SELECT id, name, client, location FROM projects "
+                          "WHERE status<>'deleting' ORDER BY created_at DESC")]
+
+
+def _anywhere_session_payload(token: dict | None = None) -> dict:
+    settings = anywhere_mod.get_settings()
+    out = {
+        "connected": True,
+        "enabled": settings["enabled"],
+        "account": anywhere_mod.account_summary(),
+        "projects": _anywhere_project_list(),
+        "default_project_id": settings["default_project_id"],
+        "site_access": {"mode": settings["site_access_mode"],
+                        "allowed_sites": settings["allowed_sites"]},
+        "capture_metadata_defaults": settings["capture_metadata_defaults"],
+        "server_version": __version__,
+    }
+    if token:
+        out["token"] = {"id": token["id"], "label": token.get("label"),
+                        "created_at": token.get("created_at")}
+    return out
+
+
+def _evidence_ref(evidence_id: str) -> str:
+    tail = "".join(ch for ch in str(evidence_id) if ch.isalnum())[-6:].upper()
+    return "EV-" + (tail or "000000")
+
+
+# ------------------------------------------------------ web-app configuration
+#  Same trust boundary as the rest of the local control room: these mutate the
+#  operator's own settings and are called from the VEDA web app.
+
+@router.get("/anywhere/config")
+def anywhere_config():
+    return {
+        "settings": anywhere_mod.get_settings(),
+        "tokens": anywhere_mod.list_tokens(),
+        "active_token_count": anywhere_mod.active_token_count(),
+        "pairing": anywhere_mod.pairing_status(),
+        "projects": _anywhere_project_list(),
+        "install": {
+            "unpacked_path": str(config.ROOT / "extension"),
+            "store_url": None,
+            "load_unpacked_steps": [
+                "Open chrome://extensions in Chrome or Edge",
+                "Turn on Developer mode",
+                "Choose 'Load unpacked' and select the extension folder above",
+            ],
+        },
+        "server_version": __version__,
+    }
+
+
+@router.post("/anywhere/config")
+def anywhere_set_config(body: dict = Body(...)):
+    try:
+        settings = anywhere_mod.update_settings(body or {})
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    audit_mod.record(None, actor="human", actor_type="human",
+                     action="anywhere_settings_changed", source="website",
+                     new_value=db.jdumps({k: settings[k] for k in
+                                          ("enabled", "site_access_mode", "default_project_id")}),
+                     result="updated")
+    return {"settings": settings}
+
+
+@router.post("/anywhere/enable")
+def anywhere_enable(body: dict = Body(default={})):
+    enabled = bool((body or {}).get("enabled", True))
+    settings = anywhere_mod.set_enabled(enabled)
+    audit_mod.record(None, actor="human", actor_type="human",
+                     action="anywhere_enabled" if enabled else "anywhere_disabled",
+                     source="website", new_value=str(enabled), result="ok")
+    return {"settings": settings}
+
+
+@router.post("/anywhere/pair")
+def anywhere_pair_start():
+    result = anywhere_mod.start_pairing()
+    audit_mod.record(None, actor="human", actor_type="human",
+                     action="anywhere_pairing_started", source="website",
+                     result="code issued")
+    return result
+
+
+@router.delete("/anywhere/pair")
+def anywhere_pair_cancel():
+    anywhere_mod.cancel_pairing()
+    return {"ok": True}
+
+
+@router.post("/anywhere/tokens/{token_id}/revoke")
+def anywhere_revoke_token(token_id: str):
+    if not anywhere_mod.revoke_token(token_id):
+        raise HTTPException(404, "no such companion token")
+    audit_mod.record(None, actor="human", actor_type="human",
+                     action="anywhere_token_revoked", source="website",
+                     entity_type="anywhere_token", entity_id=token_id, result="revoked")
+    return {"ok": True}
+
+
+@router.post("/anywhere/tokens/revoke-all")
+def anywhere_revoke_all():
+    n = anywhere_mod.revoke_all_tokens()
+    audit_mod.record(None, actor="human", actor_type="human",
+                     action="anywhere_tokens_revoked_all", source="website",
+                     new_value=str(n), result="revoked")
+    return {"ok": True, "revoked": n}
+
+
+# ------------------------------------------------------------ extension pairing
+
+@router.post("/anywhere/pair/complete")
+def anywhere_pair_complete(request: Request, body: dict = Body(...)):
+    try:
+        issued = anywhere_mod.complete_pairing(
+            str((body or {}).get("code") or ""),
+            user_agent=request.headers.get("user-agent"),
+            origin=request.headers.get("origin"))
+    except anywhere_mod.PairingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    audit_mod.record(None, actor="browser_extension", actor_type="human",
+                     action="anywhere_paired", source="browser_extension",
+                     entity_type="anywhere_token", entity_id=issued["token_id"],
+                     result="paired")
+    token_row = db.q1("SELECT * FROM anywhere_tokens WHERE id=?", [issued["token_id"]])
+    payload = _anywhere_session_payload(token_row)
+    payload["token"] = {"id": issued["token_id"], "value": issued["token"],
+                        "scopes": issued["scopes"]}
+    return payload
+
+
+# --------------------------------------------------------- extension session
+
+@router.get("/anywhere/session")
+def anywhere_session(request: Request):
+    token = _anywhere_token(request)
+    return _anywhere_session_payload(token)
+
+
+@router.post("/anywhere/disconnect")
+def anywhere_disconnect(request: Request):
+    token = _anywhere_token(request)
+    anywhere_mod.revoke_token(token["id"])
+    audit_mod.record(None, actor="browser_extension", actor_type="human",
+                     action="anywhere_disconnected", source="browser_extension",
+                     entity_type="anywhere_token", entity_id=token["id"],
+                     result="revoked")
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- Ask VEDA
+
+@router.post("/anywhere/ask")
+def anywhere_ask(request: Request, body: dict = Body(...)):
+    _anywhere_ctx(request, scope="ask")
+    p = _anywhere_project((body or {}).get("project_id"))
+    try:
+        text = anywhere_mod.normalise_selection((body or {}).get("text"))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    scan = anywhere_mod.scan_text(text)
+    follow_up = str((body or {}).get("follow_up") or "").strip()[:2000] or None
+    source_host = anywhere_mod._clean_host((body or {}).get("source_host"))
+    question = anywhere_mod.build_question_prompt(
+        text, follow_up, scan, project_name=p.get("name"), source_host=source_host)
+    ev = events.emit(events.USER_QUESTION, p["id"],
+                     {"question": question, "veda_anywhere": True,
+                      "display_question": follow_up or text[:280]},
+                     source="browser_extension")
+    job_id = jobs.ensure_event_job(ev)
+    if not job_id:
+        raise HTTPException(503, "VEDA could not queue the question. Try again shortly.")
+    audit_mod.record(p["id"], actor="browser_extension", actor_type="human",
+                     action="anywhere_ask", source="browser_extension", job_id=job_id,
+                     new_value=(follow_up or text)[:500], result="queued",
+                     detail={"selection_sha256": anywhere_mod.sha256_hex(text),
+                             "selection_chars": len(text),
+                             "prompt_injection_scan": {"state": scan["state"],
+                                                       "labels": scan["labels"]},
+                             "source_host": source_host})
+    return {"job_id": job_id, "event_id": ev["id"], "injection": scan,
+            "project": {"id": p["id"], "name": p.get("name")},
+            "read_only": True}
+
+
+@router.get("/anywhere/ask/{job_id}")
+def anywhere_ask_status(request: Request, job_id: str, project_id: str = ""):
+    _anywhere_ctx(request, scope="ask")
+    job = db.q1("SELECT * FROM jobs WHERE id=? AND kind='question'", [job_id])
+    if not job or (project_id and job.get("project_id") != project_id):
+        raise HTTPException(404, "no such question")
+    out = {"job_id": job_id, "status": job.get("status"), "phase": job.get("phase")}
+    ans = db.q1("SELECT * FROM artifacts WHERE job_id=? AND kind='answer' "
+                "ORDER BY created_at DESC LIMIT 1", [job_id])
+    if ans:
+        out.update({"status": "done", "answer": ans.get("description"),
+                    "provenance": ans.get("provenance"),
+                    "answered_at": ans.get("created_at")})
+    elif job.get("status") == "failed":
+        out["error"] = job.get("error") or "The reasoning provider chain was exhausted."
+    return out
+
+
+# ------------------------------------------------------------- Capture in VEDA
+
+@router.post("/anywhere/capture/detect")
+async def anywhere_capture_detect(request: Request, body: dict = Body(...)):
+    _anywhere_ctx(request, scope="capture")
+    p = _anywhere_project((body or {}).get("project_id"))
+    try:
+        text = anywhere_mod.normalise_selection((body or {}).get("text"))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    scan = anywhere_mod.scan_text(text)
+    detection = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: anywhere_mod.detect_activity(p["id"], text))
+    return {"project": {"id": p["id"], "name": p.get("name")},
+            "detection": detection, "injection": scan}
+
+
+@router.post("/anywhere/capture")
+async def anywhere_capture(request: Request, body: dict = Body(...)):
+    ctx = _anywhere_ctx(request, scope="capture")
+    p = _anywhere_project((body or {}).get("project_id"))
+    pid = p["id"]
+    try:
+        text = anywhere_mod.normalise_selection((body or {}).get("text"))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    scan = anywhere_mod.scan_text(text)
+    meta_in = (body or {}).get("metadata") or {}
+    source_host = anywhere_mod._clean_host((body or {}).get("source_host") or meta_in.get("url"))
+    event_state = str((body or {}).get("event_state") or "progress").strip().lower()
+    if event_state not in ("start", "progress", "finish"):
+        event_state = "progress"
+
+    activity_uid = (body or {}).get("activity_uid")
+    if activity_uid in ("", None):
+        activity_uid = None
+
+    client_capture_id = str((body or {}).get("client_capture_id") or "").strip()
+    if not client_capture_id:
+        client_capture_id = "awc_" + db.new_id()
+
+    include_url = bool(meta_in.get("include_url"))
+    include_title = bool(meta_in.get("include_title"))
+    include_source_app = bool(meta_in.get("include_source_app"))
+    page_url = str(meta_in.get("url") or "")[:2000] if include_url else None
+    page_title = str(meta_in.get("title") or "")[:500] if include_title else None
+    source_app = str(meta_in.get("source_app") or "")[:120] if include_source_app else None
+
+    fc_payload = {
+        "client_capture_id": client_capture_id,
+        "confirmed_text": text,
+        "original_text": text,
+        "event_state": event_state,
+        "language": "en",
+        "occurred_at": str((body or {}).get("occurred_at") or "")
+                       or time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "reporter": "Browser companion",
+        "activity_uid": activity_uid,
+        "observed_progress": (body or {}).get("observed_progress"),
+        "location_label": source_app or (source_host if include_source_app else "") or "",
+        "sync_source": "browser_extension",
+    }
+    try:
+        capture = field_capture.store(pid, fc_payload, [])
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    evidence_id = capture.get("evidence_id")
+    replay = bool(capture.get("idempotent_replay"))
+
+    selection_hash = anywhere_mod.sha256_hex(text)
+    matched_activity = None
+    review_status = "Pending validation"
+
+    if replay:
+        # This selection was already captured (offline retry, double-click). Do
+        # not create a second evidence record; report what already exists.
+        if capture.get("activity_uid") is not None:
+            matched_activity = {"uid": capture.get("activity_uid"),
+                                "display_id": capture.get("activity_display_id"),
+                                "name": capture.get("activity_name"),
+                                "wbs": None, "relation": "supporting", "confidence": 1.0}
+        review_status = "Already captured"
+    elif evidence_id:
+        ev_row = db.q1("SELECT * FROM evidence WHERE id=? AND project_id=?",
+                       [evidence_id, pid]) or {}
+        raw = db.jloads(ev_row.get("raw_json"), {}) or {}
+        raw["browser_capture"] = {
+            "source": "veda_anywhere",
+            "captured_via": "browser_extension",
+            "companion_token_id": ctx["token"]["id"],
+            "selection_sha256": selection_hash,
+            "selection_chars": len(text),
+            "prompt_injection_scan": {"state": scan["state"], "labels": scan["labels"]},
+            "source_host": source_host,
+            "url": page_url,
+            "page_title": page_title,
+            "source_application": source_app,
+        }
+        patch = {"raw_json": db.jdumps(raw)}
+        if scan["quarantined"]:
+            patch.update({"security_state": "quarantined", "state": "quarantined"})
+            review_status = "Held for security review"
+        elif scan["flagged"]:
+            patch["security_state"] = "suspicious"
+            review_status = "Held for review (flagged content)"
+        db.update("evidence", evidence_id, patch)
+
+        # Spec 5: capture -> extract entities -> determine likely activity ->
+        # run the schedule-linking resolver.  A confirmed activity already ran
+        # the full confirmed path inside field_capture.store(); an unlinked
+        # capture is resolved here, once, read/write only for this one record.
+        # Skipped when there is no analysed schedule yet - the evidence then
+        # simply waits for the next analysis pass, exactly like a mobile capture.
+        has_schedule = bool(db.q1(
+            "SELECT 1 FROM activities WHERE project_id=? AND IFNULL(is_summary,0)=0 LIMIT 1", [pid]))
+        if (not activity_uid and has_schedule
+                and not scan["quarantined"] and not scan["flagged"]):
+            fresh = db.q1("SELECT * FROM evidence WHERE id=?", [evidence_id])
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: linking.link_evidence(
+                        pid, evidence_rows=[dict(fresh)], raise_reviews=True))
+                linking.rebuild_observed_progress(pid)
+            except Exception:  # noqa: BLE001 - falls back to the next analysis pass
+                pass
+
+        primary = db.q1(
+            "SELECT activity_uid, activity_name, relation, validator_result, "
+            "calibrated_probability, confidence FROM evidence_links "
+            "WHERE evidence_id=? AND is_candidate=0 ORDER BY created_at DESC LIMIT 1",
+            [evidence_id])
+        cand_count = int((db.q1("SELECT COUNT(*) c FROM evidence_links WHERE "
+                                "evidence_id=? AND is_candidate=1", [evidence_id]) or {}).get("c", 0))
+        ev_state = (db.q1("SELECT state FROM evidence WHERE id=?", [evidence_id]) or {}).get("state")
+        if primary and primary.get("activity_uid") is not None:
+            act = db.q1("SELECT uid, display_id, name, wbs FROM activities "
+                        "WHERE project_id=? AND uid=?", [pid, primary["activity_uid"]])
+            matched_activity = {
+                "uid": primary["activity_uid"],
+                "display_id": (act or {}).get("display_id"),
+                "name": primary.get("activity_name") or (act or {}).get("name"),
+                "wbs": (act or {}).get("wbs"),
+                "relation": primary.get("relation"),
+                "confidence": primary.get("calibrated_probability") or primary.get("confidence"),
+            }
+            if not scan["flagged"]:
+                review_status = ("Linked - actuals proposal pending approval"
+                                 if capture.get("status") == "proposal_ready"
+                                 else "Linked - pending validation")
+        elif ev_state == "quarantined":
+            review_status = "Held for security review"
+        elif ev_state == "conflicting":
+            review_status = "Conflicts with the schedule - needs your decision"
+        elif cand_count:
+            review_status = f"{cand_count} candidate activit" + ("y" if cand_count == 1 else "ies") + " - needs your decision"
+        elif ev_state in ("needs_review", "new", "processing"):
+            review_status = "Needs a human decision"
+
+    if not replay:
+        audit_mod.record(pid, actor="browser_extension", actor_type="human",
+                         action="anywhere_capture", source="browser_extension",
+                         entity_type="field_capture", entity_id=capture.get("id"),
+                         new_value=text[:500], result=capture.get("status"),
+                         approval=None, verification=None,
+                         detail={"evidence_id": evidence_id,
+                                 "evidence_ref": _evidence_ref(evidence_id or ""),
+                                 "evidence_sha256": selection_hash,
+                                 "selection_chars": len(text),
+                                 "activity_uid": activity_uid,
+                                 "event_state": event_state,
+                                 "companion_token_id": ctx["token"]["id"],
+                                 "prompt_injection_scan": scan,
+                                 "metadata_included": {"url": include_url,
+                                                       "title": include_title,
+                                                       "source_app": include_source_app},
+                                 "url": page_url, "page_title": page_title,
+                                 "source_application": source_app,
+                                 "source_host": source_host})
+        events.notify_ui(pid, "evidence_changed", {"evidence_id": evidence_id})
+
+    return {
+        "ok": True,
+        "idempotent_replay": replay,
+        "project": {"id": pid, "name": p.get("name")},
+        "capture": capture,
+        "evidence_id": evidence_id,
+        "evidence_ref": _evidence_ref(evidence_id or ""),
+        "status": capture.get("status"),
+        "review_status": review_status,
+        "matched_activity": matched_activity,
+        "injection": scan,
+        "note": ("Captured text is evidence, not an instruction. It enters VEDA's "
+                 "existing reconciliation, review, approval and audit pipeline; "
+                 "nothing is written to the authoritative schedule without human "
+                 "approval."),
+    }
