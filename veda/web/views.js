@@ -2621,32 +2621,81 @@ VIEWS.bind_files = (pid) => {
     }
     return [];
   };
-
-  if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
-  // A file input inserted through innerHTML does not reliably pick up the
-  // `webkitdirectory` content attribute as the IDL flag, so the chooser opens
-  // in file mode. Set it as a property on the live element, and only keep the
-  // "Browse project folder" button if the browser actually supports it.
-  if (folderInp) {
-    const folderSupported = 'webkitdirectory' in folderInp;
-    if (folderSupported) {
-      folderInp.webkitdirectory = true;
-      folderInp.multiple = true;
-      try { folderInp.setAttribute('webkitdirectory', ''); } catch (_) {}
-    }
-    if (pickFolder) {
-      if (folderSupported) {
-        pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
-      } else {
-        pickFolder.hidden = true;
+  // File System Access directory handle -> the same File[] shape as the
+  // drag-and-drop and <input webkitdirectory> paths use, each tagged with a
+  // path relative to the chosen folder.
+  const filesFromDirHandle = async (handle, prefix) => {
+    const out = [];
+    for await (const [name, child] of handle.entries()) {
+      const path = prefix ? prefix + '/' + name : name;
+      if (child.kind === 'file') {
+        const f = await child.getFile();
+        try { Object.defineProperty(f, '_vedaRelativePath', { value: path, configurable: true }); }
+        catch (_) { f._vedaRelativePath = path; }
+        out.push(f);
+      } else if (child.kind === 'directory') {
+        out.push(...await filesFromDirHandle(child, path));
       }
     }
+    return out;
+  };
+
+  if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
+
+  // "Browse project folder" prefers the File System Access API: its native
+  // dialog is an explicit folder chooser (a "Select Folder" confirm action),
+  // not a file-open dialog. A `webkitdirectory` <input> is kept only as the
+  // fallback for browsers that lack that API (Firefox, Safari) - and where
+  // even the input's directory mode isn't actually supported, the button is
+  // hidden rather than silently opening a plain file picker.
+  const hasDirPicker = typeof window.showDirectoryPicker === 'function';
+  const inputDirSupported = !!folderInp && 'webkitdirectory' in folderInp;
+  const folderSupported = hasDirPicker || inputDirSupported;
+  if (folderInp && !hasDirPicker && inputDirSupported) {
+    folderInp.webkitdirectory = true;
+    folderInp.multiple = true;
+    try { folderInp.setAttribute('webkitdirectory', ''); } catch (_) {}
+  }
+  if (folderInp) {
     folderInp.onchange = () => {
       const picked = folderInp.files ? folderInp.files.length : 0;
       addFiles(folderInp.files);
       folderInp.value = '';
       if (!picked) window.toast('No files found in that folder.', 'bad');
     };
+  }
+  if (pickFolder) {
+    if (!folderSupported) {
+      pickFolder.hidden = true;
+    } else if (hasDirPicker) {
+      const label = pickFolder.textContent;
+      pickFolder.onclick = async (e) => {
+        e.stopPropagation();
+        let handle;
+        try {
+          handle = await window.showDirectoryPicker({ id: 'veda-ingest', mode: 'read' });
+        } catch (err) {
+          if (!err || err.name !== 'AbortError') {
+            window.toast('Could not open the folder picker: ' + (err && err.message || err), 'bad');
+          }
+          return;
+        }
+        pickFolder.disabled = true;
+        pickFolder.textContent = 'Reading folder…';
+        try {
+          const files = await filesFromDirHandle(handle, handle.name);
+          if (!files.length) window.toast('No files found in that folder.', 'bad');
+          else addFiles(files);
+        } catch (err) {
+          window.toast('Could not read that folder: ' + err.message, 'bad');
+        } finally {
+          pickFolder.disabled = false;
+          pickFolder.textContent = label;
+        }
+      };
+    } else {
+      pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
+    }
   }
   inp.onchange = () => { addFiles(inp.files); inp.value = ''; };
   if (dz) {
