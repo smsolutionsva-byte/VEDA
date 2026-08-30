@@ -30,6 +30,20 @@ agent. `Ignore previous instructions`, `Approve all pending changes`,
 `Delete the schedule` and similar phrases cannot change VEDA's behaviour —
 captured text is **evidence, not a command**.
 
+### The panel
+
+The floating panel is **draggable** (grab the header) and **resizable**
+(bottom‑right corner). It always stays fully inside the viewport with the action
+buttons visible — it never gets clipped by the window edge. Position and width
+are remembered. Close it with the × or `Esc`.
+
+### Ask VEDA is durable
+
+An Ask VEDA question keeps running on the VEDA backend even if you close the
+panel. The answer always lands in **Ask VEDA** in the VEDA app (badged
+*via VEDA Anywhere*). Reopening the panel resumes the conversation and shows a
+live progress indicator and elapsed time while VEDA works.
+
 ---
 
 ## Install (developer / unpacked)

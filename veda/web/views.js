@@ -1773,7 +1773,7 @@ function thinkingPanel(opts) {
   const first = merged[0], last = merged[merged.length - 1];
   const elapsed = first ? (live ? (Date.now() / 1000 - first.created_at)
     : (last.created_at - first.created_at)) : 0;
-  const headlineText = live ? 'Thinking for ' + fmtDur(elapsed)
+  const headlineText = live ? (first ? 'Thinking for ' + fmtDur(elapsed) : 'Starting…')
     : status === 'done' ? 'Thought for ' + fmtDur(elapsed)
     : status === 'failed' ? 'Reasoning stopped' : 'No reasoning trace yet';
   const kicker = opts.kicker || (live ? 'Reasoning · live'
@@ -1793,7 +1793,7 @@ function thinkingPanel(opts) {
     '<span class="think-beacon" aria-hidden="true"><i></i></span>' +
     '<span class="think-headline"><span class="think-kicker">' + E(kicker) + '</span>' +
     '<b' +
-    (live ? ' data-think-live="1" data-think-first="' + first.created_at + '"' : '') +
+    (live && first ? ' data-think-live="1" data-think-first="' + first.created_at + '"' : '') +
     '>' + E(headlineText) + '</b>' +
     (sub ? '<em>' + E(String(sub).slice(0, 140)) + '</em>' : '') + '</span>' +
     (merged.length ? '<span class="think-count">' + merged.length +
@@ -1833,12 +1833,13 @@ window.bindThinkToggles = function bindThinkToggles(root) {
 };
 
 /* ==================================================== 20. Ask VEDA
-   A real conversation, not a form-and-list: your question renders as a chat
-   turn immediately, VEDA's side shows a live thinking indicator that grows
-   into the grounded answer with its reasoning trace attached - the same
-   shared thinking-trace component the Execution intelligence view uses, so
-   "watching VEDA work" looks and feels identical everywhere in the app. */
+   A full-height chat surface, laid out the way ChatGPT / Claude are: the
+   conversation scrolls in the middle (oldest at top, newest at the bottom),
+   the composer is docked at the bottom, and sending a message pins that
+   exchange to the top of the viewport so the answer reads from its first line.
+   VEDA's reasoning trace rides above each answer via the shared think-panel. */
 VIEWS._askDraft = VIEWS._askDraft || {};
+VIEWS._ask = VIEWS._ask || {};
 
 const ASK_SUGGESTIONS = [
   'What is driving the current forecast finish?',
@@ -1846,27 +1847,8 @@ const ASK_SUGGESTIONS = [
   'Summarize open risks sitting on the critical path.',
 ];
 
-function askComposer(pid, showSuggestions) {
-  const draft = VIEWS._askDraft[pid] || '';
-  return '<section class="ask-composer">' +
-    '<div class="ask-composer-head"><div class="ask-avatar veda-mark">V</div>' +
-    '<div><b>Ask VEDA anything about this project</b>' +
-    '<small>It inspects the stored schedule facts, the field evidence and Horizun ' +
-    'before answering — grounded, never a guess.</small></div></div>' +
-    '<div class="ask-input-row">' +
-    '<textarea class="ask-input" id="qbox" rows="1" ' +
-    'placeholder="Why is hydrotest trending late against baseline?">' + E(draft) +
-    '</textarea>' +
-    '<button class="ask-send" id="qgo" type="button" aria-label="Send question">' +
-    '<i aria-hidden="true">➤</i></button></div>' +
-    (showSuggestions ? '<div class="ask-suggest">' + ASK_SUGGESTIONS.map(s =>
-      '<button type="button" data-suggest="' + E(s) + '">' + E(s) + '</button>').join('') +
-      '</div>' : '') +
-    '</section>';
-}
-
 function askTurn(turn, steps, calls) {
-  const you = '<div class="ask-msg you"><div class="ask-avatar you-mark">Y</div>' +
+  const you = '<div class="ask-msg you"><div class="ask-avatar you-mark">You</div>' +
     '<div class="ask-bubble"><p>' + E(turn.question) + '</p></div></div>';
 
   let inner;
@@ -1877,8 +1859,6 @@ function askTurn(turn, steps, calls) {
       idleHint: 'Reading the stored schedule and field evidence…',
     });
   } else if (turn.kind === 'failed') {
-    // Reasoning first, the way Claude and ChatGPT surface the thinking trace
-    // above the reply - then the failure notice underneath it.
     inner = thinkingPanel({
         status: 'failed', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
         emptyLabel: 'No reasoning trace stored for this attempt.',
@@ -1893,10 +1873,11 @@ function askTurn(turn, steps, calls) {
       }) +
       '<div class="ask-answer">' + E(turn.answer) + '</div>' +
       '<div class="ask-meta">' + prov(turn.provenance) +
+      (turn.source === 'browser_extension' ? '<span class="tag blue">via VEDA Anywhere</span>' : '') +
       '<span class="ask-time">' + new Date(turn.created_at * 1000).toLocaleString() +
       '</span></div>';
   }
-  return '<div class="ask-turn">' + you +
+  return '<div class="ask-turn" data-turn="' + E(turn.id) + '">' + you +
     '<div class="ask-msg veda' + (turn.kind === 'pending' ? ' thinking' : '') + '">' +
     '<div class="ask-avatar veda-mark">V</div><div class="ask-bubble">' + inner +
     '</div></div></div>';
@@ -1904,16 +1885,18 @@ function askTurn(turn, steps, calls) {
 
 VIEWS.ask = async (pid) => {
   const [r, jobsR, actR, mcpR] = await Promise.all([
-    A('/projects/' + pid + '/answers?limit=60'),
-    A('/projects/' + pid + '/jobs?limit=20'),
-    A('/projects/' + pid + '/agent-activity?limit=400'),
+    A('/projects/' + pid + '/answers?limit=80'),
+    A('/projects/' + pid + '/jobs?limit=30'),
+    A('/projects/' + pid + '/agent-activity?limit=500'),
     A('/projects/' + pid + '/mcp-calls?limit=300'),
   ]);
-  const answers = r.answers || []; // already newest-first from the server
+  const answers = (r.answers || []).slice().reverse(); // oldest first for chat order
   const answeredJobIds = new Set(answers.map(a => String(a.job_id || '')));
   const qJobs = (jobsR.jobs || []).filter(j => j.kind === 'question');
-  const unresolved = qJobs.find(j => !answeredJobIds.has(String(j.id)) &&
-    ['queued', 'running', 'failed', 'cancelled'].includes(String(j.status)));
+  const unresolved = qJobs
+    .filter(j => !answeredJobIds.has(String(j.id)) &&
+      ['queued', 'running', 'failed', 'cancelled'].includes(String(j.status)))
+    .sort((a, b) => (a.created_at || 0) - (b.created_at || 0))[0];
 
   const actByJob = {}, callsByJob = {};
   (actR.activity || []).forEach(a => (actByJob[a.job_id] = actByJob[a.job_id] || []).push(a));
@@ -1922,48 +1905,134 @@ VIEWS.ask = async (pid) => {
   const turns = answers.map(a => ({
     kind: 'answer', id: a.id, jobId: a.job_id, question: a.title,
     answer: a.description, provenance: a.provenance, created_at: a.created_at,
+    source: a.source_type,
   }));
   if (unresolved) {
     const live = unresolved.status === 'queued' || unresolved.status === 'running';
     const qin = (unresolved.result && unresolved.result.input) || {};
     const q = qin.display_question || qin.question || 'Question in progress…';
-    turns.unshift({
+    turns.push({
       kind: live ? 'pending' : 'failed', id: unresolved.id, jobId: unresolved.id,
       question: q, error: unresolved.error, created_at: unresolved.created_at,
+      source: qin.veda_anywhere ? 'browser_extension' : null,
     });
   }
 
+  const draft = VIEWS._askDraft[pid] || '';
   const thread = turns.length
     ? turns.map(t => askTurn(t, actByJob[t.jobId] || [], callsByJob[t.jobId] || [])).join('')
-    : empty('No questions asked yet', 'Try one of the prompts above, or ask your own.');
+    : '<div class="ask-hello"><div class="ask-avatar veda-mark">V</div>' +
+      '<h2>Ask VEDA anything about this project</h2>' +
+      '<p>VEDA inspects the stored schedule facts, the field evidence and Horizun ' +
+      'before answering — grounded, never a guess. Captures made from VEDA Anywhere ' +
+      'appear here too.</p>' +
+      '<div class="ask-suggest">' + ASK_SUGGESTIONS.map(s =>
+        '<button type="button" data-suggest="' + E(s) + '">' + E(s) + '</button>').join('') +
+      '</div></div>';
 
-  return head('Ask VEDA', 'A grounded agent conversation, not a guess') +
-    askComposer(pid, !turns.length) +
-    '<div class="ask-thread" id="ask-thread">' + thread + '</div>';
+  VIEWS._ask[pid] = VIEWS._ask[pid] || {};
+  VIEWS._ask[pid].turnCount = turns.length;
+  VIEWS._ask[pid].hasPending = turns.some(t => t.kind === 'pending');
+
+  return '<div class="ask-view">' +
+    '<div class="ask-topbar"><div><div class="eyebrow">Ask VEDA</div>' +
+    '<b>A grounded agent conversation</b></div><div class="spacer"></div>' +
+    (turns.length ? '<span class="ask-count mono">' + turns.length + ' exchange' +
+      (turns.length === 1 ? '' : 's') + '</span>' : '') + '</div>' +
+    '<div class="ask-scroll" id="ask-scroll"><div class="ask-thread" id="ask-thread">' +
+    thread + '<div class="ask-tail-spacer" id="ask-tail-spacer"></div></div></div>' +
+    '<div class="ask-dock"><div class="ask-composer">' +
+    '<textarea class="ask-input" id="qbox" rows="1" ' +
+    'placeholder="Ask about an activity, a date, progress, a risk…">' + E(draft) + '</textarea>' +
+    '<button class="ask-send" id="qgo" type="button" aria-label="Send question">' +
+    '<i aria-hidden="true">➤</i></button></div>' +
+    '<div class="ask-dock-hint mono">Enter to send · Shift+Enter for a new line · read-only</div>' +
+    '</div></div>';
 };
 
 VIEWS.bind_ask = (pid) => {
   const box = document.getElementById('qbox');
   const btn = document.getElementById('qgo');
-  if (!box || !btn) return;
+  const scroll = document.getElementById('ask-scroll');
+  const thread = document.getElementById('ask-thread');
+  const spacer = document.getElementById('ask-tail-spacer');
+  if (!box || !btn || !scroll) return;
+
+  const st = VIEWS._ask[pid] = VIEWS._ask[pid] || {};
+
   const grow = () => {
     box.style.height = 'auto';
-    box.style.height = Math.min(160, box.scrollHeight) + 'px';
+    box.style.height = Math.min(180, box.scrollHeight) + 'px';
   };
   grow();
+
+  // --- scroll management -----------------------------------------------
+  // Chat behaviour: sending pins the exchange to the top of the viewport so a
+  // long answer reads from its first line; otherwise the view follows the
+  // newest content unless the reader has scrolled up.
+  const turnEls = () => thread.querySelectorAll('.ask-turn');
+  const sizeSpacer = () => {
+    const turns = turnEls();
+    const last = turns[turns.length - 1];
+    if (spacer && last) {
+      spacer.style.height = Math.max(0,
+        scroll.clientHeight - last.getBoundingClientRect().height - 28) + 'px';
+    } else if (spacer) {
+      spacer.style.height = '0px';
+    }
+  };
+  const pinLast = () => {
+    const turns = turnEls();
+    const last = turns[turns.length - 1];
+    if (!last) return;
+    st._prog = true;
+    scroll.scrollTop += last.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 10;
+    setTimeout(() => { st._prog = false; }, 90);
+  };
+  const toBottom = () => {
+    st._prog = true;
+    scroll.scrollTop = scroll.scrollHeight;
+    setTimeout(() => { st._prog = false; }, 90);
+  };
+
+  sizeSpacer();
+  const grew = (st.lastTurnCount || 0) < st.turnCount;
+  if (st.pin && (grew || st.pinSticky)) {
+    pinLast();
+    // Stop re-pinning once the answer has landed - let the reader scroll freely.
+    if (!st.hasPending && !grew) { st.pinSticky = false; st.pin = false; }
+  } else if (grew || st.follow !== false) {
+    toBottom();
+  }
+  st.lastTurnCount = st.turnCount;
+
+  scroll.onscroll = () => {
+    if (st._prog) return;
+    const nearBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 90;
+    st.follow = nearBottom;
+    if (!nearBottom) { st.pin = false; st.pinSticky = false; }
+  };
+  if (VIEWS._ask._resize) window.removeEventListener('resize', VIEWS._ask._resize);
+  VIEWS._ask._resize = () => { if (scroll.isConnected) sizeSpacer(); };
+  window.addEventListener('resize', VIEWS._ask._resize);
+
+  // --- send ------------------------------------------------------------
   box.oninput = () => { VIEWS._askDraft[pid] = box.value; grow(); };
   const send = async () => {
     const text = box.value.trim();
     if (!text || btn.disabled) return;
     btn.disabled = true;
+    box.disabled = true;
     try {
       await P('/projects/' + pid + '/ask', { question: text });
       VIEWS._askDraft[pid] = '';
       box.value = ''; grow();
+      st.pin = true; st.pinSticky = true; st.follow = true;
       await window.refreshCounts();
       window.render();
     } catch (e) {
       btn.disabled = false;
+      box.disabled = false;
       window.toast('Could not send question: ' + e.message, 'bad');
     }
   };
@@ -1974,6 +2043,7 @@ VIEWS.bind_ask = (pid) => {
   document.querySelectorAll('[data-suggest]').forEach(b => b.onclick = () => {
     box.value = b.dataset.suggest; VIEWS._askDraft[pid] = box.value; grow(); box.focus();
   });
+  if (!VIEWS._askDraft[pid]) box.focus();
 };
 
 /* =============================================== 21. Execution intelligence */

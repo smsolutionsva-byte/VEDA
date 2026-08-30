@@ -1596,9 +1596,23 @@ def ask(pid: str, body: dict = Body(...)):
 
 @router.get("/projects/{pid}/answers")
 def answers(pid: str, limit: int = 20):
-    return {"answers": db.q("SELECT * FROM artifacts WHERE project_id=? "
-                            "AND kind='answer' ORDER BY created_at DESC LIMIT ?",
-                            [pid, limit])}
+    rows = db.q("SELECT * FROM artifacts WHERE project_id=? "
+                "AND kind='answer' ORDER BY created_at DESC LIMIT ?",
+                [pid, limit])
+    # Tag each answer with how the question arrived (web app vs VEDA Anywhere).
+    # The job's result_json is overwritten with the answer on completion, so the
+    # durable signal is the anywhere_ask audit row keyed by job_id.
+    job_ids = [r["job_id"] for r in rows if r.get("job_id")]
+    companion_jobs: set = set()
+    if job_ids:
+        ph = ",".join("?" for _ in job_ids)
+        for a in db.q("SELECT DISTINCT job_id FROM audit WHERE action='anywhere_ask' "
+                      "AND job_id IN (" + ph + ")", job_ids):
+            companion_jobs.add(a["job_id"])
+    for r in rows:
+        r["source_type"] = ("browser_extension"
+                            if r.get("job_id") in companion_jobs else "website")
+    return {"answers": rows}
 
 
 # =====================================================================
@@ -1859,13 +1873,42 @@ def anywhere_ask(request: Request, body: dict = Body(...)):
             "read_only": True}
 
 
+_ASK_PHASE_LABELS = {
+    "queued": "Queued", "question_received": "Reading the question",
+    "mcp_health": "Checking Horizun", "mcp_failed": "Reasoning",
+    "schedule_loaded": "Loading the schedule",
+    "agent_invoked": "Reasoning", "agent_status": "Reasoning",
+    "agent_unavailable": "Reasoning", "agent_failed": "Reasoning",
+    "agent_error": "Reasoning", "provider_selected": "Reasoning",
+    "tool_call": "Reading project data",
+    "structured_output_rejected": "Reasoning",
+    "fallback_analysis": "Analysing with VEDA rules",
+    "resolver_ranking": "Analysing with VEDA rules",
+    "output_ready": "Finishing up",
+}
+
+
+def _ask_stage(phase: str, step: str, label: str) -> str:
+    if step == "tool_call" or "/" in (label or ""):
+        return "Reading project data"
+    return (_ASK_PHASE_LABELS.get(step)
+            or _ASK_PHASE_LABELS.get(phase)
+            or "Working")
+
+
 @router.get("/anywhere/ask/{job_id}")
 def anywhere_ask_status(request: Request, job_id: str, project_id: str = ""):
     _anywhere_ctx(request, scope="ask")
     job = db.q1("SELECT * FROM jobs WHERE id=? AND kind='question'", [job_id])
     if not job or (project_id and job.get("project_id") != project_id):
         raise HTTPException(404, "no such question")
-    out = {"job_id": job_id, "status": job.get("status"), "phase": job.get("phase")}
+    latest = db.q1("SELECT label, step FROM agent_activity WHERE job_id=? "
+                   "ORDER BY created_at DESC LIMIT 1", [job_id]) or {}
+    phase = job.get("phase") or ""
+    stage = _ask_stage(phase, latest.get("step") or "", latest.get("label") or "")
+    out = {"job_id": job_id, "status": job.get("status"),
+           "phase": phase, "stage": stage,
+           "started_at": job.get("started_at") or job.get("created_at")}
     ans = db.q1("SELECT * FROM artifacts WHERE job_id=? AND kind='answer' "
                 "ORDER BY created_at DESC LIMIT 1", [job_id])
     if ans:

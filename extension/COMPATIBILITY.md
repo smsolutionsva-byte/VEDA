@@ -64,12 +64,20 @@ Errors: `401/403` (gate), `404` (project), `422` (empty / >8000 chars).
 ### `GET /api/anywhere/ask/{job_id}?project_id=`  · Bearer · scope `ask`
 Response `200`:
 ```jsonc
-{ "job_id": "...", "status": "queued|running|done|failed", "phase": "...",
+{ "job_id": "...", "status": "queued|running|done|failed",
+  "phase": "...", "stage": "Reasoning",   // human-readable current step
+  "started_at": 0,
   "answer": "<markdown>", "provenance": "AI_INFERENCE|DETERMINISTIC_CALCULATION", "answered_at": 0,
   "error": "<only when failed>" }
 ```
 Errors: `404` (unknown question / project mismatch).
-Consumed by: `background.js → runAsk()` polls this until `done`/`failed`/timeout.
+Consumed by: the overlay polls this every 2 s for up to 5 minutes while open,
+showing `stage` and elapsed time. The question is persisted to
+`chrome.storage.local` (`va_ask`), so closing/reopening the panel resumes the
+poll. The completed answer is always visible in the VEDA app's **Ask VEDA** page
+regardless — `/projects/{pid}/answers` tags it `source_type: "browser_extension"`
+(derived from the durable `anywhere_ask` audit row, since the job's `result_json`
+is overwritten with the answer on completion).
 
 ### `POST /api/anywhere/capture/detect`  · Bearer · scope `capture` · enabled
 Request: `{ "project_id": "...", "text": "<selection>" }`
