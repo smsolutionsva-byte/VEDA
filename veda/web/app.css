@@ -310,19 +310,6 @@ td.r, th.r { text-align: right; }
            box-shadow: 0 0 8px rgba(69, 200, 232, .4); }
 .bar.obs > i { background: var(--human); box-shadow: 0 0 8px rgba(255, 176, 32, .4); }
 
-/* --------------------------------------------------- agent activity */
-.feed { max-height: 340px; overflow-y: auto; }
-.feed .row { display: flex; gap: 9px; padding: 6px 13px; align-items: baseline;
-             border-bottom: 1px solid #171C23; font-size: 12.5px; }
-.feed .row .t { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4);
-                min-width: 58px; }
-.feed .row .m { width: 5px; height: 5px; background: var(--ok); flex: none;
-                transform: translateY(-1px); }
-.feed .row.fail .m { background: var(--danger); }
-.feed .row.run .m { background: var(--mcp); animation: pulse 1.1s infinite; }
-.feed .row .x { flex: 1; }
-.feed .row .d { color: var(--ink-3); font-size: 11.5px; font-family: var(--mono); }
-
 /* ----------------------------------------------------------- review */
 .review { border: 1px solid var(--line-2); background: var(--surface);
           box-shadow: var(--raise); margin-bottom: 13px; }
@@ -484,6 +471,29 @@ textarea.inp { min-width: 100%; font-family: var(--sans); }
 }
 .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 15px; }
 .btn:disabled { opacity: .42; cursor: not-allowed; }
+
+/* ------------------------------------------------- new project dialog */
+.new-project-modal { width: min(620px, 100%); }
+.np-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.np-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.np-field.np-wide { grid-column: 1 / -1; }
+.np-field > span { color: var(--ink-2); font-size: 11.5px; font-weight: 500; }
+.np-field > span em { color: var(--ink-4); font-weight: 400; font-style: normal; }
+.np-field .inp { width: 100%; min-width: 0; }
+.np-field textarea.inp { min-height: 76px; resize: vertical; font-family: var(--sans); line-height: 1.5; }
+.np-next { margin-top: 15px; padding: 12px 13px; border-left: 2px solid var(--mcp);
+           background: rgba(69, 200, 232, .05); }
+.np-next b { display: block; margin-bottom: 9px; color: var(--ink-2);
+             font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.np-next-steps { display: flex; flex-direction: column; gap: 8px; }
+.np-next-steps span { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; }
+.np-next-steps i { display: grid; place-items: center; width: 19px; height: 19px; flex: none;
+                   border: 1px solid var(--line-3); background: var(--surface-2);
+                   color: var(--mcp); font: 600 10px/1 var(--mono); font-style: normal; }
+#np-error { margin-top: 13px; }
+html[data-theme="light"] .np-next { background: #EAF7FA; }
+html[data-theme="light"] .np-next-steps i { background: #FFF; }
+@media (max-width: 560px) { .np-grid { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------ review inbox */
 .review-brief {
@@ -945,6 +955,87 @@ textarea.inp { min-width: 100%; font-family: var(--sans); }
 .run-details > .grid { padding: 14px; }
 .run-details > .grid > .panel { margin-bottom: 0; }
 
+/* ============================================ shared "thinking" component
+   VEDA never renders raw chain-of-thought; step() only ever logs safe,
+   high-level progress. This is that same persisted trace shown the way an
+   LLM product shows its reasoning: a one-line collapsed headline that keeps
+   pace with the run, and a timeline underneath for anyone who wants the
+   detail. Execution intelligence and Ask VEDA both build on it. */
+.think-panel {
+  position: relative; margin-bottom: 16px; border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--raise); overflow: hidden;
+}
+.think-panel.live { border-color: rgba(169, 139, 250, .45); }
+.think-panel.failed { border-color: rgba(255, 95, 86, .5); }
+.think-toggle {
+  width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center; gap: 12px; padding: 13px 16px; border: 0; cursor: pointer;
+  background: linear-gradient(90deg, rgba(169, 139, 250, .07), transparent 55%);
+  color: inherit; text-align: left; font: inherit;
+}
+.think-toggle:hover { background: linear-gradient(90deg, rgba(169, 139, 250, .12), transparent 55%); }
+.think-beacon { width: 10px; height: 10px; flex: none; background: var(--ink-4); }
+.think-panel.live .think-beacon { background: var(--ai); box-shadow: 0 0 10px var(--ai);
+                                  animation: pulse 1.1s infinite; }
+.think-panel.done .think-beacon { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.think-panel.failed .think-beacon { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.think-headline { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.think-headline b { font-size: 13px; font-weight: 600; }
+.think-panel.live .think-headline b { color: var(--ai); }
+.think-headline em {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal;
+  color: var(--ink-3); font-size: 11.5px; animation: think-fade .35s ease;
+}
+@keyframes think-fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+.think-count { color: var(--ink-4); font: 10px/1 var(--mono); white-space: nowrap; }
+.think-chevron {
+  width: 20px; height: 20px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--line-3); color: var(--ink-3); font-size: 10px;
+  transition: transform .18s, color .18s, border-color .18s;
+}
+.think-panel[data-open="1"] .think-chevron { transform: rotate(180deg); color: var(--ai); border-color: rgba(169, 139, 250, .55); }
+.think-trace {
+  border-top: 1px solid var(--line); padding: 15px 18px 16px 20px;
+  max-height: 460px; overflow-y: auto;
+}
+.think-item {
+  position: relative; display: grid; grid-template-columns: 19px minmax(0, 1fr);
+  gap: 0 11px; padding-bottom: 14px;
+}
+.think-item:last-child { padding-bottom: 0; }
+.think-item::before {
+  content: ''; position: absolute; left: 9px; top: 19px; bottom: -14px; width: 1px;
+  background: var(--line);
+}
+.think-item:last-child::before { display: none; }
+.think-dot {
+  position: relative; z-index: 1; width: 19px; height: 19px; display: grid; place-items: center;
+  border: 1px solid var(--line-3); background: var(--surface-2); color: var(--ink-4);
+  font: 600 9.5px/1 var(--mono);
+}
+.think-item.step .think-dot { color: var(--ai); border-color: rgba(169, 139, 250, .5);
+                              background: rgba(169, 139, 250, .09); }
+.think-item.tool .think-dot { color: var(--mcp); border-color: rgba(69, 200, 232, .5);
+                              background: rgba(69, 200, 232, .09); }
+.think-item.failed .think-dot { color: var(--danger); border-color: var(--danger);
+                                background: rgba(255, 95, 86, .12); }
+.think-item.active .think-dot { animation: pulse 1.1s infinite; }
+.think-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.think-row b { font-size: 12.5px; font-weight: 500; }
+.think-slash { color: var(--ink-4); }
+.think-kind { font: 9px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
+.think-time { margin-left: auto; color: var(--ink-4); font: 10px/1 var(--mono); white-space: nowrap; }
+.think-detail { margin-top: 3px; color: var(--ink-3); font-size: 11.5px; line-height: 1.5; }
+.think-detail.mono { font-family: var(--mono); font-size: 11px; }
+.think-empty { padding: 20px 4px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+
+html[data-theme="light"] .think-panel { background: linear-gradient(180deg, #FFF, #FAFBFC); }
+html[data-theme="light"] .think-toggle { background: linear-gradient(90deg, rgba(112, 80, 190, .06), transparent 55%); }
+html[data-theme="light"] .think-toggle:hover { background: linear-gradient(90deg, rgba(112, 80, 190, .11), transparent 55%); }
+html[data-theme="light"] .think-dot { background: #FFF; }
+html[data-theme="light"] .think-item::before { background: var(--line-2); }
+
 /* ------------------------------------------------ source intake motion */
 .ingest-live { margin-top: 14px; padding: 13px;
                border: 1px solid rgba(69, 200, 232, .38);
@@ -1136,6 +1227,97 @@ html[data-theme="light"] .ingest-lanes > span { border-color: var(--line-2); }
   .run-header, .run-footer, .run-milestones { padding-inline: 14px; }
   .map-caption { flex-direction: column; align-items: flex-start; gap: 4px; }
   .map-caption small { text-align: left; }
+}
+
+/* ===================================================== ask veda / chat
+   A real conversation rather than a form-and-list: composer stays docked at
+   the top (VEDA's other panels all put the action above the history), the
+   newest turn lands immediately underneath it, and each turn reads like a
+   chat exchange - your question, then VEDA's answer with its thinking trace
+   attached via the shared .think-panel component. */
+.ask-composer {
+  position: relative; margin-bottom: 18px; padding: 16px 18px;
+  border: 1px solid var(--line-2);
+  background: linear-gradient(160deg, rgba(69, 200, 232, .08), transparent 46%),
+              linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--raise);
+}
+.ask-composer-head { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
+.ask-composer-head b { display: block; font-size: 14px; }
+.ask-composer-head small { display: block; margin-top: 3px; max-width: 62ch;
+                           color: var(--ink-3); font-size: 11.5px; line-height: 1.45; }
+.ask-avatar {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--line-3); background: var(--surface-3); color: var(--ink-2);
+  font: 600 12px/1 var(--mono);
+}
+.ask-avatar.veda-mark {
+  color: #06222A; border-color: #2E93AC; background: linear-gradient(155deg, var(--mcp), #1E8FA8);
+  box-shadow: 0 0 10px rgba(69, 200, 232, .35);
+}
+.ask-avatar.you-mark { color: var(--ink); background: var(--surface-4); }
+.ask-input-row { display: flex; gap: 10px; align-items: flex-end; }
+.ask-input {
+  flex: 1; min-width: 0; resize: none; min-height: 44px; max-height: 160px;
+  padding: 11px 13px; background: #0C1015; border: 1px solid var(--line-2);
+  box-shadow: var(--sink); font-family: var(--sans); font-size: 13px; line-height: 1.5;
+  color: var(--ink);
+}
+.ask-send {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 1px solid #3E8DA3; background: linear-gradient(180deg, #2E6E80, #1E4E5C);
+  color: #EAFBFF; cursor: pointer; box-shadow: var(--raise-sm); font-size: 15px;
+}
+.ask-send:hover { background: linear-gradient(180deg, #35808F, #235A69); }
+.ask-send:disabled { opacity: .42; cursor: not-allowed; }
+.ask-suggest { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.ask-suggest button {
+  padding: 6px 11px; border: 1px solid var(--line-2); background: var(--surface-2);
+  color: var(--ink-2); font-size: 11.5px; cursor: pointer; box-shadow: var(--raise-sm);
+}
+.ask-suggest button:hover { border-color: var(--mcp); color: var(--ink); }
+
+.ask-thread { display: flex; flex-direction: column; gap: 22px; }
+.ask-turn { display: flex; flex-direction: column; gap: 10px; }
+.ask-msg { display: flex; gap: 11px; align-items: flex-start; }
+.ask-msg .ask-bubble { min-width: 0; }
+.ask-msg.you .ask-bubble {
+  max-width: min(720px, 92%); padding: 10px 14px; border: 1px solid var(--line-2);
+  background: var(--surface-2); box-shadow: var(--raise-sm);
+}
+.ask-msg.you .ask-bubble p { margin: 0; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+.ask-msg.veda .ask-bubble { flex: 1; max-width: min(880px, 96%); }
+.ask-answer {
+  padding: 13px 15px; border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--raise); white-space: pre-wrap; font-size: 13.5px; line-height: 1.65;
+}
+.ask-meta { display: flex; align-items: center; gap: 9px; margin: 9px 2px 11px; }
+.ask-time { color: var(--ink-4); font: 10.5px/1 var(--mono); }
+.ask-error {
+  padding: 12px 14px; margin-bottom: 10px; border-left: 2px solid var(--danger);
+  background: #211516; color: var(--ink-2); font-size: 12.5px;
+}
+.ask-error b { display: block; margin-bottom: 4px; color: #FFC9C6; }
+.ask-error span { font-size: 11px; }
+.ask-msg.thinking .ask-bubble { max-width: min(640px, 92%); }
+
+html[data-theme="light"] .ask-composer {
+  background: linear-gradient(160deg, rgba(8, 127, 154, .09), transparent 46%),
+              linear-gradient(180deg, #FFF, #FAFBFC);
+}
+html[data-theme="light"] .ask-input { background: #FFF; border-color: var(--line-3); }
+html[data-theme="light"] .ask-msg.you .ask-bubble { background: #FFF; }
+html[data-theme="light"] .ask-answer { background: linear-gradient(180deg, #FFF, #FAFBFC); }
+html[data-theme="light"] .ask-avatar.you-mark { background: #E3EAF0; }
+html[data-theme="light"] .ask-suggest button { background: #FFF; }
+html[data-theme="light"] .ask-error { background: #FCECEB; }
+html[data-theme="light"] .ask-error b { color: #A62F2A; }
+
+@media (max-width: 720px) {
+  .ask-msg.you .ask-bubble, .ask-msg.veda .ask-bubble { max-width: 100%; }
+  .ask-input-row { flex-wrap: wrap; }
+  .ask-send { width: 100%; height: 40px; }
 }
 
 /* ===================================================== field capture */

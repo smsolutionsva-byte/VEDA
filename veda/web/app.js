@@ -155,6 +155,7 @@ async function render() {
     if (sameView && scroll) main.scrollTop = scroll;
     S.renderedView = renderView;
     S.renderedProject = renderProject;
+    if (window.bindThinkToggles) window.bindThinkToggles(main);
     if (VIEWS['bind_' + renderView]) VIEWS['bind_' + renderView](renderProject, S.params);
     syncAgentWatchdog();
   } catch (e) {
@@ -255,13 +256,76 @@ async function loadProjects(selectId) {
   render();
 }
 
-async function newProject() {
-  const name = prompt('Project name');
-  if (!name) return;
-  const r = await post('/projects', { name: name });
-  toast('Project created. Upload a schedule and project files to begin.', 'good');
-  await loadProjects(r.id);
-  go('files');
+function closeNewProjectDialog() {
+  const old = $('#project-new-scrim');
+  if (old) old.remove();
+}
+
+function openNewProjectDialog() {
+  closeNewProjectDialog();
+  const scrim = document.createElement('div');
+  scrim.className = 'scrim';
+  scrim.id = 'project-new-scrim';
+  scrim.innerHTML =
+    '<section class="modal new-project-modal" id="project-new-modal">' +
+    '<header><div><div class="eyebrow">Workspace</div>' +
+    '<h2>Create a project</h2></div></header>' +
+    '<div class="body">' +
+      '<div class="np-grid">' +
+        '<label class="np-field np-wide"><span>Project name <em>required</em></span>' +
+        '<input class="inp" id="np-name" autocomplete="off" ' +
+        'placeholder="e.g. TransRidge Interconnector, Section 4"></label>' +
+        '<label class="np-field"><span>Client <em>optional</em></span>' +
+        '<input class="inp" id="np-client" autocomplete="off" placeholder="e.g. NHAI"></label>' +
+        '<label class="np-field"><span>Location <em>optional</em></span>' +
+        '<input class="inp" id="np-location" autocomplete="off" placeholder="e.g. Uttar Pradesh, India"></label>' +
+        '<label class="np-field np-wide"><span>Description <em>optional</em></span>' +
+        '<textarea class="inp" id="np-description" rows="3" placeholder=' +
+        '"Scope, boundaries, anything useful for later reference."></textarea></label>' +
+      '</div>' +
+      '<div class="np-next"><b>What happens next</b><div class="np-next-steps">' +
+      '<span><i>1</i>Upload a schedule &mdash; XER, MPP, MSPDI XML, PMXML or Asta</span>' +
+      '<span><i>2</i>Add DPRs, registers and reports describing what happened on site</span>' +
+      '<span><i>3</i>VEDA reconciles both automatically and flags what needs a decision</span>' +
+      '</div></div>' +
+      '<div class="note danger" id="np-error" hidden></div>' +
+      '<div class="modal-actions"><button class="btn" id="np-cancel">Cancel</button>' +
+      '<div class="spacer"></div>' +
+      '<button class="btn primary" id="np-create">Create project</button></div>' +
+    '</div></section>';
+  scrim.onclick = (e) => { if (e.target === scrim) closeNewProjectDialog(); };
+  document.body.appendChild(scrim);
+
+  const nameInput = $('#np-name');
+  const errBox = $('#np-error');
+  const showError = (msg) => { errBox.hidden = false; errBox.textContent = msg; };
+
+  const submit = async () => {
+    const name = nameInput.value.trim();
+    if (!name) { showError('Project name is required.'); nameInput.focus(); return; }
+    const btn = $('#np-create');
+    btn.disabled = true; btn.textContent = 'Creating…';
+    errBox.hidden = true;
+    try {
+      const r = await post('/projects', {
+        name: name,
+        client: $('#np-client').value.trim() || null,
+        location: $('#np-location').value.trim() || null,
+        description: $('#np-description').value.trim() || null,
+      });
+      closeNewProjectDialog();
+      toast('Project created. Upload a schedule and project files to begin.', 'good');
+      await loadProjects(r.id);
+      go('files');
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Create project';
+      showError('Could not create project: ' + e.message);
+    }
+  };
+  $('#np-create').onclick = submit;
+  $('#np-cancel').onclick = closeNewProjectDialog;
+  nameInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  requestAnimationFrame(() => nameInput.focus());
 }
 
 function closeProjectDeleteDialog() {
@@ -515,7 +579,7 @@ function repaintRunPresentation(projectId) {
 
 function bindNoProject() {
   const b = $('#createFirst');
-  if (b) b.onclick = newProject;
+  if (b) b.onclick = openNewProjectDialog;
 }
 
 /* --------------------------------------------------------- live stream */
@@ -562,6 +626,20 @@ function connectStream() {
   };
 }
 
+/* -------------------------------------------------------- thinking clock
+   A "thinking" panel's collapsed headline ticks up like an LLM reasoning
+   trace ("Thinking for 12s"). Rather than a per-view timer, one cheap
+   app-wide interval refreshes whatever live headline happens to be mounted
+   (Execution intelligence or Ask VEDA); the query is a no-op when neither
+   view is showing one. fmtDur comes from views.js, loaded before this file. */
+function tickThinking() {
+  document.querySelectorAll('[data-think-live="1"]').forEach((el) => {
+    const first = Number(el.dataset.thinkFirst || 0);
+    if (!first) return;
+    el.textContent = 'Thinking for ' + fmtDur(Date.now() / 1000 - first);
+  });
+}
+
 /* ---------------------------------------------------------------- init */
 function esc(s) {
   return String(s === null || s === undefined ? '' : s)
@@ -603,7 +681,7 @@ async function init() {
     await refreshCounts();
     render();
   };
-  $('#newproj').onclick = newProject;
+  $('#newproj').onclick = openNewProjectDialog;
   $('#delproj').onclick = openProjectDeleteDialog;
   $('#analyze').onclick = async () => {
     if (!S.project) return toast('Create a project first');
@@ -624,6 +702,7 @@ async function init() {
   // loadProjects owns project selection and therefore the project-scoped stream.
   refreshHealth();
   setInterval(refreshHealth, 30000);
+  setInterval(tickThinking, 1000);
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {});
   }
@@ -631,7 +710,7 @@ async function init() {
     if (S.project) { refreshCounts().then(() => render()); }
   });
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeProjectDeleteDialog();
+    if (e.key === 'Escape') { closeProjectDeleteDialog(); closeNewProjectDialog(); }
   });
 }
 init();

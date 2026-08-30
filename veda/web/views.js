@@ -1714,37 +1714,237 @@ VIEWS.bind_proposals = (pid) => {
   });
 };
 
-/* ==================================================== 20. Ask VEDA */
-VIEWS.ask = async (pid) => {
-  const r = await A('/projects/' + pid + '/answers');
-  return head('Ask VEDA', 'Grounded answers, not guesses') +
-    panel('Ask a question', '<div class="body">' +
-      '<textarea class="inp" id="qbox" rows="3" placeholder="Why is hydrotest ' +
-      'late?"></textarea>' +
-      '<div style="margin-top:9px;display:flex;gap:8px;align-items:center">' +
-      '<button class="btn primary" id="qgo">Ask</button>' +
-      '<span style="color:var(--ink-3);font-size:12px">The agent inspects the ' +
-      'stored schedule facts, the field evidence and Horizun before answering.' +
-      '</span></div></div>') +
-    (r.answers.length ? r.answers.map(a =>
-      '<div class="review"><div class="h"><h3>' + E(a.title) + '</h3>' +
-      '<div style="display:flex;gap:7px">' + prov(a.provenance) +
-      '<span class="mono" style="font-size:11px;color:var(--ink-3)">' +
-      new Date(a.created_at * 1000).toLocaleString() + '</span></div></div>' +
-      '<div class="q">' + E(a.description) + '</div></div>').join('')
-      : panel('Answers', empty('No questions asked yet', '')));
+/* ============================================ 19b. Thinking trace (shared)
+   VEDA never shows raw chain-of-thought (spec 50) - `step()` on the server
+   only ever logs safe, high-level progress. What we render here is that same
+   persisted trace, styled the way an LLM product shows its reasoning: a
+   one-line collapsed headline that updates as the run progresses, and an
+   expandable timeline for anyone who wants the detail. Execution intelligence
+   and Ask VEDA both build on this so a run "thinks" the same way everywhere. */
+VIEWS._thinkOpen = VIEWS._thinkOpen || {};
+
+function fmtDur(seconds) {
+  seconds = Math.max(0, Math.round(seconds));
+  if (seconds < 60) return seconds + 's';
+  return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+}
+
+function thinkItem(entry) {
+  const isTool = entry.kind === 'tool';
+  const failed = entry.state === 'failed';
+  const cls = 'think-item ' + (isTool ? 'tool' : 'step') +
+    (failed ? ' failed' : '') + (entry.active ? ' active' : '');
+  const title = isTool
+    ? E(entry.server) + '<span class="think-slash">/</span>' + E(entry.tool)
+    : E(entry.label);
+  const detailRaw = isTool
+    ? [entry.summary || entry.error, (entry.duration_ms !== null && entry.duration_ms !== undefined)
+        ? Math.round(entry.duration_ms) + 'ms' : null].filter(Boolean).join(' · ')
+    : (entry.detail || '');
+  const marker = failed ? '!' : isTool ? '⇄' : '•';
+  return '<div class="' + cls + '"><span class="think-dot">' + marker + '</span>' +
+    '<div><div class="think-row"><span class="think-kind">' +
+    (isTool ? 'Horizun' : 'Reasoning') + '</span>' +
+    '<b>' + title + '</b>' +
+    '<span class="think-time">' + new Date(entry.created_at * 1000).toLocaleTimeString() +
+    '</span></div>' +
+    (detailRaw ? '<div class="think-detail' + (isTool ? ' mono' : '') + '">' +
+      E(String(detailRaw).slice(0, 320)) + '</div>' : '') +
+    '</div></div>';
+}
+
+/* opts: { status: live|done|failed|idle, steps, calls, openKey, idleHint, emptyLabel } */
+function thinkingPanel(opts) {
+  const steps = (opts.steps || []).map(s => Object.assign({ kind: 'step' }, s));
+  const calls = (opts.calls || []).map(c => Object.assign({ kind: 'tool' }, c));
+  const merged = steps.concat(calls).filter(e => e.created_at)
+    .sort((a, b) => a.created_at - b.created_at);
+  const status = opts.status || 'idle';
+  const live = status === 'live';
+  if (merged.length && live) merged[merged.length - 1].active = true;
+  const first = merged[0], last = merged[merged.length - 1];
+  const elapsed = first ? (live ? (Date.now() / 1000 - first.created_at)
+    : (last.created_at - first.created_at)) : 0;
+  const headlineText = live ? 'Thinking for ' + fmtDur(elapsed)
+    : status === 'done' ? 'Thought for ' + fmtDur(elapsed)
+    : status === 'failed' ? 'Reasoning stopped' : 'No reasoning trace yet';
+  const sub = last ? (last.kind === 'tool'
+      ? ('Horizun · ' + last.server + '/' + last.tool + (last.state === 'failed' ? ' failed' : ''))
+      : last.label)
+    : (opts.idleHint || '');
+  const key = opts.openKey || '';
+  const open = !!(key && VIEWS._thinkOpen[key]);
+  return '<section class="think-panel ' + status + '" data-open="' + (open ? 1 : 0) +
+    '" data-think-key="' + E(key) + '">' +
+    '<button class="think-toggle" type="button" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+    '<span class="think-beacon" aria-hidden="true"></span>' +
+    '<span class="think-headline"><b' +
+    (live ? ' data-think-live="1" data-think-first="' + first.created_at + '"' : '') +
+    '>' + E(headlineText) + '</b>' +
+    (sub ? '<em>' + E(String(sub).slice(0, 140)) + '</em>' : '') + '</span>' +
+    (merged.length ? '<span class="think-count">' + merged.length +
+      ' step' + (merged.length === 1 ? '' : 's') + '</span>' : '') +
+    '<span class="think-chevron" aria-hidden="true">⌄</span></button>' +
+    '<div class="think-trace"' + (open ? '' : ' hidden') + '>' +
+    (merged.length ? merged.map(thinkItem).join('') :
+      '<div class="think-empty">' + E(opts.emptyLabel || 'Nothing recorded yet.') + '</div>') +
+    '</div></section>';
+}
+
+window.bindThinkToggles = function bindThinkToggles(root) {
+  (root || document).querySelectorAll('.think-toggle').forEach((btn) => {
+    btn.onclick = () => {
+      const panel = btn.closest('.think-panel');
+      const trace = panel.querySelector('.think-trace');
+      const willOpen = trace.hidden;
+      trace.hidden = !willOpen;
+      panel.dataset.open = willOpen ? '1' : '0';
+      btn.setAttribute('aria-expanded', String(willOpen));
+      const key = panel.dataset.thinkKey;
+      if (key) VIEWS._thinkOpen[key] = willOpen;
+    };
+  });
 };
+
+/* ==================================================== 20. Ask VEDA
+   A real conversation, not a form-and-list: your question renders as a chat
+   turn immediately, VEDA's side shows a live thinking indicator that grows
+   into the grounded answer with its reasoning trace attached - the same
+   shared thinking-trace component the Execution intelligence view uses, so
+   "watching VEDA work" looks and feels identical everywhere in the app. */
+VIEWS._askDraft = VIEWS._askDraft || {};
+
+const ASK_SUGGESTIONS = [
+  'What is driving the current forecast finish?',
+  'Which activities have unresolved evidence conflicts right now?',
+  'Summarize open risks sitting on the critical path.',
+];
+
+function askComposer(pid, showSuggestions) {
+  const draft = VIEWS._askDraft[pid] || '';
+  return '<section class="ask-composer">' +
+    '<div class="ask-composer-head"><div class="ask-avatar veda-mark">V</div>' +
+    '<div><b>Ask VEDA anything about this project</b>' +
+    '<small>It inspects the stored schedule facts, the field evidence and Horizun ' +
+    'before answering — grounded, never a guess.</small></div></div>' +
+    '<div class="ask-input-row">' +
+    '<textarea class="ask-input" id="qbox" rows="1" ' +
+    'placeholder="Why is hydrotest trending late against baseline?">' + E(draft) +
+    '</textarea>' +
+    '<button class="ask-send" id="qgo" type="button" aria-label="Send question">' +
+    '<i aria-hidden="true">➤</i></button></div>' +
+    (showSuggestions ? '<div class="ask-suggest">' + ASK_SUGGESTIONS.map(s =>
+      '<button type="button" data-suggest="' + E(s) + '">' + E(s) + '</button>').join('') +
+      '</div>' : '') +
+    '</section>';
+}
+
+function askTurn(turn, steps, calls) {
+  const you = '<div class="ask-msg you"><div class="ask-avatar you-mark">Y</div>' +
+    '<div class="ask-bubble"><p>' + E(turn.question) + '</p></div></div>';
+
+  let inner;
+  if (turn.kind === 'pending') {
+    inner = thinkingPanel({
+      status: 'live', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
+      idleHint: 'Reading the stored schedule and field evidence…',
+    });
+  } else if (turn.kind === 'failed') {
+    inner = '<div class="ask-error"><b>VEDA could not produce a grounded answer.</b>' +
+      (turn.error ? '<span class="mono">' + E(String(turn.error).slice(0, 300)) +
+        '</span>' : 'The reasoning provider chain was exhausted.') + '</div>' +
+      thinkingPanel({
+        status: 'failed', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
+        emptyLabel: 'No reasoning trace stored for this attempt.',
+      });
+  } else {
+    inner = '<div class="ask-answer">' + E(turn.answer) + '</div>' +
+      '<div class="ask-meta">' + prov(turn.provenance) +
+      '<span class="ask-time">' + new Date(turn.created_at * 1000).toLocaleString() +
+      '</span></div>' +
+      thinkingPanel({
+        status: 'done', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
+        emptyLabel: 'No reasoning trace stored for this answer.',
+      });
+  }
+  return '<div class="ask-turn">' + you +
+    '<div class="ask-msg veda' + (turn.kind === 'pending' ? ' thinking' : '') + '">' +
+    '<div class="ask-avatar veda-mark">V</div><div class="ask-bubble">' + inner +
+    '</div></div></div>';
+}
+
+VIEWS.ask = async (pid) => {
+  const [r, jobsR, actR, mcpR] = await Promise.all([
+    A('/projects/' + pid + '/answers?limit=60'),
+    A('/projects/' + pid + '/jobs?limit=20'),
+    A('/projects/' + pid + '/agent-activity?limit=400'),
+    A('/projects/' + pid + '/mcp-calls?limit=300'),
+  ]);
+  const answers = r.answers || []; // already newest-first from the server
+  const answeredJobIds = new Set(answers.map(a => String(a.job_id || '')));
+  const qJobs = (jobsR.jobs || []).filter(j => j.kind === 'question');
+  const unresolved = qJobs.find(j => !answeredJobIds.has(String(j.id)) &&
+    ['queued', 'running', 'failed', 'cancelled'].includes(String(j.status)));
+
+  const actByJob = {}, callsByJob = {};
+  (actR.activity || []).forEach(a => (actByJob[a.job_id] = actByJob[a.job_id] || []).push(a));
+  (mcpR.calls || []).forEach(c => (callsByJob[c.job_id] = callsByJob[c.job_id] || []).push(c));
+
+  const turns = answers.map(a => ({
+    kind: 'answer', id: a.id, jobId: a.job_id, question: a.title,
+    answer: a.description, provenance: a.provenance, created_at: a.created_at,
+  }));
+  if (unresolved) {
+    const live = unresolved.status === 'queued' || unresolved.status === 'running';
+    const q = (unresolved.result && unresolved.result.input &&
+      unresolved.result.input.question) || 'Question in progress…';
+    turns.unshift({
+      kind: live ? 'pending' : 'failed', id: unresolved.id, jobId: unresolved.id,
+      question: q, error: unresolved.error, created_at: unresolved.created_at,
+    });
+  }
+
+  const thread = turns.length
+    ? turns.map(t => askTurn(t, actByJob[t.jobId] || [], callsByJob[t.jobId] || [])).join('')
+    : empty('No questions asked yet', 'Try one of the prompts above, or ask your own.');
+
+  return head('Ask VEDA', 'A grounded agent conversation, not a guess') +
+    askComposer(pid, !turns.length) +
+    '<div class="ask-thread" id="ask-thread">' + thread + '</div>';
+};
+
 VIEWS.bind_ask = (pid) => {
-  const b = document.getElementById('qgo');
-  if (b) b.onclick = async () => {
-    const t = document.getElementById('qbox');
-    if (!t.value.trim()) return;
-    await P('/projects/' + pid + '/ask', { question: t.value.trim() });
-    window.toast('Question accepted. The answer will appear here when ready.', 'good');
-    t.value = '';
-    await window.refreshCounts();
-    window.render();
+  const box = document.getElementById('qbox');
+  const btn = document.getElementById('qgo');
+  if (!box || !btn) return;
+  const grow = () => {
+    box.style.height = 'auto';
+    box.style.height = Math.min(160, box.scrollHeight) + 'px';
   };
+  grow();
+  box.oninput = () => { VIEWS._askDraft[pid] = box.value; grow(); };
+  const send = async () => {
+    const text = box.value.trim();
+    if (!text || btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await P('/projects/' + pid + '/ask', { question: text });
+      VIEWS._askDraft[pid] = '';
+      box.value = ''; grow();
+      await window.refreshCounts();
+      window.render();
+    } catch (e) {
+      btn.disabled = false;
+      window.toast('Could not send question: ' + e.message, 'bad');
+    }
+  };
+  btn.onclick = send;
+  box.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+  document.querySelectorAll('[data-suggest]').forEach(b => b.onclick = () => {
+    box.value = b.dataset.suggest; VIEWS._askDraft[pid] = box.value; grow(); box.focus();
+  });
 };
 
 /* =============================================== 21. Execution intelligence */
@@ -1985,16 +2185,24 @@ function executionMap(job, activity) {
 
 VIEWS.agent = async (pid) => {
   const [act, mcp, jobs] = await Promise.all([
-    A('/projects/' + pid + '/agent-activity?limit=140'),
-    A('/projects/' + pid + '/mcp-calls?limit=60'),
+    A('/projects/' + pid + '/agent-activity?limit=160'),
+    A('/projects/' + pid + '/mcp-calls?limit=140'),
     A('/projects/' + pid + '/jobs?limit=1'),
   ]);
   const j = jobs.jobs[0];
   const currentActivity = j
     ? act.activity.filter(a => String(a.job_id || '') === String(j.id || ''))
     : [];
+  const currentCalls = j
+    ? mcp.calls.filter(c => String(c.job_id || '') === String(j.id || ''))
+    : [];
   // Keep the payload so the stage animation can advance without re-fetching.
   VIEWS._agentSnapshot = { pid: pid, job: j, activity: currentActivity };
+  const jobStatus = j ? String(j.status || 'queued') : 'empty';
+  const thinkStatus = (jobStatus === 'queued' || jobStatus === 'running') ? 'live'
+    : jobStatus === 'done' ? 'done'
+    : (jobStatus === 'failed' || jobStatus === 'cancelled') ? 'failed' : 'idle';
+
   return head('Execution intelligence', 'A live, evidence-safe view of VEDA’s ' +
     'persisted run state') +
     executionMap(j, currentActivity) +
@@ -2008,33 +2216,12 @@ VIEWS.agent = async (pid) => {
     (j && j.error ? '<div class="note danger" style="margin-bottom:14px">' +
       '<b>Job error</b><br><span class="mono" style="font-size:11.5px">' +
       E(j.error.slice(0, 900)) + '</span></div>' : '') +
-    '<details class="run-details"><summary>Run evidence & technical log' +
-      '<span>' + act.activity.length + ' steps · ' + mcp.calls.length +
-      ' Horizun calls</span></summary><div class="grid g2">' +
-    panel('Persisted steps <small>' + act.activity.length + '</small>',
-      '<div class="feed">' + (act.activity.length ? act.activity.map(a =>
-      '<div class="row ' + (a.state === 'failed' ? 'fail' : '') +
-      (a === act.activity[0] && j && !['done', 'failed', 'cancelled'].includes(j.status)
-        ? ' run' : '') + '">' +
-      '<span class="t">' + new Date(a.created_at * 1000)
-        .toLocaleTimeString() + '</span><i class="m"></i>' +
-      '<span class="x">' + E(a.label) +
-      (a.detail && a.state === 'failed'
-        ? '<br><span class="d">' + E(String(a.detail).slice(0, 300)) + '</span>'
-        : '') + '</span></div>').join('')
-      : empty('No agent activity yet', 'Upload files or run an analysis.')) +
-      '</div>') +
-    panel('MCP calls <small>' + mcp.calls.length + '</small>',
-      '<div class="feed">' + (mcp.calls.length ? mcp.calls.map(c =>
-      '<div class="row ' + (c.state === 'failed' ? 'fail' : '') + '">' +
-      '<span class="t">' + new Date(c.created_at * 1000)
-        .toLocaleTimeString() + '</span><i class="m"></i>' +
-      '<span class="x"><span class="mono">' + E(c.server) + '/' + E(c.tool) +
-      '</span> — ' + E(c.state) +
-      '<br><span class="d">' + E(c.summary || c.error || '') + ' · ' +
-      int(c.duration_ms) + 'ms</span></span></div>').join('')
-      : empty('No MCP calls yet', '')) + '</div>') +
-    '</div></details>';
+    thinkingPanel({
+      status: thinkStatus, steps: currentActivity, calls: currentCalls,
+      openKey: 'agent:' + pid,
+      idleHint: 'Upload files and run an analysis to see VEDA reason through this project.',
+      emptyLabel: 'No reasoning trace for this run yet.',
+    });
 };
 
 /* Repaint only the execution map from the payload the last full render already
