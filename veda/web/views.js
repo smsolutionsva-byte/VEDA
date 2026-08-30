@@ -197,10 +197,10 @@ VIEWS.overview = async (pid) => {
   }
   const lateFinish = s.forecast_finish && s.baseline_finish &&
     day(s.forecast_finish) > day(s.baseline_finish);
-  const forecastValue = s.forecast_finish ? day(s.forecast_finish) : 'N/E';
+  const forecastValue = s.forecast_finish ? day(s.forecast_finish) : '—';
   const forecastDetail = s.forecast_finish
     ? (s.forecast_basis || 'source-supported current forecast')
-    : 'source does not establish a current forecast finish';
+    : 'Not evaluable — source does not establish a current forecast finish';
   const baselineFallback = String(s.baseline_basis || '').toLowerCase().includes('fallback');
   const criticalAvailable = Number(s.criticality_available || 0) === 1;
   const overdueEvaluable = Number(s.overdue_evaluable || 0) === 1;
@@ -223,11 +223,11 @@ VIEWS.overview = async (pid) => {
   }
   const ref = o.reference_context || {};
   const evaluatedQa = Number(o.quality.passed || 0) + Number(o.quality.failed || 0);
-  const qaValue = evaluatedQa ? num(s.health_score, 1) + '%' : 'N/E';
+  const qaValue = evaluatedQa ? num(s.health_score, 1) + '%' : '—';
   const qaDetail = evaluatedQa
     ? (o.quality.passed + ' passed · ' + o.quality.failed + ' failed · ' +
       o.quality.not_evaluated + ' not evaluated')
-    : (o.quality.not_evaluated + ' checks not evaluated');
+    : 'Not evaluable — ' + o.quality.not_evaluated + ' check(s) not evaluated';
   const latestFieldDate = f.latest_date ? day(f.latest_date) : 'none';
   const decisionCount = Number(c.pending_reviews || 0) + Number(c.pending_proposals || 0);
   const reportingLag = (() => {
@@ -250,7 +250,7 @@ VIEWS.overview = async (pid) => {
     '<h1>' + E(o.project.name) + '</h1>' +
     '<div class="sub">Authoritative schedule: ' + E(s.project_name || '') +
     (o.project.location ? ' · ' + E(o.project.location) : '') +
-    ' · data/status date ' + (s.data_date ? day(s.data_date) : 'N/E') +
+    ' · data/status date ' + (s.data_date ? day(s.data_date) : 'not evaluable') +
     ' · schedule revision ' + E(s.revision) +
     '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
 
@@ -261,8 +261,8 @@ VIEWS.overview = async (pid) => {
         int(f.unresolved_record_count || 0) + '</b><small>without settled identity</small></div>' +
       '<div><span>Reporting freshness</span><b class="' +
         (reportingLag === null ? 'muted' : reportingLag > 2 ? 'warm' : 'good') + '">' +
-        (reportingLag === null ? 'N/E' : reportingLag + 'd') + '</b><small>' +
-        (reportingLag === null ? 'no comparable field/status dates' : 'behind schedule status date') + '</small></div>' +
+        (reportingLag === null ? '—' : reportingLag + 'd') + '</b><small>' +
+        (reportingLag === null ? 'not evaluable — no comparable field/status dates' : 'behind schedule status date') + '</small></div>' +
       '<div><span>Validated actuals coverage</span><b>' + int(f.validated_activity_count || 0) +
         '</b><small>activities with trusted evidence</small></div>' +
     '</div>' +
@@ -276,23 +276,23 @@ VIEWS.overview = async (pid) => {
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Current forecast finish', forecastValue, E(forecastDetail),
       lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
-    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : 'N/E',
-      E(progressDetail)) +
-    stat('Critical activities', criticalAvailable ? int(c.critical) : 'N/E',
+    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : '—',
+      progressAvailable ? E(progressDetail) : 'Not evaluable — ' + E(progressDetail)) +
+    stat('Critical activities', criticalAvailable ? int(c.critical) : '—',
       criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
-        : E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
+        : 'Not evaluable — ' + E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
     stat('Source-evaluable schedule QA', qaValue, qaDetail,
       evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Overdue vs reference plan', overdueEvaluable ? int(c.overdue) : 'N/E',
+    stat('Overdue vs reference plan', overdueEvaluable ? int(c.overdue) : '—',
       overdueEvaluable ? 'unfinished activities whose reference finish is before the supplied data/status date' :
-        'not evaluable because the source does not supply a data/status date',
+        'Not evaluable — the source does not supply a data/status date',
       overdueEvaluable && c.overdue ? 'warm' : '') +
-    stat('Completed after reference finish', completedLateEvaluable ? int(c.completed_late) : 'N/A',
+    stat('Completed after reference finish', completedLateEvaluable ? int(c.completed_late) : '—',
       completedLateEvaluable ? 'completed activities whose actual finish is later than the stored baseline/reference finish' :
-        'not applicable/evaluable: no completed activity with an actual finish is available for comparison',
+        'Not applicable — no completed activity with an actual finish is available for comparison',
       completedLateEvaluable && c.completed_late ? 'warm' : '') +
     stat('Project-control reference rows', int(ref.reference_record_count || 0),
       'supporting dictionaries/registers; not field-progress evidence') +
@@ -339,17 +339,17 @@ VIEWS.overview = async (pid) => {
     '<div class="grid g2">' +
     panel('Authoritative schedule facts', '<div class="body"><dl class="kv">' +
       row('Schedule source', E(s.project_name)) +
-      row('Data/status date', s.data_date ? day(s.data_date) : '<span style="color:var(--ink-3)">N/E — not supplied by source</span>') +
+      row('Data/status date', s.data_date ? day(s.data_date) : '<span class="ink-3">Not evaluable — not supplied by source</span>') +
       row('Earliest planned activity start', day(s.planned_start)) +
       row('Latest planned activity finish', day(s.planned_finish)) +
       (s.must_finish_by ? row('Project Must Finish By', day(s.must_finish_by)) : '') +
       row('Current forecast finish', s.forecast_finish ? day(s.forecast_finish)
-        : '<span style="color:var(--ink-3)">N/E — source does not establish a current forecast</span>') +
+        : '<span class="ink-3">Not evaluable — source does not establish a current forecast</span>') +
       (s.forecast_basis ? row('Forecast basis', E(s.forecast_basis)) : '') +
       row('Baseline/reference start', s.baseline_start ? day(s.baseline_start)
-        : '<span style="color:var(--ink-3)">N/E — no usable baseline/reference start stored</span>') +
+        : '<span class="ink-3">Not evaluable — no usable baseline/reference start stored</span>') +
       row('Baseline/reference finish', s.baseline_finish ? day(s.baseline_finish)
-        : '<span style="color:var(--ink-3)">N/E — no usable baseline/reference finish stored</span>') +
+        : '<span class="ink-3">Not evaluable — no usable baseline/reference finish stored</span>') +
       (s.baseline_basis ? row('Baseline/reference basis', E(s.baseline_basis)) : '') +
       (s.baseline_present ? row('Activities with baseline/reference dates', int(s.baseline_coverage_count) + ' / ' + int(s.task_count)) : '') +
       row('Source activities', int(s.task_count)) +
@@ -377,8 +377,8 @@ VIEWS.overview = async (pid) => {
         '</div></div>'
       : '<div class="body"><div class="note warn">' +
         (s.baseline_present
-          ? 'N/E — baseline/reference dates are available, but the source does not establish all current status/progress/cost inputs required for earned-value metrics.'
-          : 'N/E — the source does not establish a usable baseline/reference plus the current status/progress/cost inputs required for earned-value metrics.') +
+          ? 'Not evaluable — baseline/reference dates are available, but the source does not establish all current status/progress/cost inputs required for earned-value metrics.'
+          : 'Not evaluable — the source does not establish a usable baseline/reference plus the current status/progress/cost inputs required for earned-value metrics.') +
         '</div></div>') +
     '</div>' +
     (ref.reference_record_count !== undefined ? panel('Project-control source integrity',
@@ -506,10 +506,10 @@ VIEWS.activities = async (pid, params) => {
     '</select>' +
     '<button class="btn sm' + (params.critical ? ' primary' : '') +
     '" id="fc" ' + (r.criticality_available ? '' : 'disabled title="Criticality unavailable from source"') +
-    '>' + (r.criticality_available ? 'Critical only' : 'Critical N/E') + '</button>' +
+    '>' + (r.criticality_available ? 'Critical only' : 'Critical — not evaluable') + '</button>' +
     '<button class="btn sm' + (params.late ? ' primary' : '') +
     '" id="fl" ' + (r.completed_late_evaluable ? '' : 'disabled title="No completed actual finishes available for baseline comparison"') +
-    '>' + (r.completed_late_evaluable ? 'Completed after reference finish' : 'Completed-after-reference N/A') + '</button>' +
+    '>' + (r.completed_late_evaluable ? 'Completed after reference finish' : 'Completed after reference — not evaluable') + '</button>' +
     '<button class="btn sm' + (params.milestone ? ' primary' : '') +
     '" id="fm">Milestones</button>' +
     (params.wbs ? '<span class="tag blue">WBS ' + E(params.wbs) + '</span>' : '') +
@@ -605,8 +605,8 @@ VIEWS.activity = async (pid, params) => {
         ' (' + d.observed_progress.evidence_count + ' records)'
       : 'no field evidence') +
     stat('Total float', activityCriticalAvailable && a.total_float_days !== null && a.total_float_days !== undefined
-      ? num(a.total_float_days, 1) + 'd' : 'N/E',
-      activityCriticalAvailable ? (a.critical ? 'critical' : 'source/engine float') : 'float/criticality unavailable from source',
+      ? num(a.total_float_days, 1) + 'd' : '—',
+      activityCriticalAvailable ? (a.critical ? 'critical' : 'source/engine float') : 'Not evaluable — float/criticality unavailable from source',
       activityCriticalAvailable && (a.total_float_days || 0) < 0 ? 'hot' : '') +
     stat('Finish variance', num(a.finish_variance_days, 1) + 'd',
       a.baseline_finish ? 'vs baseline ' + day(a.baseline_finish) : 'no baseline',
@@ -757,16 +757,16 @@ VIEWS.critical = async (pid) => {
     '<div class="note ' + (critAvailable ? 'mcp' : 'warn') + '" style="margin-bottom:14px">' + E(r.basis) +
     (critAvailable ? '. VEDA does not run its own CPM engine.' : '') + '</div>' +
     '<div class="grid g3" style="margin-bottom:14px">' +
-    stat('Critical activities', critAvailable ? int(r.critical.length) : 'N/E',
+    stat('Critical activities', critAvailable ? int(r.critical.length) : '—',
       critAvailable ? (E(r.criticality_basis || 'source/engine criticality method') +
       (r.criticality_threshold_days !== null && r.criticality_threshold_days !== undefined
-        ? ' · threshold ' + num(r.criticality_threshold_days, 2) + 'd' : '')) : 'criticality unavailable from source',
+        ? ' · threshold ' + num(r.criticality_threshold_days, 2) + 'd' : '')) : 'Not evaluable — criticality unavailable from source',
       critAvailable && r.critical.length ? 'warm' : '') +
-    stat('Negative float', critAvailable ? int(fd.negative || 0) : 'N/E',
-      critAvailable ? 'cannot meet constraints' : 'float unavailable from source',
+    stat('Negative float', critAvailable ? int(fd.negative || 0) : '—',
+      critAvailable ? 'cannot meet constraints' : 'Not evaluable — float unavailable from source',
       critAvailable && fd.negative ? 'hot' : '') +
-    stat('Project finish', r.finish ? day(r.finish) : 'N/E',
-      r.finish ? 'current forecast' : 'current forecast unavailable') +
+    stat('Project finish', r.finish ? day(r.finish) : '—',
+      r.finish ? 'current forecast' : 'Not evaluable — current forecast unavailable') +
     '</div>' +
     panel('Float distribution',
       '<div class="body"><dl class="kv">' +
@@ -828,7 +828,7 @@ VIEWS.quality = async (pid) => {
       '<div class="body">' + (r.findings.length ? r.findings.map(f =>
       '<div class="check"><span class="m ' +
       (f.status === 'pass' ? 'pass' : f.status === 'fail' ? 'fail' : 'warn') +
-      '">' + E(f.status === 'not_evaluated' ? 'n/e' : f.status) + '</span>' +
+      '">' + E(f.status === 'not_evaluated' ? 'not evaluated' : f.status) + '</span>' +
       '<span class="n">' + E(f.code) + '</span>' +
       '<span style="flex:1">' + E(f.title) + ' — ' + E(f.detail || '') +
       (f.task_uids && f.task_uids.length

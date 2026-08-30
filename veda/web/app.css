@@ -1,25 +1,34 @@
 /* VEDA - construction execution intelligence.
-   Quiet surfaces, legible hierarchy and motion that communicates real state.
-   Colour still encodes provenance, which is the product's signature device. */
+   Quiet chrome: hairlines and whitespace carry hierarchy, weight and shadow are
+   spent sparingly, and colour is reserved for provenance and state - never
+   decoration. The instrument is dark-first and hard-edged (no radius, precise
+   grid), but every surface is meant to recede so the schedule data stays the
+   thing the reader's eye lands on. */
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #0A0C0F;
-  --surface: #101318;
-  --surface-2: #151920;
-  --surface-3: #1B2029;
-  --surface-4: #222834;
-  --line: #232935;
-  --line-2: #2F3745;
-  --line-3: #3D4757;
+  --bg: #0B0D11;
+  --surface: #12151A;
+  --surface-2: #161A20;
+  --surface-3: #1B1F26;
+  --surface-4: #232833;
+  --line: #1E232B;
+  --line-2: #272E38;
+  --line-3: #3A4250;
 
-  --ink: #E9ECF2;
-  --ink-2: #97A1B2;
-  --ink-3: #616B7C;
-  --ink-4: #444D5C;
+  --ink: #E6E9EE;
+  --ink-2: #9AA3B0;
+  --ink-3: #6E7887;
+  --ink-4: #4A5361;
 
-  /* provenance key - the signature device */
+  /* sidebar reads as its own structural plate, clearly deeper than the page
+     and the panels sitting on it - not a shade away from either. */
+  --rail-bg: #050608;
+  --rail-active: rgba(69, 200, 232, .12);
+
+  /* provenance key - the signature device. Used only where colour encodes
+     where a fact came from or what state it is in - never for plain decoration. */
   --mcp: #45C8E8;
   --human: #FFB020;
   --ai: #8AA8FF;
@@ -33,9 +42,9 @@
   --think: #4D9DFF;
   --think-2: #7FBBFF;
 
-  --danger: #FF5F56;
+  --danger: #FF6259;
   --warn: #FFB020;
-  --ok: #43D07F;
+  --ok: #3FCB79;
 
   --sans: 'IBM Plex Sans', ui-sans-serif, 'Segoe UI', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
@@ -44,18 +53,24 @@
   --bar: 56px;
   --radius: 13px;
   --radius-sm: 8px;
-  --canvas-grid: rgba(118, 139, 160, .065);
-  --shell-glow: rgba(69, 200, 232, .055);
+  --canvas-grid: rgba(118, 139, 160, .05);
+  --shell-glow: rgba(69, 200, 232, .045);
 
-  /* machined-plate depth */
-  --raise: inset 0 1px 0 rgba(255, 255, 255, .055),
-           inset 0 -1px 0 rgba(0, 0, 0, .5),
-           0 1px 1px rgba(0, 0, 0, .55),
-           0 18px 34px -24px rgba(0, 0, 0, .95);
-  --raise-sm: inset 0 1px 0 rgba(255, 255, 255, .05),
-              0 1px 2px rgba(0, 0, 0, .5);
-  --sink: inset 0 2px 5px rgba(0, 0, 0, .65),
-          inset 0 -1px 0 rgba(255, 255, 255, .035);
+  /* 4px spacing scale. Not every rule has been migrated to it, but new and
+     touched rules should land on these steps rather than an arbitrary value. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 28px;
+
+  /* Quiet elevation: one soft ambient shadow, no embossed bevel. Reserved for
+     the handful of surfaces that genuinely float above the page (panels,
+     menus, toasts) - most components use a hairline border alone. */
+  --raise: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 24px -20px rgba(0, 0, 0, .7);
+  --raise-sm: 0 1px 0 rgba(0, 0, 0, .28);
+  --sink: inset 0 1px 3px rgba(0, 0, 0, .4);
 }
 
 * { box-sizing: border-box; }
@@ -89,17 +104,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums;
        letter-spacing: -.01em; }
+.ink-2 { color: var(--ink-2); }
+.ink-3 { color: var(--ink-3); }
+.ink-4 { color: var(--ink-4); }
 
 /* ============================================================ shell */
 #app { display: grid; grid-template-columns: var(--rail) 1fr;
        grid-template-rows: var(--bar) 1fr; height: 100vh; }
 
-/* -------------------------------------------------- top status bar */
+/* -------------------------------------------------- top status bar
+   Two clusters only: identity + current project on the left, project state
+   and the one primary action on the right. Diagnostics (reasoning provider,
+   Horizun/MCP health) live on the System page, not in the everyday chrome. */
 .topbar {
-  grid-column: 1 / -1; display: flex; align-items: center; gap: 14px;
-  padding: 0 14px; background: linear-gradient(180deg, #161B22, #0F1319);
-  border-bottom: 1px solid var(--line-2);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 6px 18px -8px #000;
+  grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-3);
+  padding: 0 var(--sp-4); background: var(--surface);
+  border-bottom: 1px solid var(--line);
   position: relative; z-index: 40;
 }
 .theme-toggle {
@@ -116,34 +136,50 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .theme-toggle[data-theme="light"] .theme-orbit { background: #E8F0F5; }
 .theme-toggle[data-theme="light"] .theme-orbit i { background: #E09A16;
                  box-shadow: 0 0 0 3px rgba(224, 154, 22, .16); }
-.brand { display: flex; align-items: baseline; gap: 9px; padding-right: 14px;
-         border-right: 1px solid var(--line); height: 100%; }
-.brand b { font-size: 17px; font-weight: 700; letter-spacing: .26em;
-           text-indent: .26em; }
-.brand span { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
-              letter-spacing: .16em; text-transform: uppercase; }
+.brand { display: flex; align-items: baseline; gap: 8px; padding-right: var(--sp-4);
+         height: 100%; }
+.brand b { font-size: 16px; font-weight: 700; letter-spacing: .22em;
+           text-indent: .22em; color: var(--ink); }
+.brand span { font-family: var(--mono); font-size: 9.5px; color: var(--ink-4);
+              letter-spacing: .14em; text-transform: uppercase; }
 .nav-toggle { display: none; width: 38px; height: 38px; padding: 0;
               place-items: center; border: 1px solid var(--line-2);
               background: var(--surface-2); color: var(--ink); cursor: pointer; }
 
-.projpick {
-  background: var(--surface-2); border: 1px solid var(--line-2);
-  padding: 5px 10px; font-size: 12.5px; min-width: 210px;
-  box-shadow: var(--sink); cursor: pointer;
+/* The current project is the one thing every screen shares - it gets its own
+   quiet cluster, visually distinct from the status/action cluster on the right. */
+.topbar-project {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding-left: var(--sp-3); border-left: 1px solid var(--line);
+  height: 30px;
 }
+.projpick {
+  background: transparent; border: 1px solid transparent;
+  padding: 5px 8px; font-size: 13px; font-weight: 500; min-width: 190px;
+  cursor: pointer; margin-left: -8px;
+}
+.projpick:hover { border-color: var(--line-2); background: var(--surface-2); }
+.topbar-project-actions { display: flex; align-items: center; gap: 2px; }
+.topbar-link {
+  background: transparent; border: 1px solid transparent; cursor: pointer;
+  padding: 5px 8px; font-size: 11.5px; color: var(--ink-3);
+  transition: color .12s, background .12s;
+}
+.topbar-link:hover { color: var(--ink); background: var(--surface-2); }
+.topbar-link.danger:hover { color: #FFC9C6; }
 .topbar .spacer { flex: 1; }
 
 .chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
-  text-transform: uppercase; padding: 4px 9px;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 500; letter-spacing: .01em;
+  padding: 5px 11px 5px 9px;
   border: 1px solid var(--line-2); background: var(--surface-2);
-  box-shadow: var(--raise-sm); color: var(--ink-2); white-space: nowrap;
+  color: var(--ink-2); white-space: nowrap;
 }
-.chip .dot { width: 6px; height: 6px; background: var(--ink-4); }
-.chip.ok .dot { background: var(--ok); box-shadow: 0 0 7px var(--ok); }
-.chip.bad .dot { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
-.chip.busy .dot { background: var(--mcp); box-shadow: 0 0 7px var(--mcp);
+.chip .dot { width: 6px; height: 6px; flex: none; background: var(--ink-4); }
+.chip.ok .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.chip.bad .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.chip.busy .dot { background: var(--mcp); box-shadow: 0 0 6px var(--mcp);
                   animation: pulse 1.1s infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 
@@ -167,41 +203,44 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible,
 textarea:focus-visible { outline: 2px solid var(--mcp); outline-offset: 1px; }
 
-/* --------------------------------------------------------- left rail */
+/* --------------------------------------------------------- left rail
+   The rail is a distinct structural plate - deliberately deeper than the page
+   behind it - so the workspace reads as content sitting inside a frame,
+   not a flat list of links floating next to more links. */
 .rail {
-  background: linear-gradient(180deg, #0E1116, #0A0C0F);
-  border-right: 1px solid var(--line); overflow-y: auto; padding-bottom: 26px;
+  background: var(--rail-bg);
+  border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 0 26px;
 }
 .rail .grp {
-  font-family: var(--mono); font-size: 9.5px; letter-spacing: .19em;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .17em;
   text-transform: uppercase; color: var(--ink-4);
-  padding: 16px 14px 6px; border-bottom: 1px solid var(--line);
-  margin-bottom: 4px;
+  padding: 18px 18px 7px; margin-bottom: 1px;
 }
 .rail a {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; padding: 6px 14px 6px 13px; font-size: 13px; color: var(--ink-2);
-  border-left: 2px solid transparent; cursor: pointer;
+  gap: 8px; margin: 0 8px; padding: 7px 10px 7px 9px; font-size: 13px;
+  color: var(--ink-3); border-left: 2px solid transparent; cursor: pointer;
+  transition: background .1s, color .1s;
 }
-.rail a:hover { background: var(--surface); color: var(--ink); }
+.rail a:hover { background: var(--surface-2); color: var(--ink); }
 .rail a.on {
-  background: linear-gradient(90deg, rgba(69, 200, 232, .14), transparent 78%);
+  background: var(--rail-active);
   border-left-color: var(--mcp); color: var(--ink); font-weight: 500;
 }
 .rail .n {
-  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
-  background: var(--surface-2); border: 1px solid var(--line);
-  padding: 0 5px; min-width: 20px; text-align: center;
+  font-size: 10.5px; color: var(--ink-3);
+  background: var(--surface-3); border: 1px solid var(--line-2);
+  padding: 0 6px; min-width: 20px; text-align: center; line-height: 1.7;
 }
-.rail a.on .n { color: var(--ink); border-color: var(--line-3); }
-.rail .n.alert { color: #1A1206; background: var(--human);
+.rail a.on .n { color: var(--ink); border-color: var(--line-3); background: var(--surface-4); }
+.rail .n.alert { color: #241804; background: var(--human);
                  border-color: var(--human); font-weight: 600; }
 
 /* ------------------------------------------------------------- main */
-.main { overflow-y: auto; padding: 18px 20px 60px; }
+.main { overflow-y: auto; padding: var(--sp-5) 24px 60px; }
 .head { display: flex; align-items: flex-end; gap: 14px; margin-bottom: 16px;
         flex-wrap: wrap; }
-.head h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.015em; }
+.head h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.015em; }
 .head .sub { color: var(--ink-3); font-size: 12.5px; font-family: var(--mono); }
 .head .spacer { flex: 1; }
 
@@ -210,24 +249,27 @@ textarea:focus-visible { outline: 2px solid var(--mcp); outline-offset: 1px; }
   text-transform: uppercase; color: var(--ink-4); margin-bottom: 7px;
 }
 
-/* ------------------------------------------------------------ panel */
+/* ------------------------------------------------------------ panel
+   One hairline border, one very quiet ambient shadow - no embossed bevel.
+   The header is a plain, slightly deeper tone rather than a separate gradient
+   "lid," so a page of several panels reads as one calm surface, not a stack
+   of individually lit boxes. */
 .panel {
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
-  border: 1px solid var(--line-2); box-shadow: var(--raise); margin-bottom: 16px;
+  background: var(--surface); border: 1px solid var(--line-2);
+  box-shadow: var(--raise); margin-bottom: var(--sp-5);
 }
 .panel > header {
-  display: flex; align-items: center; gap: 10px; padding: 9px 13px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #1A1F28, #14181F);
-  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  border-bottom: 1px solid var(--line); background: var(--surface-2);
+  font-size: 12.5px; font-weight: 600; letter-spacing: .01em; color: var(--ink);
 }
 .panel > header .spacer { flex: 1; }
 .panel > header small { font-family: var(--mono); font-weight: 400;
                         color: var(--ink-3); font-size: 11px; }
-.panel .body { padding: 13px; }
+.panel .body { padding: 15px; }
 .panel .body.flush { padding: 0; }
 
-.grid { display: grid; gap: 14px; }
+.grid { display: grid; gap: var(--sp-4); }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -237,16 +279,25 @@ textarea:focus-visible { outline: 2px solid var(--mcp); outline-offset: 1px; }
                             #app { grid-template-columns: 0 1fr; }
                             .rail { display: none; } }
 
-/* ------------------------------------------------------------- stat */
-.stat { background: linear-gradient(180deg, var(--surface-2), var(--surface));
-        border: 1px solid var(--line-2); box-shadow: var(--raise); padding: 12px 13px; }
-.stat .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: .17em;
-           text-transform: uppercase; color: var(--ink-4); }
+/* ------------------------------------------------------------- stat
+   Four to eight of these sit side by side, so each one stays flat: a hairline
+   border (no drop shadow) and, when the number carries a state, a 2px top
+   edge instead of colouring the whole tile. A row of stats then reads as one
+   instrument strip, not a wall of separately raised cards. */
+.stat {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-top: 2px solid var(--line-2); padding: 14px 15px;
+}
+.stat .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: .15em;
+           text-transform: uppercase; color: var(--ink-3); }
 .stat .v { font-family: var(--mono); font-size: 25px; font-weight: 500;
-           margin-top: 5px; letter-spacing: -.02em; line-height: 1.1; }
-.stat .d { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+           margin-top: 6px; letter-spacing: -.02em; line-height: 1.1; color: var(--ink); }
+.stat .d { font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+.stat.hot { border-top-color: var(--danger); }
 .stat.hot .v { color: var(--danger); }
+.stat.warm { border-top-color: var(--warn); }
 .stat.warm .v { color: var(--warn); }
+.stat.good { border-top-color: var(--ok); }
 .stat.good .v { color: var(--ok); }
 
 /* ------------------------------------------------------------ table */
@@ -1281,66 +1332,73 @@ html[data-theme="light"] .pc-cell { background: #FFF; }
 .ingest-lanes small { color: var(--ink-3); font-size: 10px; line-height: 1.35; }
 
 /* ---------------------------------------------------------- light */
+/* Light mode is its own considered palette, not an inverted dark theme: a
+   soft neutral canvas, true-white surfaces, hairline (not slate-grey) borders,
+   and a text ladder that actually gets lighter at each step - ink, ink-2,
+   ink-3, ink-4, in that order - so quieter text reliably looks quieter. */
 html[data-theme="light"] {
   color-scheme: light;
-  --bg: #F2F5F7;
+  --bg: #F2F4F6;
   --surface: #FFFFFF;
-  --surface-2: #F8FAFB;
-  --surface-3: #EFF3F6;
-  --surface-4: #E3EAF0;
-  --line: #D1DAE1;
-  --line-2: #8E9FA9;
-  --line-3: #758996;
-  --ink: #14212B;
-  --ink-2: #4F606D;
-  --ink-3: #5F717D;
-  --ink-4: #667783;
-  --mcp: #087F9A;
-  --human: #B86A00;
-  --ai: #4E63C8;
-  --think: #1F6FD6;
-  --think-2: #3E8BEE;
-  --det: #087F72;
-  --src: #617487;
-  --derived: #687682;
-  --danger: #C43D36;
-  --warn: #A96000;
-  --ok: #128252;
-  --canvas-grid: rgba(45, 75, 96, .055);
-  --shell-glow: rgba(8, 127, 154, .08);
-  --raise: 0 1px 2px rgba(26, 42, 53, .06), 0 14px 34px -27px rgba(25, 48, 62, .4);
-  --raise-sm: 0 1px 2px rgba(25, 48, 62, .11);
-  --sink: inset 0 1px 2px rgba(25, 48, 62, .09);
+  --surface-2: #F7F9FA;
+  --surface-3: #EFF2F5;
+  --surface-4: #E3E8EC;
+  --line: #E7EAED;
+  --line-2: #DAE0E5;
+  --line-3: #B8C1C9;
+
+  --ink: #161B21;
+  --ink-2: #4A545D;
+  --ink-3: #707A83;
+  --ink-4: #98A1A9;
+
+  --rail-bg: #E1E7EB;
+  --rail-active: rgba(14, 124, 147, .12);
+
+  --mcp: #0E7C93;
+  --human: #9A5B00;
+  --ai: #4457C4;
+  --think: #1B67CB;
+  --think-2: #3C86E8;
+  --det: #077B6E;
+  --src: #5C6D7C;
+  --derived: #66727C;
+  --danger: #C13530;
+  --warn: #9C5B00;
+  --ok: #157A4E;
+  --canvas-grid: rgba(30, 50, 65, .05);
+  --shell-glow: rgba(14, 124, 147, .06);
+  --raise: 0 1px 0 rgba(18, 28, 38, .04), 0 10px 24px -20px rgba(18, 28, 38, .16);
+  --raise-sm: 0 1px 0 rgba(18, 28, 38, .05);
+  --sink: inset 0 1px 2px rgba(18, 28, 38, .05);
 }
 html[data-theme="light"] body { background-image:
   radial-gradient(1100px 500px at 78% -12%, var(--shell-glow), transparent 62%),
-  linear-gradient(180deg, #FAFCFD 0%, var(--bg) 40%); }
-html[data-theme="light"] ::selection { background: rgba(8,127,154,.2); }
-html[data-theme="light"] ::-webkit-scrollbar-track { background: #EEF2F5; }
-html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #C7D1D9; border-color: #EEF2F5; }
-html[data-theme="light"] .topbar { background: rgba(255,255,255,.91);
-                                    border-bottom-color: var(--line-2);
-                                    box-shadow: 0 6px 24px -18px rgba(19,47,63,.45);
-                                    backdrop-filter: blur(12px); }
-html[data-theme="light"] .rail { border-right-color: var(--line-2);
-                                 background: linear-gradient(180deg, #F8FAFB, #F0F4F6); }
-html[data-theme="light"] .btn { background: linear-gradient(180deg, #FFF, #EFF3F6); }
-html[data-theme="light"] .btn:hover { border-color: #9EADB8; background: #FFF; }
-html[data-theme="light"] .btn.primary { color: #FFF; border-color: #08748C;
-                                        background: linear-gradient(180deg, #1195B3, #08768E); }
-html[data-theme="light"] .btn.primary:hover { background: linear-gradient(180deg, #16A0BF, #087F98); }
+  linear-gradient(180deg, #FAFBFC 0%, var(--bg) 40%); }
+html[data-theme="light"] ::selection { background: rgba(14,124,147,.18); }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #EEF1F3; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #CCD3D9; border-color: #EEF1F3; }
+html[data-theme="light"] .topbar { background: var(--surface); border-bottom-color: var(--line); }
+html[data-theme="light"] .rail { background: var(--rail-bg); border-right-color: var(--line-2); }
+html[data-theme="light"] .rail a { color: var(--ink-2); }
+html[data-theme="light"] .rail .grp { color: var(--ink-3); }
+html[data-theme="light"] .rail a:hover { background: var(--surface); color: var(--ink); }
+html[data-theme="light"] .rail .n { background: var(--surface); }
+html[data-theme="light"] .rail a.on .n { background: var(--surface-4); }
+html[data-theme="light"] .btn { background: var(--surface); border-color: var(--line-3); }
+html[data-theme="light"] .btn:hover { border-color: #9AA6AE; background: var(--surface-2); }
+html[data-theme="light"] .btn.primary { color: #FFF; border-color: #0A6E82;
+                                        background: linear-gradient(180deg, #1494AC, #0A7488); }
+html[data-theme="light"] .btn.primary:hover { background: linear-gradient(180deg, #189FB8, #0A7E93); }
 html[data-theme="light"] .btn.warn { color: #FFF8EB; background: linear-gradient(180deg, #C57B0D, #9E5C00); }
 html[data-theme="light"] .btn.danger { color: #FFF; background: linear-gradient(180deg, #D94E46, #B73831); }
-html[data-theme="light"] .panel, html[data-theme="light"] .stat {
-  border-color: var(--line-2); background: linear-gradient(180deg, #FFF, #FAFBFC);
-  box-shadow: 0 1px 2px rgba(20,33,43,.09), 0 14px 34px -28px rgba(20,33,43,.45); }
 html[data-theme="light"] :is(.review, .review-brief, .inbox-item, .intervention-panel,
   .recent-decisions, .run-details, .control-strip, .modal) { border-color: var(--line-2); }
 html[data-theme="light"] .panel > header,
 html[data-theme="light"] .review > .h,
 html[data-theme="light"] .modal > header { border-bottom-color: var(--line-2);
-                                           background: linear-gradient(180deg, #FAFCFD, #EDF2F5); }
-html[data-theme="light"] thead th { background: #E7EDF1; border-bottom-color: var(--line-2); }
+                                           background: var(--surface-2); }
+html[data-theme="light"] thead th { background: var(--surface-3); border-bottom-color: var(--line-2); }
 html[data-theme="light"] tbody td,
 html[data-theme="light"] .feed .row,
 html[data-theme="light"] .check { border-bottom-color: #D5DEE4; }

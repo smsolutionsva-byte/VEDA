@@ -15,31 +15,37 @@
   document.documentElement.dataset.theme = saved || system;
 })();
 </script>
-<link rel="stylesheet" href="/static/app.css?v=1.32">
+<link rel="stylesheet" href="/static/app.css?v=1.33">
 </head>
 <body>
 <div id="app">
   <div class="topbar">
     <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open workspace navigation" aria-expanded="false">☰</button>
     <div class="brand"><b>VEDA</b><span>Project Intelligence</span></div>
-    <select class="projpick" id="projpick"></select>
-    <button class="btn sm" id="newproj">New project</button>
-    <button class="btn sm danger" id="delproj" title="Choose a project to delete">Delete</button>
+    <div class="topbar-project">
+      <select class="projpick" id="projpick" aria-label="Current project"></select>
+      <div class="topbar-project-actions">
+        <button class="topbar-link" id="newproj">New project</button>
+        <button class="topbar-link danger" id="delproj" title="Choose a project to delete">Delete</button>
+      </div>
+    </div>
     <div class="spacer"></div>
+    <div class="chip" id="chip-job" title="Project state"><i class="dot"></i><span>idle</span></div>
+    <button class="btn sm primary" id="analyze">Run analysis</button>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">
       <span class="theme-orbit" aria-hidden="true"><i></i></span><em>Theme</em>
     </button>
-    <div class="chip" id="chip-agent"><i class="dot"></i><span>agent</span></div>
-    <div class="chip" id="chip-mcp"><i class="dot"></i><span>horizun</span></div>
-    <div class="chip" id="chip-job"><i class="dot"></i><span>idle</span></div>
-    <button class="btn sm primary" id="analyze">Run analysis</button>
+    <!-- Reasoning-provider and Horizun/MCP health are diagnostics, not
+         everyday project status - see System / MCP in the sidebar. -->
+    <div class="chip" id="chip-agent" hidden><i class="dot"></i><span>agent</span></div>
+    <div class="chip" id="chip-mcp" hidden><i class="dot"></i><span>horizun</span></div>
   </div>
   <nav class="rail" id="rail"></nav>
   <main class="main" id="main"></main>
 </div>
 <div class="toasts" id="toasts"></div>
-<script src="/static/views.js?v=1.32"></script>
-<script src="/static/field-capture.js?v=1.32"></script>
-<script src="/static/app.js?v=1.32"></script>
+<script src="/static/views.js?v=1.33"></script>
+<script src="/static/field-capture.js?v=1.33"></script>
+<script src="/static/app.js?v=1.33"></script>
 </body>
 </html>
