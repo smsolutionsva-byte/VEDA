@@ -173,9 +173,18 @@ async function runAsk({ projectId, text, followUp, sourceHost }) {
 
 async function pollAsk({ jobId, projectId }) {
   const state = await getState();
-  if (!state.token) return { ok: false, error: 'not connected' };
-  const status = await api.askStatus(state.baseUrl, state.token, jobId, projectId);
-  return { ok: true, ...status };
+  if (!state.token) return { ok: false, error: 'not_connected' };
+  try {
+    const status = await api.askStatus(state.baseUrl, state.token, jobId, projectId);
+    return { ok: true, ...status };
+  } catch (err) {
+    // A transient error (server busy, brief network blip) - the overlay keeps
+    // polling. Only a hard "not found" ends the wait.
+    if (err instanceof VedaApiError && err.status === 404) {
+      return { ok: true, status: 'failed', error: 'That question is no longer available in VEDA.' };
+    }
+    return { ok: false, transient: true, error: err && err.message };
+  }
 }
 
 // --------------------------------------------------------------------------- //

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VEDA Anywhere",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Opt-in companion for VEDA. Select text on any site and Ask VEDA or Capture it as project evidence. Never reads or monitors pages on its own.",
   "minimum_chrome_version": "116",
   "icons": {

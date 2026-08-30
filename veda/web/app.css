@@ -1449,61 +1449,85 @@ html[data-theme="light"] .ingest-lanes > span { border-color: var(--line-2); }
 }
 
 /* ===================================================== ask veda / chat
-   A real conversation rather than a form-and-list: composer stays docked at
-   the top (VEDA's other panels all put the action above the history), the
-   newest turn lands immediately underneath it, and each turn reads like a
-   chat exchange - your question, then - the way Claude and ChatGPT do it -
-   VEDA's reasoning trace on top via the shared .think-panel component, with
-   the grounded answer directly beneath it. */
-.ask-composer {
-  position: relative; margin-bottom: 18px; padding: 16px 18px;
-  border: 1px solid var(--line-2);
-  background: linear-gradient(160deg, rgba(69, 200, 232, .08), transparent 46%),
-              linear-gradient(180deg, var(--surface-2), var(--surface));
-  box-shadow: var(--raise);
+   A full-height chat surface laid out like ChatGPT / Claude: the conversation
+   scrolls in the middle (oldest at top, newest at the bottom); the composer is
+   docked at the bottom; sending pins the new exchange to the top of the
+   viewport so a long answer reads from its first line. */
+body.ask-mode .main { padding: 0; overflow: hidden; display: flex; }
+
+.ask-view {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+  width: 100%; max-width: 940px; margin: 0 auto;
 }
-.ask-composer-head { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
-.ask-composer-head b { display: block; font-size: 14px; }
-.ask-composer-head small { display: block; margin-top: 3px; max-width: 62ch;
-                           color: var(--ink-3); font-size: 11.5px; line-height: 1.45; }
+.ask-topbar {
+  flex: none; display: flex; align-items: flex-end; gap: 12px;
+  padding: 14px 26px 12px; border-bottom: 1px solid var(--line);
+}
+.ask-topbar b { font-size: 15px; font-weight: 600; }
+.ask-topbar .spacer { flex: 1; }
+.ask-count { font-size: 11px; color: var(--ink-4); }
+
+.ask-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 24px 26px 8px; scroll-behavior: smooth;
+}
+.ask-thread { display: flex; flex-direction: column; gap: 26px; }
+.ask-tail-spacer { flex: none; }
+
+.ask-hello { max-width: 620px; margin: 6vh auto 0; text-align: center; }
+.ask-hello .ask-avatar { margin: 0 auto 14px; width: 40px; height: 40px; font-size: 15px; }
+.ask-hello h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+.ask-hello p { margin: 0 0 16px; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
+
 .ask-avatar {
-  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center;
   border: 1px solid var(--line-3); background: var(--surface-3); color: var(--ink-2);
-  font: 600 12px/1 var(--mono);
+  font: 600 10px/1 var(--mono);
 }
 .ask-avatar.veda-mark {
   color: #06222A; border-color: #2E93AC; background: linear-gradient(155deg, var(--mcp), #1E8FA8);
   box-shadow: 0 0 10px rgba(69, 200, 232, .35);
 }
-.ask-avatar.you-mark { color: var(--ink); background: var(--surface-4); }
-.ask-input-row { display: flex; gap: 10px; align-items: flex-end; }
+.ask-avatar.you-mark { color: var(--ink); background: var(--surface-4); font-size: 9px; }
+
+.ask-dock {
+  flex: none; padding: 12px 26px 16px; border-top: 1px solid var(--line-2);
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+}
+.ask-composer { display: flex; gap: 10px; align-items: flex-end;
+  max-width: 940px; margin: 0 auto; }
 .ask-input {
-  flex: 1; min-width: 0; resize: none; min-height: 44px; max-height: 160px;
-  padding: 11px 13px; background: #0C1015; border: 1px solid var(--line-2);
-  box-shadow: var(--sink); font-family: var(--sans); font-size: 13px; line-height: 1.5;
+  flex: 1; min-width: 0; resize: none; min-height: 46px; max-height: 200px;
+  padding: 12px 14px; background: #0C1015; border: 1px solid var(--line-2);
+  box-shadow: var(--sink); font-family: var(--sans); font-size: 13.5px; line-height: 1.5;
   color: var(--ink);
 }
+.ask-input:focus { border-color: var(--line-3); }
+.ask-input:disabled { opacity: .55; }
 .ask-send {
-  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  flex: none; width: 46px; height: 46px; display: grid; place-items: center;
   border: 1px solid #3E8DA3; background: linear-gradient(180deg, #2E6E80, #1E4E5C);
   color: #EAFBFF; cursor: pointer; box-shadow: var(--raise-sm); font-size: 15px;
 }
 .ask-send:hover { background: linear-gradient(180deg, #35808F, #235A69); }
 .ask-send:disabled { opacity: .42; cursor: not-allowed; }
-.ask-suggest { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.ask-dock-hint { margin: 7px auto 0; max-width: 940px; font-size: 10px;
+  color: var(--ink-4); letter-spacing: .04em; }
+.ask-suggest { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
 .ask-suggest button {
-  padding: 6px 11px; border: 1px solid var(--line-2); background: var(--surface-2);
-  color: var(--ink-2); font-size: 11.5px; cursor: pointer; box-shadow: var(--raise-sm);
+  padding: 7px 12px; border: 1px solid var(--line-2); background: var(--surface-2);
+  color: var(--ink-2); font-size: 12px; cursor: pointer; box-shadow: var(--raise-sm);
 }
 .ask-suggest button:hover { border-color: var(--mcp); color: var(--ink); }
 
-.ask-thread { display: flex; flex-direction: column; gap: 22px; }
-.ask-turn { display: flex; flex-direction: column; gap: 10px; }
+.ask-turn { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 10px; }
 .ask-msg { display: flex; gap: 11px; align-items: flex-start; }
 .ask-msg .ask-bubble { min-width: 0; }
+.ask-msg.you { justify-content: flex-end; }
+.ask-msg.you .ask-avatar { order: 2; }
 .ask-msg.you .ask-bubble {
-  max-width: min(720px, 92%); padding: 10px 14px; border: 1px solid var(--line-2);
-  background: var(--surface-2); box-shadow: var(--raise-sm);
+  max-width: min(680px, 84%); padding: 11px 15px; border: 1px solid var(--line-2);
+  background: var(--surface-3); box-shadow: var(--raise-sm);
 }
 .ask-msg.you .ask-bubble p { margin: 0; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
 .ask-msg.veda .ask-bubble { flex: 1; max-width: min(880px, 96%); }
@@ -1532,12 +1556,11 @@ html[data-theme="light"] .ingest-lanes > span { border-color: var(--line-2); }
 .ask-error span { font-size: 11px; }
 .ask-msg.thinking .ask-bubble { max-width: min(680px, 94%); }
 
-html[data-theme="light"] .ask-composer {
-  background: linear-gradient(160deg, rgba(8, 127, 154, .09), transparent 46%),
-              linear-gradient(180deg, #FFF, #FAFBFC);
+html[data-theme="light"] .ask-dock {
+  background: linear-gradient(180deg, #FFF, #F4F7F9);
 }
 html[data-theme="light"] .ask-input { background: #FFF; border-color: var(--line-3); }
-html[data-theme="light"] .ask-msg.you .ask-bubble { background: #FFF; }
+html[data-theme="light"] .ask-msg.you .ask-bubble { background: #EEF3F6; }
 html[data-theme="light"] .ask-answer { background: linear-gradient(180deg, #FFF, #FAFBFC); }
 html[data-theme="light"] .ask-avatar.you-mark { background: #E3EAF0; }
 html[data-theme="light"] .ask-suggest button { background: #FFF; }
@@ -1545,9 +1568,8 @@ html[data-theme="light"] .ask-error { background: #FCECEB; }
 html[data-theme="light"] .ask-error b { color: #A62F2A; }
 
 @media (max-width: 720px) {
+  .ask-topbar, .ask-scroll, .ask-dock { padding-left: 14px; padding-right: 14px; }
   .ask-msg.you .ask-bubble, .ask-msg.veda .ask-bubble { max-width: 100%; }
-  .ask-input-row { flex-wrap: wrap; }
-  .ask-send { width: 100%; height: 40px; }
 }
 
 /* ===================================================== field capture */

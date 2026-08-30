@@ -141,6 +141,7 @@ async function render() {
   const renderProject = S.project;
   const renderView = S.view;
   if (!S.project && !PROJECT_OPTIONAL_VIEWS.has(renderView)) {
+    document.body.classList.remove('ask-mode');
     main.innerHTML = VIEWS.noproject();
     bindNoProject();
     syncAgentWatchdog();
@@ -159,8 +160,9 @@ async function render() {
     const html = await fn(renderProject, S.params);
     if (version !== S.renderVersion || renderProject !== S.project ||
         renderView !== S.view) return;
+    document.body.classList.toggle('ask-mode', renderView === 'ask');
     main.innerHTML = html;
-    if (sameView && scroll) main.scrollTop = scroll;
+    if (sameView && scroll && renderView !== 'ask') main.scrollTop = scroll;
     S.renderedView = renderView;
     S.renderedProject = renderProject;
     if (fn === VIEWS.noproject) bindNoProject();
@@ -170,6 +172,7 @@ async function render() {
   } catch (e) {
     if (version !== S.renderVersion || renderProject !== S.project ||
         renderView !== S.view) return;
+    document.body.classList.remove('ask-mode');
     main.innerHTML = '<div class="panel"><div class="body">' +
       '<div class="note danger"><b>Could not load this view.</b><br>' +
       esc(e.message) + '</div></div></div>';

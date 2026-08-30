@@ -161,7 +161,9 @@ def ensure_event_job(ev: dict) -> str | None:
             return None
 
         jid = create_job(project_id, kind, event_id, payload)
-        enqueue(jid)
+        # A question is short and interactive - a person (web app or VEDA
+        # Anywhere) is waiting on it, so it jumps ahead of long analysis runs.
+        enqueue(jid, priority=(kind == "question"))
         return jid
 
 
