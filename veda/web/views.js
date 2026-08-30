@@ -1753,7 +1753,12 @@ function thinkItem(entry) {
     '</div></div>';
 }
 
-/* opts: { status: live|done|failed|idle, steps, calls, openKey, idleHint, emptyLabel } */
+/* opts: { status: live|done|failed|idle, steps, calls, openKey, idleHint,
+          emptyLabel, extra, defaultOpen, kicker }
+   `extra` is HTML appended inside the trace, after the reasoning timeline -
+   Execution intelligence uses it to nest the full run visualisation. */
+VIEWS._vizOpen = VIEWS._vizOpen || {};
+
 function thinkingPanel(opts) {
   const steps = (opts.steps || []).map(s => Object.assign({ kind: 'step' }, s));
   const calls = (opts.calls || []).map(c => Object.assign({ kind: 'tool' }, c));
@@ -1768,31 +1773,41 @@ function thinkingPanel(opts) {
   const headlineText = live ? 'Thinking for ' + fmtDur(elapsed)
     : status === 'done' ? 'Thought for ' + fmtDur(elapsed)
     : status === 'failed' ? 'Reasoning stopped' : 'No reasoning trace yet';
+  const kicker = opts.kicker || (live ? 'Reasoning · live'
+    : status === 'done' ? 'Reasoning · complete'
+    : status === 'failed' ? 'Reasoning · halted' : 'Reasoning');
   const sub = last ? (last.kind === 'tool'
       ? ('Horizun · ' + last.server + '/' + last.tool + (last.state === 'failed' ? ' failed' : ''))
       : last.label)
     : (opts.idleHint || '');
   const key = opts.openKey || '';
-  const open = !!(key && VIEWS._thinkOpen[key]);
+  const stored = key ? VIEWS._thinkOpen[key] : undefined;
+  const open = stored === undefined ? !!opts.defaultOpen : !!stored;
   return '<section class="think-panel ' + status + '" data-open="' + (open ? 1 : 0) +
     '" data-think-key="' + E(key) + '">' +
+    '<div class="think-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>' +
     '<button class="think-toggle" type="button" aria-expanded="' + (open ? 'true' : 'false') + '">' +
-    '<span class="think-beacon" aria-hidden="true"></span>' +
-    '<span class="think-headline"><b' +
+    '<span class="think-beacon" aria-hidden="true"><i></i></span>' +
+    '<span class="think-headline"><span class="think-kicker">' + E(kicker) + '</span>' +
+    '<b' +
     (live ? ' data-think-live="1" data-think-first="' + first.created_at + '"' : '') +
     '>' + E(headlineText) + '</b>' +
     (sub ? '<em>' + E(String(sub).slice(0, 140)) + '</em>' : '') + '</span>' +
     (merged.length ? '<span class="think-count">' + merged.length +
       ' step' + (merged.length === 1 ? '' : 's') + '</span>' : '') +
     '<span class="think-chevron" aria-hidden="true">⌄</span></button>' +
+    (live ? '<div class="think-scan" aria-hidden="true"></div>' : '') +
     '<div class="think-trace"' + (open ? '' : ' hidden') + '>' +
+    '<div class="think-timeline">' +
     (merged.length ? merged.map(thinkItem).join('') :
       '<div class="think-empty">' + E(opts.emptyLabel || 'Nothing recorded yet.') + '</div>') +
+    '</div>' + (opts.extra || '') +
     '</div></section>';
 }
 
 window.bindThinkToggles = function bindThinkToggles(root) {
-  (root || document).querySelectorAll('.think-toggle').forEach((btn) => {
+  const scope = root || document;
+  scope.querySelectorAll('.think-toggle').forEach((btn) => {
     btn.onclick = () => {
       const panel = btn.closest('.think-panel');
       const trace = panel.querySelector('.think-trace');
@@ -1803,6 +1818,14 @@ window.bindThinkToggles = function bindThinkToggles(root) {
       const key = panel.dataset.thinkKey;
       if (key) VIEWS._thinkOpen[key] = willOpen;
     };
+  });
+  // The nested run visualisation is a native <details>; remember where the
+  // reader left it so a live re-render never snaps it shut under them.
+  scope.querySelectorAll('.run-reveal').forEach((d) => {
+    d.addEventListener('toggle', () => {
+      const k = d.dataset.vizKey;
+      if (k) VIEWS._vizOpen[k] = d.open;
+    });
   });
 };
 
@@ -1847,25 +1870,28 @@ function askTurn(turn, steps, calls) {
   if (turn.kind === 'pending') {
     inner = thinkingPanel({
       status: 'live', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
+      defaultOpen: true,
       idleHint: 'Reading the stored schedule and field evidence…',
     });
   } else if (turn.kind === 'failed') {
-    inner = '<div class="ask-error"><b>VEDA could not produce a grounded answer.</b>' +
-      (turn.error ? '<span class="mono">' + E(String(turn.error).slice(0, 300)) +
-        '</span>' : 'The reasoning provider chain was exhausted.') + '</div>' +
-      thinkingPanel({
+    // Reasoning first, the way Claude and ChatGPT surface the thinking trace
+    // above the reply - then the failure notice underneath it.
+    inner = thinkingPanel({
         status: 'failed', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
         emptyLabel: 'No reasoning trace stored for this attempt.',
-      });
+      }) +
+      '<div class="ask-error"><b>VEDA could not produce a grounded answer.</b>' +
+      (turn.error ? '<span class="mono">' + E(String(turn.error).slice(0, 300)) +
+        '</span>' : 'The reasoning provider chain was exhausted.') + '</div>';
   } else {
-    inner = '<div class="ask-answer">' + E(turn.answer) + '</div>' +
-      '<div class="ask-meta">' + prov(turn.provenance) +
-      '<span class="ask-time">' + new Date(turn.created_at * 1000).toLocaleString() +
-      '</span></div>' +
-      thinkingPanel({
+    inner = thinkingPanel({
         status: 'done', steps: steps, calls: calls, openKey: 'ask:' + turn.id,
         emptyLabel: 'No reasoning trace stored for this answer.',
-      });
+      }) +
+      '<div class="ask-answer">' + E(turn.answer) + '</div>' +
+      '<div class="ask-meta">' + prov(turn.provenance) +
+      '<span class="ask-time">' + new Date(turn.created_at * 1000).toLocaleString() +
+      '</span></div>';
   }
   return '<div class="ask-turn">' + you +
     '<div class="ask-msg veda' + (turn.kind === 'pending' ? ' thinking' : '') + '">' +
@@ -2183,6 +2209,104 @@ function executionMap(job, activity) {
     '</footer></section>';
 }
 
+/* Reasoning provider labels, mirroring agent/registry.py LABELS so the console
+   reads well even before /health has landed in window.S. */
+const PROVIDER_LABELS = {
+  auto: 'Auto', antigravity_cli: 'Antigravity', claude_code: 'Claude Code',
+  codex: 'Codex', gemini_api: 'Gemini API',
+  local_antigravity: 'Antigravity · local bridge',
+};
+
+/* The full execution visualiser, nested inside a run's thinking panel. It is
+   auto-collapsed until there is a run to show, then unfolds with the panel so
+   expanding the thinking reveals the entire architecture in depth. The
+   reader's own toggle is remembered and always wins. */
+function executionReveal(pid, job, activity) {
+  const live = !!job && ['queued', 'running'].includes(String(job.status || ''));
+  const vizKey = 'viz:' + (pid || '');
+  const stored = VIEWS._vizOpen[vizKey];
+  const open = stored === undefined ? !!job : !!stored;
+  const caption = job
+    ? (live ? 'Live · every stage as VEDA persists it'
+       : job.status === 'done' ? 'Complete · full persisted pipeline'
+       : 'Stopped safely · pipeline as far as it ran')
+    : 'Preview · the pipeline a run will follow';
+  return '<details class="run-reveal"' + (open ? ' open' : '') +
+    ' data-viz-key="' + E(vizKey) + '">' +
+    '<summary><span class="run-reveal-mark" aria-hidden="true"></span>' +
+    '<b>Execution visualisation</b>' +
+    '<span class="run-reveal-hint">' + E(caption) + '</span>' +
+    '<span class="run-reveal-chevron" aria-hidden="true">⌄</span></summary>' +
+    '<div class="run-reveal-body">' + executionMap(job, activity) + '</div>' +
+    '</details>';
+}
+
+/* The reasoning-provider console that sits below the run's thinking panel -
+   who is doing the thinking (often the local Antigravity bridge), whether it
+   is reachable, and this run's telemetry, in one arranged instrument block. */
+function providerConsole(job) {
+  const health = (typeof window !== 'undefined' && window.S && window.S.health) || null;
+  const providers = (health && health.providers) || {};
+  const activeName = health ? health.active_provider : null;
+  const auto = providers.auto || null;
+  let key = (job && job.provider) || activeName || null;
+  if (key === 'auto') key = (auto && auto.selected) || 'auto';
+  const ph = key ? providers[key] : null;
+  const label = (ph && ph.label) || PROVIDER_LABELS[key] || key || 'Reasoning provider';
+  const reachable = ph ? !!ph.ok : null;
+  const model = (ph && (ph.model || ph.version)) || '';
+  const note = (ph && (ph.note || ph.hint)) || '';
+  const isLocal = key === 'local_antigravity' || key === 'antigravity_cli' ||
+    activeName === 'local_antigravity';
+  const chain = (auto && auto.chain) || [];
+  const usingAuto = activeName === 'auto';
+
+  const healthTag = reachable === null
+    ? '<span class="pc-health unknown"><i></i>status pending</span>'
+    : reachable
+      ? '<span class="pc-health ok"><i></i>reachable</span>'
+      : '<span class="pc-health bad"><i></i>unavailable</span>';
+
+  const cells = [];
+  if (job) {
+    cells.push(['Job', E(String(job.id || '').slice(0, 10)) || '—']);
+    cells.push(['Kind', E(job.kind || '—')]);
+    cells.push(['Status', E(job.status || '—')]);
+    cells.push(['Phase', E(String(job.phase || '—').replace(/_/g, ' '))]);
+    cells.push(['Attempts', int(job.attempts)]);
+    cells.push(['Elapsed', E(runDuration(job))]);
+  }
+
+  return '<section class="provider-console' + (isLocal ? ' local' : '') +
+    (reachable === false ? ' offline' : '') + '">' +
+    '<header class="pc-head">' +
+      '<div class="pc-id"><span class="pc-mark" aria-hidden="true"><i></i></span>' +
+      '<div class="pc-id-copy"><div class="eyebrow">Reasoning provider' +
+      (usingAuto ? ' · auto-selected' : '') + '</div>' +
+      '<b>' + E(label) + '</b>' +
+      (model ? '<small>' + E(model) + '</small>' : '') + '</div></div>' +
+      healthTag +
+    '</header>' +
+    (cells.length
+      ? '<div class="pc-grid">' + cells.map(([k, v]) =>
+          '<div class="pc-cell"><span>' + E(k) + '</span><b>' + v + '</b></div>').join('') +
+        '</div>'
+      : '<div class="pc-empty">No run yet — the provider engages the moment you ' +
+        'start an analysis.</div>') +
+    (usingAuto && chain.length
+      ? '<div class="pc-chain"><span>Fallback order</span>' + chain.map(c =>
+          '<i class="' + (c.ok ? 'ok' : 'down') +
+          (c.provider === key ? ' on' : '') + '">' +
+          E(PROVIDER_LABELS[c.provider] || c.provider) + '</i>').join('') + '</div>'
+      : '') +
+    (note ? '<p class="pc-note">' + E(note) + '</p>' : '') +
+    (job && job.error
+      ? '<div class="pc-error"><b>Last run error</b>' +
+        '<span class="mono">' + E(String(job.error).slice(0, 900)) + '</span></div>'
+      : '') +
+  '</section>';
+}
+
 VIEWS.agent = async (pid) => {
   const [act, mcp, jobs] = await Promise.all([
     A('/projects/' + pid + '/agent-activity?limit=160'),
@@ -2205,23 +2329,18 @@ VIEWS.agent = async (pid) => {
 
   return head('Execution intelligence', 'A live, evidence-safe view of VEDA’s ' +
     'persisted run state') +
-    executionMap(j, currentActivity) +
-    (j ? '<div class="grid g4" style="margin-bottom:14px">' +
-      stat('Latest job', E(j.kind), E(j.id.slice(0, 10))) +
-      stat('Status', E(j.status), E(j.phase || ''),
-        j.status === 'failed' ? 'hot' : j.status === 'done' ? 'good' : 'warm') +
-      stat('Provider', E(j.provider || '—'), 'reasoning') +
-      stat('Attempts', int(j.attempts), j.error ? 'last run failed' : '') +
-      '</div>' : '') +
-    (j && j.error ? '<div class="note danger" style="margin-bottom:14px">' +
-      '<b>Job error</b><br><span class="mono" style="font-size:11.5px">' +
-      E(j.error.slice(0, 900)) + '</span></div>' : '') +
     thinkingPanel({
       status: thinkStatus, steps: currentActivity, calls: currentCalls,
-      openKey: 'agent:' + pid,
+      openKey: 'agent:' + pid, defaultOpen: thinkStatus === 'live',
+      kicker: thinkStatus === 'live' ? 'Execution reasoning · live'
+        : thinkStatus === 'done' ? 'Execution reasoning · complete'
+        : thinkStatus === 'failed' ? 'Execution reasoning · halted'
+        : 'Execution reasoning',
       idleHint: 'Upload files and run an analysis to see VEDA reason through this project.',
       emptyLabel: 'No reasoning trace for this run yet.',
-    });
+      extra: executionReveal(pid, j, currentActivity),
+    }) +
+    providerConsole(j);
 };
 
 /* Repaint only the execution map from the payload the last full render already

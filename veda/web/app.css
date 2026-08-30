@@ -22,10 +22,16 @@
   /* provenance key - the signature device */
   --mcp: #45C8E8;
   --human: #FFB020;
-  --ai: #A98BFA;
+  --ai: #8AA8FF;
   --det: #3ED9C4;
   --src: #8494AC;
   --derived: #6B7688;
+
+  /* reasoning / "thinking" accent - a distinct instrument blue, deliberately
+     bluer than the cyan --mcp so a live trace reads as VEDA thinking, not a
+     Horizun call. Used across Execution intelligence and Ask VEDA. */
+  --think: #4D9DFF;
+  --think-2: #7FBBFF;
 
   --danger: #FF5F56;
   --warn: #FFB020;
@@ -275,7 +281,7 @@ td.r, th.r { text-align: right; }
 .prov.MCP_FACT { color: var(--mcp); border-color: rgba(69, 200, 232, .38); }
 .prov.SOURCE_FILE { color: var(--src); border-color: rgba(132, 148, 172, .38); }
 .prov.HUMAN_INPUT { color: var(--human); border-color: rgba(255, 176, 32, .4); }
-.prov.AI_INFERENCE { color: var(--ai); border-color: rgba(169, 139, 250, .4); }
+.prov.AI_INFERENCE { color: var(--ai); border-color: rgba(138, 168, 255, .42); }
 .prov.DETERMINISTIC_CALCULATION { color: var(--det);
                                   border-color: rgba(62, 217, 196, .38); }
 .prov.DERIVED { color: var(--derived); border-color: rgba(107, 118, 136, .4); }
@@ -295,7 +301,7 @@ td.r, th.r { text-align: right; }
 .tag.amber { color: #FFE0A8; background: #33260C; border-color: #6E5215; }
 .tag.green { color: #BDF0D2; background: #12301F; border-color: #245A3A; }
 .tag.blue { color: #C4ECFA; background: #102A33; border-color: #235A6C; }
-.tag.violet { color: #DACCFF; background: #221B3B; border-color: #4A3B7A; }
+.tag.violet { color: #CBDBFF; background: #182444; border-color: #35487F; }
 .tag.grey { color: var(--ink-2); }
 
 .sev-critical, .sev-error { color: var(--danger); }
@@ -957,56 +963,136 @@ html[data-theme="light"] .np-next-steps i { background: #FFF; }
 
 /* ============================================ shared "thinking" component
    VEDA never renders raw chain-of-thought; step() only ever logs safe,
-   high-level progress. This is that same persisted trace shown the way an
-   LLM product shows its reasoning: a one-line collapsed headline that keeps
-   pace with the run, and a timeline underneath for anyone who wants the
-   detail. Execution intelligence and Ask VEDA both build on it. */
+   high-level progress. This is that same persisted trace shown the way a
+   modern LLM product shows its reasoning: a calm one-line headline that keeps
+   pace with the run, opening into a full reasoning timeline and - nested and
+   auto-collapsed - the entire execution visualisation. Blue throughout, to
+   read as an instrument panel rather than a chat widget. Execution
+   intelligence and Ask VEDA both build on it. */
 .think-panel {
   position: relative; margin-bottom: 16px; border: 1px solid var(--line-2);
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background:
+    linear-gradient(180deg, rgba(77, 157, 255, .05), transparent 26%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
   box-shadow: var(--raise); overflow: hidden;
+  transition: border-color .25s ease, box-shadow .25s ease;
 }
-.think-panel.live { border-color: rgba(169, 139, 250, .45); }
+.think-panel::after {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 200px;
+  pointer-events: none; opacity: .5;
+  background-image: linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.think-panel.live {
+  border-color: rgba(77, 157, 255, .5);
+  box-shadow: var(--raise), 0 0 0 1px rgba(77, 157, 255, .12),
+              0 24px 60px -34px rgba(77, 157, 255, .5);
+}
+.think-panel.done { border-color: rgba(67, 208, 127, .32); }
 .think-panel.failed { border-color: rgba(255, 95, 86, .5); }
+
+/* corner brackets - a HUD frame that only fully lights while thinking */
+.think-frame { position: absolute; inset: 6px; pointer-events: none; z-index: 4; }
+.think-frame i { position: absolute; width: 9px; height: 9px; border: 1px solid var(--line-3);
+                 opacity: .55; transition: border-color .25s, opacity .25s; }
+.think-frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.think-frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.think-frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.think-frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.think-panel.live .think-frame i { border-color: var(--think); opacity: 1; }
+
 .think-toggle {
-  width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center; gap: 12px; padding: 13px 16px; border: 0; cursor: pointer;
-  background: linear-gradient(90deg, rgba(169, 139, 250, .07), transparent 55%);
-  color: inherit; text-align: left; font: inherit;
+  position: relative; z-index: 3; width: 100%; display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center;
+  gap: 13px; padding: 14px 17px; border: 0; cursor: pointer; color: inherit;
+  text-align: left; font: inherit;
+  background: linear-gradient(90deg, rgba(77, 157, 255, .08), transparent 58%);
+  transition: background .18s;
 }
-.think-toggle:hover { background: linear-gradient(90deg, rgba(169, 139, 250, .12), transparent 55%); }
-.think-beacon { width: 10px; height: 10px; flex: none; background: var(--ink-4); }
-.think-panel.live .think-beacon { background: var(--ai); box-shadow: 0 0 10px var(--ai);
-                                  animation: pulse 1.1s infinite; }
-.think-panel.done .think-beacon { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-.think-panel.failed .think-beacon { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-.think-headline { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.think-headline b { font-size: 13px; font-weight: 600; }
-.think-panel.live .think-headline b { color: var(--ai); }
+.think-toggle:hover { background: linear-gradient(90deg, rgba(77, 157, 255, .15), transparent 58%); }
+
+/* reactor-core beacon rather than a flat dot */
+.think-beacon {
+  position: relative; width: 22px; height: 22px; flex: none; display: grid;
+  place-items: center; border: 1px solid var(--line-3); background: var(--surface-2);
+}
+.think-beacon i { width: 8px; height: 8px; background: var(--ink-4);
+                  transition: background .2s, box-shadow .2s; }
+.think-panel.live .think-beacon { border-color: rgba(77, 157, 255, .6); }
+.think-panel.live .think-beacon i { background: var(--think);
+  box-shadow: 0 0 10px var(--think); animation: pulse 1.1s infinite; }
+.think-panel.live .think-beacon::after {
+  content: ''; position: absolute; inset: -1px; border: 1px solid rgba(77, 157, 255, .55);
+  animation: think-ring 1.9s ease-out infinite;
+}
+@keyframes think-ring { from { transform: scale(.5); opacity: .9; }
+                        to { transform: scale(1.75); opacity: 0; } }
+.think-panel.done .think-beacon i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.think-panel.failed .think-beacon i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+.think-headline { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.think-kicker { font: 9px/1 var(--mono); letter-spacing: .19em; text-transform: uppercase;
+                color: var(--ink-4); }
+.think-panel.live .think-kicker { color: var(--think); }
+.think-headline b {
+  font-size: 13.5px; font-weight: 600; letter-spacing: -.005em; color: var(--ink);
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.think-panel.live .think-headline b { color: var(--think); }
+.think-panel.live .think-headline b::after {
+  content: ''; flex: none; width: 2px; height: 13px; background: var(--think);
+  animation: think-caret 1s steps(1) infinite;
+}
+@keyframes think-caret { 50% { opacity: 0; } }
 .think-headline em {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal;
   color: var(--ink-3); font-size: 11.5px; animation: think-fade .35s ease;
 }
 @keyframes think-fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
-.think-count { color: var(--ink-4); font: 10px/1 var(--mono); white-space: nowrap; }
+.think-count {
+  color: var(--ink-3); font: 10px/1 var(--mono); white-space: nowrap;
+  padding: 4px 7px; border: 1px solid var(--line-2); background: var(--surface-2);
+}
 .think-chevron {
-  width: 20px; height: 20px; flex: none; display: grid; place-items: center;
+  width: 22px; height: 22px; flex: none; display: grid; place-items: center;
   border: 1px solid var(--line-3); color: var(--ink-3); font-size: 10px;
-  transition: transform .18s, color .18s, border-color .18s;
+  transition: transform .2s, color .2s, border-color .2s, background .2s;
 }
-.think-panel[data-open="1"] .think-chevron { transform: rotate(180deg); color: var(--ai); border-color: rgba(169, 139, 250, .55); }
+.think-panel[data-open="1"] .think-chevron { transform: rotate(180deg); color: var(--think);
+  border-color: rgba(77, 157, 255, .55); background: rgba(77, 157, 255, .1); }
+
+/* the scanning line under the header while a run is live */
+.think-scan { position: relative; z-index: 3; height: 1px; background: var(--line-2); overflow: hidden; }
+.think-scan::after {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 38%;
+  background: linear-gradient(90deg, transparent, var(--think), transparent);
+  animation: think-scan 1.9s linear infinite;
+}
+@keyframes think-scan { from { transform: translateX(-100%); } to { transform: translateX(360%); } }
+
 .think-trace {
-  border-top: 1px solid var(--line); padding: 15px 18px 16px 20px;
-  max-height: 460px; overflow-y: auto;
+  position: relative; z-index: 3; border-top: 1px solid var(--line);
+  padding: 16px 18px 18px 20px; max-height: 560px; overflow-y: auto;
 }
+.think-timeline { position: relative; }
+/* Execution intelligence nests the full visualisation in its trace, so let it
+   breathe: the reasoning timeline scrolls within itself, the visualisation
+   unfolds into the page at full height. */
+.think-panel[data-think-key^="agent:"] .think-trace { max-height: none; overflow: visible; }
+.think-panel[data-think-key^="agent:"] .think-timeline {
+  max-height: 340px; overflow-y: auto; padding-right: 4px;
+}
+
 .think-item {
   position: relative; display: grid; grid-template-columns: 19px minmax(0, 1fr);
-  gap: 0 11px; padding-bottom: 14px;
+  gap: 0 11px; padding-bottom: 15px;
 }
 .think-item:last-child { padding-bottom: 0; }
 .think-item::before {
-  content: ''; position: absolute; left: 9px; top: 19px; bottom: -14px; width: 1px;
-  background: var(--line);
+  content: ''; position: absolute; left: 9px; top: 19px; bottom: -15px; width: 1px;
+  background: linear-gradient(180deg, var(--line-3), var(--line));
 }
 .think-item:last-child::before { display: none; }
 .think-dot {
@@ -1014,27 +1100,158 @@ html[data-theme="light"] .np-next-steps i { background: #FFF; }
   border: 1px solid var(--line-3); background: var(--surface-2); color: var(--ink-4);
   font: 600 9.5px/1 var(--mono);
 }
-.think-item.step .think-dot { color: var(--ai); border-color: rgba(169, 139, 250, .5);
-                              background: rgba(169, 139, 250, .09); }
+.think-item.step .think-dot { color: var(--think); border-color: rgba(77, 157, 255, .5);
+                              background: rgba(77, 157, 255, .1); }
 .think-item.tool .think-dot { color: var(--mcp); border-color: rgba(69, 200, 232, .5);
                               background: rgba(69, 200, 232, .09); }
 .think-item.failed .think-dot { color: var(--danger); border-color: var(--danger);
                                 background: rgba(255, 95, 86, .12); }
-.think-item.active .think-dot { animation: pulse 1.1s infinite; }
+.think-item.active .think-dot { animation: pulse 1.1s infinite;
+  box-shadow: 0 0 0 3px rgba(77, 157, 255, .12); }
+.think-item.active .think-row b { color: var(--think); }
 .think-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .think-row b { font-size: 12.5px; font-weight: 500; }
 .think-slash { color: var(--ink-4); }
 .think-kind { font: 9px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
 .think-time { margin-left: auto; color: var(--ink-4); font: 10px/1 var(--mono); white-space: nowrap; }
-.think-detail { margin-top: 3px; color: var(--ink-3); font-size: 11.5px; line-height: 1.5; }
+.think-detail { margin-top: 4px; color: var(--ink-3); font-size: 11.5px; line-height: 1.5; }
 .think-detail.mono { font-family: var(--mono); font-size: 11px; }
-.think-empty { padding: 20px 4px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+.think-empty { padding: 22px 4px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
 
-html[data-theme="light"] .think-panel { background: linear-gradient(180deg, #FFF, #FAFBFC); }
-html[data-theme="light"] .think-toggle { background: linear-gradient(90deg, rgba(112, 80, 190, .06), transparent 55%); }
-html[data-theme="light"] .think-toggle:hover { background: linear-gradient(90deg, rgba(112, 80, 190, .11), transparent 55%); }
-html[data-theme="light"] .think-dot { background: #FFF; }
-html[data-theme="light"] .think-item::before { background: var(--line-2); }
+/* ----------------------- nested, auto-collapsed execution visualisation */
+.run-reveal {
+  margin-top: 16px; border: 1px solid var(--line-2);
+  background: var(--surface); box-shadow: var(--raise-sm);
+}
+.run-reveal > summary {
+  list-style: none; display: flex; align-items: center; gap: 11px;
+  padding: 12px 14px; cursor: pointer; color: var(--ink-2); font-size: 12px;
+  transition: background .15s;
+}
+.run-reveal > summary:hover { background: rgba(77, 157, 255, .05); }
+.run-reveal > summary::-webkit-details-marker { display: none; }
+.run-reveal-mark {
+  position: relative; width: 20px; height: 20px; flex: none;
+  border: 1px solid var(--line-3); background: var(--surface-2);
+}
+.run-reveal-mark::before, .run-reveal-mark::after {
+  content: ''; position: absolute; left: 50%; top: 50%; background: var(--think);
+}
+.run-reveal-mark::before { width: 9px; height: 1px; transform: translate(-50%, -50%); }
+.run-reveal-mark::after { width: 1px; height: 9px; transform: translate(-50%, -50%);
+  transition: transform .2s; }
+.run-reveal[open] .run-reveal-mark::after { transform: translate(-50%, -50%) scaleY(0); }
+.run-reveal > summary b { font-weight: 600; color: var(--ink); font-size: 12.5px; }
+.run-reveal-hint { margin-left: auto; color: var(--ink-4);
+  font: 9.5px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; text-align: right; }
+.run-reveal-chevron { flex: none; width: 18px; height: 18px; display: grid; place-items: center;
+  border: 1px solid var(--line-3); color: var(--ink-3); font-size: 9px; transition: transform .2s; }
+.run-reveal[open] .run-reveal-chevron { transform: rotate(180deg); color: var(--think);
+  border-color: rgba(77, 157, 255, .5); }
+.run-reveal[open] > summary { border-bottom: 1px solid var(--line); }
+.run-reveal-body { padding: 14px; }
+.run-reveal-body .intelligence-run { margin-bottom: 0; }
+
+/* ------------------------ reasoning-provider console (below the trace) */
+.provider-console {
+  position: relative; margin-bottom: 16px; border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--raise); overflow: hidden;
+}
+.provider-console.local { border-color: rgba(77, 157, 255, .38); }
+.provider-console.offline { border-color: rgba(255, 95, 86, .42); }
+.provider-console::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--line-3);
+}
+.provider-console.local::before { background: var(--think); }
+.provider-console.offline::before { background: var(--danger); }
+.pc-head {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, rgba(77, 157, 255, .05), transparent 62%);
+}
+.pc-id { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.pc-mark {
+  position: relative; width: 30px; height: 30px; flex: none; display: grid;
+  place-items: center; border: 1px solid var(--line-3); background: var(--surface-2);
+}
+.pc-mark i { width: 10px; height: 10px; background: var(--ink-4); }
+.provider-console.local .pc-mark { border-color: rgba(77, 157, 255, .55); }
+.provider-console.local .pc-mark i { background: var(--think); box-shadow: 0 0 9px rgba(77, 157, 255, .55); }
+.provider-console.offline .pc-mark i { background: var(--danger); }
+.pc-id-copy { min-width: 0; }
+.pc-id-copy .eyebrow { margin-bottom: 4px; }
+.pc-id-copy b { display: block; font-size: 14px; font-weight: 600; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-id-copy small { display: block; margin-top: 2px; color: var(--ink-3);
+  font: 10.5px/1.3 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-health {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+  border: 1px solid var(--line-2); font: 9.5px/1 var(--mono); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-2); white-space: nowrap;
+}
+.pc-health i { width: 6px; height: 6px; background: var(--ink-4); }
+.pc-health.ok { color: var(--ok); border-color: rgba(67, 208, 127, .4); }
+.pc-health.ok i { background: var(--ok); box-shadow: 0 0 7px var(--ok); }
+.pc-health.bad { color: var(--danger); border-color: rgba(255, 95, 86, .45); }
+.pc-health.bad i { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
+.pc-health.unknown i { animation: pulse 1.4s infinite; }
+.pc-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  background: var(--line); margin: 12px; border: 1px solid var(--line);
+}
+.pc-cell { display: flex; flex-direction: column; gap: 4px; padding: 11px 12px;
+  background: var(--surface); min-width: 0; }
+.pc-cell span { color: var(--ink-4); font: 9px/1 var(--mono); letter-spacing: .14em;
+  text-transform: uppercase; }
+.pc-cell b { font: 500 13px/1.15 var(--mono); letter-spacing: -.01em; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-chain { display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
+  margin: 0 12px 12px; }
+.pc-chain span { color: var(--ink-4); font: 9px/1 var(--mono); letter-spacing: .14em;
+  text-transform: uppercase; }
+.pc-chain i { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px;
+  border: 1px solid var(--line-2); font: 10px/1 var(--mono); font-style: normal;
+  color: var(--ink-3); }
+.pc-chain i::before { content: ''; width: 5px; height: 5px; background: var(--ink-4); }
+.pc-chain i.ok::before { background: var(--ok); }
+.pc-chain i.down { color: var(--ink-4); opacity: .6; }
+.pc-chain i.down::before { background: var(--danger); }
+.pc-chain i.on { color: var(--think); border-color: rgba(77, 157, 255, .5);
+  background: rgba(77, 157, 255, .08); }
+.pc-note { margin: 0 12px 13px; padding: 9px 11px; border-left: 2px solid var(--line-3);
+  background: rgba(77, 157, 255, .04); color: var(--ink-3); font-size: 11.5px; line-height: 1.5; }
+.provider-console.local .pc-note { border-left-color: var(--think); }
+.pc-error { margin: 0 12px 13px; padding: 10px 12px; border-left: 2px solid var(--danger);
+  background: rgba(255, 95, 86, .06); }
+.pc-error b { display: block; margin-bottom: 4px; color: #FFC9C6;
+  font: 600 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.pc-error span { display: block; color: var(--ink-2); font-size: 11px; line-height: 1.55;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.pc-empty { padding: 20px 14px; text-align: center; color: var(--ink-3); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .pc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .run-reveal-hint { display: none; }
+}
+
+html[data-theme="light"] .think-panel {
+  background: linear-gradient(180deg, rgba(31, 111, 214, .05), transparent 26%),
+              linear-gradient(180deg, #FFF, #FAFBFC); }
+html[data-theme="light"] .think-toggle { background: linear-gradient(90deg, rgba(31, 111, 214, .07), transparent 58%); }
+html[data-theme="light"] .think-toggle:hover { background: linear-gradient(90deg, rgba(31, 111, 214, .13), transparent 58%); }
+html[data-theme="light"] .think-beacon,
+html[data-theme="light"] .think-dot,
+html[data-theme="light"] .pc-mark { background: #FFF; }
+html[data-theme="light"] .think-item::before { background: linear-gradient(180deg, var(--line-2), var(--line)); }
+html[data-theme="light"] .think-count { background: #FFF; }
+html[data-theme="light"] .run-reveal,
+html[data-theme="light"] .provider-console { background: linear-gradient(180deg, #FFF, #FAFBFC); }
+html[data-theme="light"] .pc-error b { color: #A62F2A; }
+html[data-theme="light"] .pc-error { background: #FCECEB; }
+html[data-theme="light"] .pc-note { background: rgba(31, 111, 214, .05); }
+html[data-theme="light"] .pc-cell { background: #FFF; }
 
 /* ------------------------------------------------ source intake motion */
 .ingest-live { margin-top: 14px; padding: 13px;
@@ -1080,7 +1297,9 @@ html[data-theme="light"] {
   --ink-4: #667783;
   --mcp: #087F9A;
   --human: #B86A00;
-  --ai: #7050BE;
+  --ai: #4E63C8;
+  --think: #1F6FD6;
+  --think-2: #3E8BEE;
   --det: #087F72;
   --src: #617487;
   --derived: #687682;
@@ -1131,7 +1350,7 @@ html[data-theme="light"] .tag.red { color: #A62F2A; background: #FCECEB; border-
 html[data-theme="light"] .tag.amber { color: #8D5200; background: #FFF3DE; border-color: #E8CB91; }
 html[data-theme="light"] .tag.green { color: #0B7044; background: #E8F7EF; border-color: #A8D7BD; }
 html[data-theme="light"] .tag.blue { color: #086A80; background: #E7F6FA; border-color: #A9D5DF; }
-html[data-theme="light"] .tag.violet { color: #6444AE; background: #F0ECFB; border-color: #C6B9E9; }
+html[data-theme="light"] .tag.violet { color: #38509E; background: #EAF0FC; border-color: #BAC9EC; }
 html[data-theme="light"] .bar { background: #DEE5EA; }
 html[data-theme="light"] .flow .s.done { background: #EAF7EF; border-color: #ACD9BE; }
 html[data-theme="light"] .flow .s.done .v { color: #0D7146; }
@@ -1233,8 +1452,9 @@ html[data-theme="light"] .ingest-lanes > span { border-color: var(--line-2); }
    A real conversation rather than a form-and-list: composer stays docked at
    the top (VEDA's other panels all put the action above the history), the
    newest turn lands immediately underneath it, and each turn reads like a
-   chat exchange - your question, then VEDA's answer with its thinking trace
-   attached via the shared .think-panel component. */
+   chat exchange - your question, then - the way Claude and ChatGPT do it -
+   VEDA's reasoning trace on top via the shared .think-panel component, with
+   the grounded answer directly beneath it. */
 .ask-composer {
   position: relative; margin-bottom: 18px; padding: 16px 18px;
   border: 1px solid var(--line-2);
@@ -1287,20 +1507,30 @@ html[data-theme="light"] .ingest-lanes > span { border-color: var(--line-2); }
 }
 .ask-msg.you .ask-bubble p { margin: 0; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
 .ask-msg.veda .ask-bubble { flex: 1; max-width: min(880px, 96%); }
-.ask-answer {
-  padding: 13px 15px; border: 1px solid var(--line-2);
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
-  box-shadow: var(--raise); white-space: pre-wrap; font-size: 13.5px; line-height: 1.65;
+
+/* The reasoning trace rides above the answer as a secondary, collapsed card -
+   present but quiet, so the grounded answer stays the hero of the turn. */
+.ask-msg.veda .ask-bubble > .think-panel { margin-bottom: 9px; }
+.ask-msg.veda .ask-bubble > .think-panel:not(.live) {
+  box-shadow: var(--raise-sm); background: var(--surface);
 }
-.ask-meta { display: flex; align-items: center; gap: 9px; margin: 9px 2px 11px; }
+.ask-msg.veda .think-toggle { padding: 11px 15px; gap: 11px; }
+.ask-msg.veda .think-trace { max-height: 420px; }
+
+.ask-answer {
+  padding: 14px 16px; border: 1px solid var(--line-2); border-left: 2px solid rgba(69, 200, 232, .55);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: var(--raise); white-space: pre-wrap; font-size: 13.5px; line-height: 1.66;
+}
+.ask-meta { display: flex; align-items: center; gap: 9px; margin: 9px 2px 2px; }
 .ask-time { color: var(--ink-4); font: 10.5px/1 var(--mono); }
 .ask-error {
-  padding: 12px 14px; margin-bottom: 10px; border-left: 2px solid var(--danger);
+  padding: 12px 14px; margin: 0; border-left: 2px solid var(--danger);
   background: #211516; color: var(--ink-2); font-size: 12.5px;
 }
 .ask-error b { display: block; margin-bottom: 4px; color: #FFC9C6; }
 .ask-error span { font-size: 11px; }
-.ask-msg.thinking .ask-bubble { max-width: min(640px, 92%); }
+.ask-msg.thinking .ask-bubble { max-width: min(680px, 94%); }
 
 html[data-theme="light"] .ask-composer {
   background: linear-gradient(160deg, rgba(8, 127, 154, .09), transparent 46%),
