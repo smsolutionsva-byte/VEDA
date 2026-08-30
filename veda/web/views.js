@@ -2331,7 +2331,7 @@ VIEWS.agent = async (pid) => {
     'persisted run state') +
     thinkingPanel({
       status: thinkStatus, steps: currentActivity, calls: currentCalls,
-      openKey: 'agent:' + pid, defaultOpen: thinkStatus === 'live',
+      openKey: 'agent:' + pid,
       kicker: thinkStatus === 'live' ? 'Execution reasoning · live'
         : thinkStatus === 'done' ? 'Execution reasoning · complete'
         : thinkStatus === 'failed' ? 'Execution reasoning · halted'
@@ -2623,9 +2623,32 @@ VIEWS.bind_files = (pid) => {
   };
 
   if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
-  if (pickFolder && folderInp) pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
+  // A file input inserted through innerHTML does not reliably pick up the
+  // `webkitdirectory` content attribute as the IDL flag, so the chooser opens
+  // in file mode. Set it as a property on the live element, and only keep the
+  // "Browse project folder" button if the browser actually supports it.
+  if (folderInp) {
+    const folderSupported = 'webkitdirectory' in folderInp;
+    if (folderSupported) {
+      folderInp.webkitdirectory = true;
+      folderInp.multiple = true;
+      try { folderInp.setAttribute('webkitdirectory', ''); } catch (_) {}
+    }
+    if (pickFolder) {
+      if (folderSupported) {
+        pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
+      } else {
+        pickFolder.hidden = true;
+      }
+    }
+    folderInp.onchange = () => {
+      const picked = folderInp.files ? folderInp.files.length : 0;
+      addFiles(folderInp.files);
+      folderInp.value = '';
+      if (!picked) window.toast('No files found in that folder.', 'bad');
+    };
+  }
   inp.onchange = () => { addFiles(inp.files); inp.value = ''; };
-  if (folderInp) folderInp.onchange = () => { addFiles(folderInp.files); folderInp.value = ''; };
   if (dz) {
     dz.onclick = (e) => { if (!e.target.closest('button')) inp.click(); };
     dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('drag'); };
