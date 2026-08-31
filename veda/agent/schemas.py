@@ -36,6 +36,14 @@ Provenance = Literal[
 EvidenceState = Literal[
     "new", "processing", "linked", "needs_review", "confirmed",
     "rejected", "duplicate", "conflicting", "quarantined", "historical",
+    "context", "issue", "deferred",
+]
+
+# An uploaded document is a container of heterogeneous observations. Only
+# activity-progress / general observations are resolved against the schedule.
+ObservationType = Literal[
+    "activity_progress", "manpower", "equipment", "weather", "issue",
+    "target", "report_metadata", "signoff", "general",
 ]
 
 LinkRelation = Literal[
@@ -67,6 +75,11 @@ class EvidenceItem(_Base):
     description: str = ""
     observed_progress: float | None = Field(
         None, description="Observed field progress percent. Never official progress.")
+    observation_type: ObservationType = Field(
+        "activity_progress",
+        description="Kind of observation. Only activity_progress / general are "
+                    "resolved against schedule activities.")
+    section: str | None = None
     confidence: float = 0.5
     state: EvidenceState = "new"
     provenance: Provenance = "SOURCE_FILE"

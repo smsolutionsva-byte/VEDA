@@ -199,8 +199,32 @@ def _field_evidence_context(pid: str) -> dict:
     linked_activities = int(linked.get("activities") or 0)
     numeric_observed_activities = int((db.q1(
         "SELECT COUNT(*) c FROM observed_progress WHERE project_id=? AND observed_percent IS NOT NULL", [pid]) or {}).get("c", 0))
+    # A source document is a container; its atomic observations are typed.
+    # These two metrics are deliberately distinct (evidence sources vs
+    # evidence observations) and the per-type breakdown never conflates them.
+    by_type = {r["t"] or "unclassified": int(r["c"]) for r in db.q(
+        "SELECT COALESCE(observation_type,'unclassified') t, COUNT(*) c "
+        "FROM evidence WHERE project_id=? GROUP BY observation_type", [pid])}
+    doc_sources = int((db.q1(
+        "SELECT COUNT(*) c FROM files WHERE project_id=? AND kind='evidence'", [pid]) or {}).get("c", 0))
+    extraction_required = int((db.q1(
+        "SELECT COUNT(*) c FROM files WHERE project_id=? AND kind='evidence' "
+        "AND extract_state='extraction_required'", [pid]) or {}).get("c", 0))
     return {
         "record_count": total,
+        "evidence_source_count": doc_sources,
+        "evidence_observation_count": total,
+        "observation_type_counts": by_type,
+        "activity_observation_count": by_type.get("activity_progress", 0),
+        "issue_observation_count": by_type.get("issue", 0),
+        "manpower_observation_count": by_type.get("manpower", 0),
+        "equipment_observation_count": by_type.get("equipment", 0),
+        "weather_observation_count": by_type.get("weather", 0),
+        "context_observation_count": sum(
+            v for k, v in by_type.items()
+            if k in ("manpower", "equipment", "weather", "report_metadata",
+                     "signoff", "target")),
+        "extraction_required_count": extraction_required,
         "source_file_count": source_files,
         "latest_date": latest,
         "reported_progress_record_count": progress_records,

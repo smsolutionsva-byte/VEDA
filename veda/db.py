@@ -321,9 +321,17 @@ CREATE TABLE IF NOT EXISTS evidence (
   security_state TEXT DEFAULT 'clean',
   raw_json TEXT,
   provenance TEXT DEFAULT 'SOURCE_FILE',
+  -- document-decomposition: one document -> many typed atomic observations
+  observation_type TEXT, document_type TEXT, section TEXT, row_index INTEGER,
+  raw_text TEXT, raw_values_json TEXT,
+  extraction_method TEXT, extraction_confidence REAL,
+  observation_key TEXT, raw_date TEXT, date_interpretations_json TEXT,
+  activity_description TEXT,
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_ev_project ON evidence(project_id, state);
+CREATE INDEX IF NOT EXISTS ix_ev_obs_key ON evidence(project_id, file_id, observation_key);
+CREATE INDEX IF NOT EXISTS ix_ev_obs_type ON evidence(project_id, observation_type, state);
 
 CREATE TABLE IF NOT EXISTS evidence_links (
   id TEXT PRIMARY KEY,
@@ -787,9 +795,27 @@ def init_db() -> None:
         ("event_confidence", "ALTER TABLE evidence ADD COLUMN event_confidence REAL"),
         ("asset_tags_json", "ALTER TABLE evidence ADD COLUMN asset_tags_json TEXT"),
         ("location_tags_json", "ALTER TABLE evidence ADD COLUMN location_tags_json TEXT"),
+        # v0.3.x document-decomposition: an uploaded document is a container of
+        # many typed atomic observations, each traceable to page/section/row.
+        ("observation_type", "ALTER TABLE evidence ADD COLUMN observation_type TEXT"),
+        ("document_type", "ALTER TABLE evidence ADD COLUMN document_type TEXT"),
+        ("section", "ALTER TABLE evidence ADD COLUMN section TEXT"),
+        ("row_index", "ALTER TABLE evidence ADD COLUMN row_index INTEGER"),
+        ("raw_text", "ALTER TABLE evidence ADD COLUMN raw_text TEXT"),
+        ("raw_values_json", "ALTER TABLE evidence ADD COLUMN raw_values_json TEXT"),
+        ("extraction_method", "ALTER TABLE evidence ADD COLUMN extraction_method TEXT"),
+        ("extraction_confidence", "ALTER TABLE evidence ADD COLUMN extraction_confidence REAL"),
+        ("observation_key", "ALTER TABLE evidence ADD COLUMN observation_key TEXT"),
+        ("raw_date", "ALTER TABLE evidence ADD COLUMN raw_date TEXT"),
+        ("date_interpretations_json", "ALTER TABLE evidence ADD COLUMN date_interpretations_json TEXT"),
+        ("activity_description", "ALTER TABLE evidence ADD COLUMN activity_description TEXT"),
     ):
         if name not in ecols:
             conn.execute(ddl)
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_ev_obs_key "
+                 "ON evidence(project_id, file_id, observation_key)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_ev_obs_type "
+                 "ON evidence(project_id, observation_type, state)")
 
     lcols = {r[1] for r in conn.execute("PRAGMA table_info(evidence_links)").fetchall()}
     if "review_id" not in lcols:

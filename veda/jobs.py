@@ -18,7 +18,7 @@ from . import audit, config, db, events, reviews
 from .agent import registry, schemas
 from .agent.prompts import SYSTEM, analysis_prompt, question_prompt, resume_prompt
 from .mcpc import McpError, horizun, schedule_ops
-from .pipeline import deterministic, extract, linking, proposals
+from .pipeline import deterministic, documents, extract, linking, proposals
 
 _queue: "queue.Queue[str]" = queue.Queue()
 _priority_queue: "queue.Queue[str]" = queue.Queue()
@@ -522,6 +522,102 @@ def _run(job_id: str) -> None:
     events.notify_ui(project_id, "refresh", {"job_id": job_id})
 
 
+# ----------------------------------------------------- document decomposition
+def _handle_extraction_required(project_id: str, job_id: str, f: dict,
+                                exc: documents.ExtractionRequired) -> None:
+    """A document produced no usable text: EXTRACTION_REQUIRED, never a match.
+
+    The activity resolver must never run on placeholder text, so no evidence is
+    created.  A review asks a human to supply a text-extractable copy.
+    """
+    db.ex("DELETE FROM evidence WHERE file_id=? AND (observation_key IS NULL "
+          "OR observation_key='')", [f["id"]])
+    db.update("files", f["id"], {"extract_state": "extraction_required",
+                                 "extract_error": (exc.reason + ": " +
+                                                   (exc.detail or ""))[:500]})
+    audit.record(project_id, actor="system", actor_type="system",
+                 action="extraction_required", source="document_decomposition",
+                 entity_type="file", entity_id=f["id"],
+                 new_value=exc.reason, result=exc.detail)
+    step(job_id, project_id, "extraction_required",
+         "Could not extract usable text from " + str(f["filename"]) +
+         "; no activity matching attempted", "failed", exc.detail)
+    if not db.q1("SELECT id FROM reviews WHERE project_id=? AND entity_type='file' "
+                 "AND entity_id=? AND kind='extraction_required' AND status='open'",
+                 [project_id, f["id"]]):
+        reviews.create(
+            project_id=project_id, kind="extraction_required", job_id=job_id,
+            title="Text could not be extracted from " + str(f["filename"]),
+            question=("VEDA could not obtain usable text from this document "
+                      "(image-only scan or failed extraction). It has NOT been "
+                      "matched to any activity. Provide a text-extractable copy, "
+                      "or confirm it should be left as an un-parsed source."),
+            detail=exc.detail, entity_type="file", entity_id=f["id"],
+            options=["Upload a text-extractable copy",
+                     "Leave as an un-parsed source"], priority="high")
+
+
+def _reconcile_observations(project_id: str, job_id: str, f: dict,
+                            rows: list) -> tuple[int, dict]:
+    """Idempotently upsert this document's observations by observation_key.
+
+    Re-processing the same document (e.g. after improved extraction) reconciles
+    observations in place instead of duplicating them, so existing evidence
+    links and human decisions on unchanged observations survive.
+    """
+    existing = {r.get("observation_key"): r for r in db.q(
+        "SELECT * FROM evidence WHERE file_id=? AND observation_key IS NOT NULL "
+        "AND observation_key<>''", [f["id"]])}
+    seen: set = set()
+    by_type: dict = {}
+    for r in rows:
+        key = r.get("observation_key")
+        enriched = extract.enrich_evidence_record(r)
+        by_type[r.get("observation_type") or "general"] = \
+            by_type.get(r.get("observation_type") or "general", 0) + 1
+        if key and key in existing:
+            seen.add(key)
+            prev = existing[key]
+            # Reconcile derived/extracted fields; never clobber a settled state
+            # or a human-decided link.
+            patch = {k: enriched.get(k) for k in (
+                "date", "raw_date", "date_interpretations_json", "description",
+                "activity_description", "location", "unit", "quantity",
+                "observed_progress", "discipline", "raw_values_json", "raw_text",
+                "raw_json", "section", "row_index", "document_type",
+                "observation_type", "extraction_method", "extraction_confidence",
+                "event_type", "action_type", "event_state", "event_confidence",
+                "asset_tags_json", "location_tags_json") if k in enriched}
+            if prev.get("state") in ("new", "processing", "needs_review",
+                                     "unresolved", "context", "issue"):
+                patch["state"] = enriched.get("state") or prev.get("state")
+            db.update("evidence", prev["id"], patch)
+        else:
+            db.insert("evidence", enriched)
+            if key:
+                seen.add(key)
+    # Observations no longer produced by extraction: drop them unless a human
+    # decided their link.
+    for key, prev in existing.items():
+        if key in seen:
+            continue
+        human = db.q1("SELECT id FROM evidence_links WHERE evidence_id=? AND "
+                      "human_decision IS NOT NULL AND human_decision<>''",
+                      [prev["id"]])
+        if human:
+            continue
+        db.ex("DELETE FROM evidence_links WHERE evidence_id=? AND "
+              "(human_decision IS NULL OR human_decision='')", [prev["id"]])
+        db.ex("DELETE FROM evidence WHERE id=?", [prev["id"]])
+    # Legacy rows for this file that predate observation keys: replace once.
+    if rows:
+        db.ex("DELETE FROM evidence WHERE file_id=? AND (observation_key IS NULL "
+              "OR observation_key='')", [f["id"]])
+    n = int((db.q1("SELECT COUNT(*) c FROM evidence WHERE file_id=?", [f["id"]])
+             or {}).get("c", 0))
+    return n, by_type
+
+
 # ------------------------------------------------------------------ analysis
 def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
     _raise_if_cancelled(job_id)
@@ -621,10 +717,15 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
             step(job_id, project_id, "schedule_detected",
                  "No schedule file uploaded yet", "failed")
 
-    # ---- 3. evidence extraction (spec 33, 34) ---------------------------
+    # ---- 3. document decomposition -> atomic observations (spec 33, 34) -
+    # A document is a container, not an activity.  Every uploaded document is
+    # decomposed into typed atomic observations; only eligible ones are later
+    # resolved against schedule activities.
     ev_files = db.q("SELECT * FROM files WHERE project_id=? AND kind='evidence' "
-                    "AND extract_state IN ('pending','failed')", [project_id])
+                    "AND extract_state IN ('pending','failed','extraction_required')",
+                    [project_id])
     total_ev = 0
+    total_obs_by_type: dict = {}
     for f in ev_files:
         _raise_if_cancelled(job_id)
         if f.get("security_state") == "quarantined":
@@ -636,19 +737,28 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
             continue
         try:
             rows = extract.extract_evidence(project_id, f, job_id)
-            db.ex("DELETE FROM evidence WHERE file_id=?", [f["id"]])
-            for r in rows:
-                db.insert("evidence", extract.enrich_evidence_record(r))
+        except documents.ExtractionRequired as exc:
+            _handle_extraction_required(project_id, job_id, f, exc)
+            continue
+        except Exception as exc:  # noqa: BLE001
+            db.update("files", f["id"], {"extract_state": "failed",
+                                         "extract_error": str(exc)[:500]})
+            continue
+        try:
+            n_obs, by_type = _reconcile_observations(project_id, job_id, f, rows)
             db.update("files", f["id"], {"extract_state": "done",
                                          "extract_error": None})
-            total_ev += len(rows)
+            total_ev += n_obs
+            for k, v in by_type.items():
+                total_obs_by_type[k] = total_obs_by_type.get(k, 0) + v
         except Exception as exc:  # noqa: BLE001
             db.update("files", f["id"], {"extract_state": "failed",
                                          "extract_error": str(exc)[:500]})
     if ev_files:
+        breakdown = ", ".join(str(v) + " " + k for k, v in sorted(total_obs_by_type.items()))
         step(job_id, project_id, "evidence_processed",
-             str(total_ev) + " evidence records extracted from " +
-             str(len(ev_files)) + " document(s)")
+             str(total_ev) + " atomic observation(s) extracted from " +
+             str(len(ev_files)) + " document(s)" + (" (" + breakdown + ")" if breakdown else ""))
     else:
         ready_ev = int((db.q1(
             "SELECT COUNT(*) c FROM evidence WHERE project_id=?", [project_id])
@@ -677,6 +787,11 @@ def _run_analysis(job_id: str, project_id: str, payload: dict) -> dict:
         "validated_activity_count": int((db.q1("SELECT COUNT(DISTINCT l.activity_uid) c FROM evidence e JOIN evidence_links l ON l.evidence_id=e.id WHERE e.project_id=? AND l.project_id=? AND l.is_candidate=0 AND l.relation='supporting' AND e.state IN ('linked','confirmed') AND l.activity_uid IS NOT NULL", [project_id, project_id]) or {}).get("c", 0)),
         "numeric_observed_activity_count": int((db.q1("SELECT COUNT(*) c FROM observed_progress WHERE project_id=? AND observed_percent IS NOT NULL", [project_id]) or {}).get("c", 0)),
         "unresolved_record_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND state IN ('needs_review','conflicting','new','processing')", [project_id]) or {}).get("c", 0)),
+        "evidence_source_count": int((db.q1("SELECT COUNT(*) c FROM files WHERE project_id=? AND kind='evidence'", [project_id]) or {}).get("c", 0)),
+        "activity_progress_observation_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observation_type='activity_progress'", [project_id]) or {}).get("c", 0)),
+        "issue_observation_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observation_type='issue'", [project_id]) or {}).get("c", 0)),
+        "context_observation_count": int((db.q1("SELECT COUNT(*) c FROM evidence WHERE project_id=? AND observation_type IN ('manpower','equipment','weather','report_metadata','signoff','target')", [project_id]) or {}).get("c", 0)),
+        "extraction_required_source_count": int((db.q1("SELECT COUNT(*) c FROM files WHERE project_id=? AND kind='evidence' AND extract_state='extraction_required'", [project_id]) or {}).get("c", 0)),
     }
     prompt = analysis_prompt(project, snap, files, ev_sample,
                              reviews.open_for(project_id), answers,
@@ -893,6 +1008,8 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
             if patch:
                 db.update("evidence", e.ref, patch)
             continue
+        obs_type = getattr(e, "observation_type", "activity_progress") or "activity_progress"
+        state = documents.STATE_BY_TYPE.get(obs_type, "context") if obs_type != "general" else "new"
         new_id = db.insert("evidence", extract.enrich_evidence_record({
             "project_id": project_id, "job_id": job_id,
             "source_file": e.source_file, "locator": e.locator, "date": e.date,
@@ -901,7 +1018,10 @@ def apply_result(project_id: str, job_id: str, result: schemas.AgentResult,
             "chainage": e.chainage, "quantity": e.quantity, "unit": e.unit,
             "description": e.description,
             "observed_progress": e.observed_progress,
-            "confidence": e.confidence, "state": "new",
+            "observation_type": obs_type, "section": getattr(e, "section", None),
+            "activity_description": e.description if obs_type in (
+                "activity_progress", "general") else None,
+            "confidence": e.confidence, "state": state,
             "provenance": e.provenance}))
         ref_to_id[e.ref] = new_id
 
@@ -1101,6 +1221,18 @@ def _run_resume(job_id: str, project_id: str, payload: dict) -> dict:
                  "success" if res.get("ok") else "failed")
             return {"proposal": pid, **res}
         return {"proposal": pid, "approved": False}
+
+    if review.get("kind") == "extraction_required" and review.get("entity_id"):
+        # No destructive action: the human will upload a text-extractable copy
+        # (its own analysis event) or accept the source as un-parsed. Never
+        # quarantine a clean file here.
+        answer = (review.get("answer") or "").lower()
+        note = ("waiting for a text-extractable copy" if "copy" in answer
+                else "left as an un-parsed source")
+        db.update("files", review["entity_id"],
+                  {"extract_error": ("EXTRACTION_REQUIRED: " + note)[:500]})
+        step(job_id, project_id, "extraction_required_resolved", note)
+        return {"file": review["entity_id"], "action": note}
 
     if review.get("entity_type") == "file" and review.get("entity_id"):
         return _apply_security_answer(job_id, project_id, review)

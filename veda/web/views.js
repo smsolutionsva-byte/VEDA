@@ -300,16 +300,19 @@ VIEWS.overview = async (pid) => {
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Field-evidence records', int(f.record_count || 0),
-      (f.record_count ? int(f.source_file_count || 0) + ' source file(s) · latest dated evidence ' + latestFieldDate :
-        'no field/report evidence extracted yet')) +
+    stat('Evidence sources', int(f.evidence_source_count || f.source_file_count || 0),
+      'uploaded documents; each is a container decomposed into atomic observations' +
+      (int(f.extraction_required_count || 0) ? ' · ' + int(f.extraction_required_count) + ' need a text-extractable copy' : ''),
+      int(f.extraction_required_count || 0) ? 'warm' : '') +
+    stat('Evidence observations', int(f.evidence_observation_count || f.record_count || 0),
+      (f.evidence_observation_count
+        ? int(f.activity_observation_count || 0) + ' activity-progress · ' + int(f.issue_observation_count || 0) + ' issue · ' +
+          int(f.context_observation_count || 0) + ' context (manpower/equipment/weather/metadata) · latest ' + latestFieldDate
+        : 'no observations extracted yet')) +
     stat('Activities with validated evidence', int(f.validated_activity_count || 0),
       int(f.validated_link_record_count || 0) + ' validated supporting record(s); does not change official schedule progress') +
-    stat('Evidence rows stating a progress %', int(f.reported_progress_record_count || 0),
+    stat('Observations stating a progress %', int(f.reported_progress_record_count || 0),
       int(f.numeric_observed_activity_count || 0) + ' schedule activity/activities have a validated numeric field observation; this is not official schedule progress') +
-    stat('Evidence without a settled activity link', int(f.unresolved_record_count || 0),
-      'records with no validated activity link or a link conflict; deliberately deferred records are excluded',
-      f.unresolved_record_count ? 'warm' : 'good') +
     '</div>' +
 
     '<div class="grid g4" style="margin-bottom:14px">' +

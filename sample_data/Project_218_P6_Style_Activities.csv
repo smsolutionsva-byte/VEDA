@@ -1,0 +1,13 @@
+Activity ID,Activity Name,WBS,Start,Finish,Baseline Start,Baseline Finish,Predecessors,% Complete,Status,Duration
+P218-STR-Z1-010,Formworks column - Grnd floor,Project 218.Structural.Zone 1,2017-08-14,2017-08-25,2017-08-14,2017-08-25,,80,in_progress,10
+P218-STR-Z1-020,Rebar fixing column - Grnd floor,Project 218.Structural.Zone 1,2017-08-21,2017-08-30,2017-08-21,2017-08-30,P218-STR-Z1-010,40,in_progress,8
+P218-STR-Z2-040,Scaffolding erection for first flr slab,Project 218.Structural.Zone 2,2017-09-11,2017-09-22,2017-09-11,2017-09-22,,70,in_progress,10
+P218-STR-Z2-090,Concrete pouring for grade slab Zone 2,Project 218.Structural.Zone 2,2017-09-25,2017-09-27,2017-09-25,2017-09-27,P218-STR-Z2-040,0,not_started,3
+P218-STR-Z3-050,Formworks drop beams -1st flr,Project 218.Structural.Zone 3,2017-09-18,2017-09-29,2017-09-18,2017-09-29,P218-STR-Z2-040,35,in_progress,10
+P218-STR-Z3-060,Formworks first floor slab,Project 218.Structural.Zone 3,2017-09-20,2017-10-03,2017-09-20,2017-10-03,P218-STR-Z3-050,45,in_progress,10
+P218-PT-Z3-070,Post tension duct installation-1st flr,Project 218.Post Tensioning.Zone 3,2017-09-25,2017-10-05,2017-09-25,2017-10-05,P218-STR-Z3-060,20,in_progress,9
+P218-MEP-Z3-080,Plumbing sleeve installation-1st flr,Project 218.MEP.Zone 3,2017-09-25,2017-10-04,2017-09-25,2017-10-04,P218-STR-Z3-060,15,in_progress,8
+P218-STR-Z3-130,Concrete pouring of first floor slab at Zone 3,Project 218.Structural.Zone 3,2017-10-04,2017-10-06,2017-10-04,2017-10-06,"P218-PT-Z3-070,P218-MEP-Z3-080",0,not_started,3
+P218-STR-Z3-140,Formworks second floor slab,Project 218.Structural.Zone 3,2017-10-09,2017-10-20,2017-10-09,2017-10-20,P218-STR-Z3-130,0,not_started,10
+P218-MEP-Z2-110,HVAC duct erection ground floor,Project 218.MEP.Zone 2,2017-09-14,2017-09-28,2017-09-14,2017-09-28,,55,in_progress,12
+P218-STR-Z1-030,Concrete pouring column - Grnd floor,Project 218.Structural.Zone 1,2017-08-28,2017-08-30,2017-08-28,2017-08-30,P218-STR-Z1-020,0,not_started,3

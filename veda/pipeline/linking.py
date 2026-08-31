@@ -43,6 +43,91 @@ def _d(v: Any):
         return None
 
 
+_RESOLVABLE_OBS = {"activity_progress", "general"}
+
+# Light, generic shorthand folding so a field line and a schedule activity name
+# that mean the same thing normalise to the same string.  No project-specific
+# vocabulary.
+_ABBREV = [
+    (re.compile(r"\bgrnd\b"), "ground"), (re.compile(r"\bgrd\b"), "ground"),
+    (re.compile(r"\bflr\b"), "floor"), (re.compile(r"\bflrs\b"), "floors"),
+    (re.compile(r"\bfdn\b"), "foundation"), (re.compile(r"\bcol\b"), "column"),
+    (re.compile(r"\breinf\b"), "reinforcement"), (re.compile(r"\bconc\b"), "concrete"),
+    (re.compile(r"\bblk\b"), "block"), (re.compile(r"\bbldg\b"), "building"),
+    (re.compile(r"\bno\.?\b"), "number"), (re.compile(r"\bnos\.?\b"), "number"),
+    (re.compile(r"\b1st\b"), "first"), (re.compile(r"\b2nd\b"), "second"),
+    (re.compile(r"\b3rd\b"), "third"), (re.compile(r"\b4th\b"), "fourth"),
+    (re.compile(r"\b&\b"), "and"),
+]
+
+
+def _norm_activity_text(text: str | None) -> str:
+    s = str(text or "").lower()
+    s = s.replace("&", " and ")
+    for rx, rep in _ABBREV:
+        s = rx.sub(rep, s)
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _activity_name_index(project_id: str) -> dict:
+    """normalised activity name -> [activity rows] for exact-identity resolution."""
+    idx: dict = {}
+    for a in db.q("SELECT * FROM activities WHERE project_id=? AND "
+                  "COALESCE(is_summary,0)=0", [project_id]):
+        key = _norm_activity_text(a.get("name"))
+        if key:
+            idx.setdefault(key, []).append(a)
+    return idx
+
+
+def _exact_identity_activity(ev: dict, name_index: dict) -> dict | None:
+    """Return the single schedule activity whose name is the same statement as
+    this observation's activity description, disambiguated by location when the
+    schedule reuses a name across zones."""
+    if (ev.get("observation_type") or "activity_progress") not in _RESOLVABLE_OBS:
+        return None
+    key = _norm_activity_text(ev.get("activity_description") or ev.get("description"))
+    if not key:
+        return None
+    matches = name_index.get(key) or []
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        ev_loc = validators.location_tokens(
+            str(ev.get("location") or "") + " " + str(ev.get("description") or ""))
+        if ev_loc:
+            narrowed = [a for a in matches if validators.location_tokens(
+                " ".join(str(a.get(k) or "") for k in
+                         ("name", "wbs", "wbs_name", "wbs_path"))) & ev_loc]
+            if len(narrowed) == 1:
+                return narrowed[0]
+    return None
+
+
+def _promote_exact_identity(cands: list, act: dict, ev: dict) -> list:
+    """Ensure the exact-identity activity is candidate #0 and flag it."""
+    uid = int(act["uid"])
+    signal = "exact activity-description identity" + (
+        " + location" if ev.get("location") else "")
+    for c in cands:
+        if int(c["activity"]["uid"]) == uid:
+            c.setdefault("features", {})["identity_exact"] = 1.0
+            c["identity_exact"] = True
+            if signal not in c.get("supporting", []):
+                c.setdefault("supporting", []).append(signal)
+            return [c] + [x for x in cands if x is not c]
+    synthetic = {
+        "activity": act,
+        "score": max((float(c.get("score") or 0) for c in cands), default=0.0) + 0.05,
+        "features": {"identity_exact": 1.0, "raw_score": 0.9,
+                     "pre_meta_raw_score": 0.9, "rank_margin": 0.1},
+        "supporting": [signal + " (activity was outside the retrieval pool)"],
+        "conflicting": [], "from_agent": False, "identity_exact": True,
+    }
+    return [synthetic] + cands
+
+
 def score_candidate(ev: dict, act: dict) -> tuple:
     """Return (score, supporting_signals, conflicting_signals, substantive).
 
@@ -253,9 +338,19 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
 
     checkpoint()
     if evidence_rows is None:
+        # Only observation types eligible for schedule-activity resolution are
+        # pulled here.  Manpower / equipment / weather / metadata / sign-off /
+        # look-ahead observations are context, not activity observations, and
+        # issue observations are routed to the issue engine instead.
         evidence_rows = db.q(
             "SELECT * FROM evidence WHERE project_id=? AND state IN "
-            "('new','processing','needs_review')", [project_id])
+            "('new','processing','needs_review') AND (observation_type IS NULL "
+            "OR observation_type IN ('activity_progress','general'))", [project_id])
+    else:
+        evidence_rows = [e for e in evidence_rows if (e.get("observation_type") or
+                         "activity_progress") in _RESOLVABLE_OBS]
+
+    name_index = _activity_name_index(project_id)
 
     if status_date is None:
         snap = db.q1("SELECT status_date FROM schedule_snapshots WHERE project_id=? "
@@ -314,6 +409,14 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
         checkpoint()
         cands = hs.get("candidates") or []
 
+        # Deterministic exact-identity resolution runs independently of the
+        # ranker: if exactly one schedule activity states the same work as this
+        # observation (disambiguated by location), that is the identity, even if
+        # semantic retrieval ranked a look-alike higher or missed it entirely.
+        exact_act = _exact_identity_activity(ev, name_index)
+        if exact_act is not None:
+            cands = _promote_exact_identity(cands, exact_act, ev)
+
         if not cands:
             db.update("evidence", ev["id"], {"state": "needs_review"})
             stats["unresolved"] += 1
@@ -321,12 +424,29 @@ def link_evidence(project_id: str, *, job_id: str | None = None,
             continue
 
         best = cands[0]
+        identity_exact = bool(best.get("identity_exact"))
         vres = validators.validate_link(ev, best["activity"], project_id=project_id,
                                         status_date=status_date)
         cal = calibration.calibrated_probability(best["score"], project_id,
                                                   features=best.get("features") or {})
+        # Identity confidence and schedule-write authority are separate axes.
+        # An exact activity-description + location match is a near-certain
+        # IDENTITY; it still does not authorise any schedule change.
+        if identity_exact and vres["result"] != validators.FAIL:
+            cal = {**cal, "probability": max(float(cal.get("probability") or 0.0), 0.97),
+                   "mode": "deterministic_identity", "is_calibrated": False,
+                   "identity_basis": "exact activity-description + location match",
+                   "note": ("exact source-vs-schedule identity; NOT an empirically "
+                            "calibrated probability and NOT schedule-write authority")}
         policy = risk_policy.assess(candidates=cands, calibration=cal,
                                     validator=vres, event=event_info)
+        if (identity_exact and vres["result"] != validators.FAIL
+                and not event_info.get("non_progress")
+                and policy.get("decision") in ("needs_review", "unresolved")):
+            policy = {**policy, "decision": "link_identity_only",
+                      "reason": "exact_description_and_location_identity",
+                      "schedule_write_allowed": False, "identity_exact": True,
+                      "probability": cal.get("probability"), "is_calibrated": False}
 
         historical = any(c["name"] == "historical_detection" and
                          c["result"] == validators.WARN for c in vres["checks"])

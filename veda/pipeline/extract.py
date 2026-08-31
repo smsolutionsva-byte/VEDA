@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Any
 
 from .. import config, db
+from . import documents
+from .documents import ExtractionRequired  # re-exported for callers
 
 TABULAR = {".csv", ".tsv"}
 EXCEL = {".xlsx", ".xlsm", ".xls"}
@@ -438,10 +440,23 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
             if status:
                 item["raw_json"] = db.jdumps({**db.jloads(item["raw_json"], {}),
                                               "_status": status})
+            # A tabular tracker row is an atomic activity-progress observation.
+            item["observation_type"] = documents.OBS_ACTIVITY_PROGRESS
+            item["document_type"] = documents.DOC_EXCEL_PROGRESS_REGISTER
+            item["section"] = ("sheet:" + sheet) if sheet else "rows"
+            item["row_index"] = n
+            item["raw_text"] = " | ".join(str(c) for c in row)[:2000]
+            item["extraction_method"] = "tabular"
+            item["extraction_confidence"] = 0.75
+            item["observation_key"] = documents._obs_key(
+                f.get("sha256") or f.get("id") or "", 1,
+                item["section"], n, item["description"])
             out.append(item)
         return out
 
-    # Free text: paragraphs and chat lines become individually citable items.
+    # Free text: chat lines stay message-atomic; every other document goes
+    # through full decomposition (classification -> sections -> atomic
+    # observations).  A document is a container, never one activity observation.
     text = read_text(path, ext)
     if not text.strip():
         return out
@@ -462,26 +477,20 @@ def extract_evidence(project_id: str, f: dict, job_id: str | None = None) -> lis
                 "security_state": f.get("security_state", "clean"),
                 "raw_json": db.jdumps({"timestamp": stamp, "from": who, "text": msg}),
                 "provenance": source_provenance,
+                "observation_type": documents.OBS_GENERAL,
+                "document_type": "CHAT_EXPORT", "section": "messages",
+                "row_index": i, "raw_text": msg.strip()[:2000],
+                "extraction_method": "chat",
+                "observation_key": documents._obs_key(
+                    f.get("sha256") or f.get("id") or "", 1, "messages", i, msg),
             })
         return out
 
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if len(b.strip()) > 20]
-    if not blocks and text.strip():
-        blocks = [text.strip()]
-    for i, b in enumerate(blocks, start=1):
-        head = b.split("\n", 1)[0][:120]
-        out.append({
-            "project_id": project_id, "file_id": f["id"], "job_id": job_id,
-            "source_file": f.get("filename"),
-            "locator": _locator_for(b, i),
-            "date": norm_date(_first_date(b)),
-            "discipline": guess_discipline(b),
-            "description": b[:900],
-            "confidence": 0.4, "state": "new",
-            "security_state": f.get("security_state", "clean"),
-            "raw_json": db.jdumps({"heading": head}),
-            "provenance": source_provenance,
-        })
+    decomposed = documents.decompose(project_id, f, job_id)
+    for obs in decomposed["observations"]:
+        obs.setdefault("raw_json", obs.get("raw_values_json") or "{}")
+        obs.setdefault("confidence", obs.get("extraction_confidence") or 0.4)
+        out.append(obs)
     return out
 
 
@@ -564,8 +573,20 @@ def _extract_json(project_id: str, f: dict, job_id, text: str, provenance: str =
             "confidence": 0.5, "state": "new",
             "security_state": f.get("security_state", "clean"),
             "raw_json": db.jdumps(r), "provenance": provenance,
+            "observation_type": documents.OBS_ACTIVITY_PROGRESS,
+            "document_type": "JSON_REGISTER", "section": "items", "row_index": i,
+            "raw_text": db.jdumps(r)[:2000], "extraction_method": "json",
+            "observation_key": documents._obs_key(
+                f.get("sha256") or f.get("id") or "", 1, "items", i,
+                pick("description") or db.jdumps(r)),
         })
     return out
+
+
+_NON_SEMANTIC_OBS = {
+    documents.OBS_MANPOWER, documents.OBS_EQUIPMENT, documents.OBS_WEATHER,
+    documents.OBS_REPORT_METADATA, documents.OBS_SIGNOFF, documents.OBS_TARGET,
+}
 
 
 def enrich_evidence_record(row: dict) -> dict:
@@ -573,7 +594,13 @@ def enrich_evidence_record(row: dict) -> dict:
 
     Deterministic extraction remains source provenance; these normalized fields
     are derived aids and can always be recomputed from the raw observation.
+
+    Non-semantic observations (manpower, equipment, weather, metadata, sign-off,
+    look-ahead targets) are NOT run through action/discipline classification:
+    a "Welder" manpower row must never contribute a global "Welding" reading.
     """
+    if row.get("observation_type") in _NON_SEMANTIC_OBS:
+        return dict(row)
     from ..retrieval.entities import extract_asset_tags, extract_location_tags
     from ..resolution.events import classify_event
     out=dict(row)

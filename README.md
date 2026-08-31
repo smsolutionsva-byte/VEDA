@@ -70,6 +70,14 @@ an auditable record with a SHA-256 evidence hash. See
 
 ---
 
+## v0.3.7 — atomic evidence decomposition and exact-identity fixes
+
+v0.3.7 fixes the root cause behind page-level evidence contamination: Daily Construction Reports were being collapsed into a single evidence row, then matched as if an entire page were one activity. The release introduces atomic document decomposition, typed observation routing, exact-identity matching, safer date interpretation, and stronger evidence deduplication while preserving review continuity.
+
+The fix is verified on the Project 218 DCR fixture: 22 acceptance checks pass, six schedule mappings resolve exactly with high identity confidence, manpower/context terms do not contaminate activity matching, and placeholder/image-only sources are correctly marked `ExtractionRequired` rather than erroneously matched. See `V0.3.7_RELEASE_NOTES.md`.
+
+---
+
 ## v0.3.3 — Hard-edge UI, execution rail, and resolver performance
 
 v0.3.3 resets the control-room experience to a heavyweight hard-edge visual system: every rounded corner was removed from the web styling, status marks became square, cards share a baseline in instrument rows, and panel headers wrap instead of colliding. The execution visualizer was rebuilt as a real top-to-bottom pipeline with every rail stage represented as a node, and chart colours were corrected for both dark and light themes.

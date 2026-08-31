@@ -137,8 +137,12 @@ def analysis_prompt(project: dict, snapshot: dict | None, files: list,
 
     if field_context:
         lines.append("FIELD EVIDENCE STATE (persisted; separate from schedule progress)")
-        for k, label in (("record_count", "field-evidence records"),
-                         ("source_file_count", "field/report source files"),
+        for k, label in (("evidence_source_count", "evidence source documents"),
+                         ("record_count", "atomic observations extracted (all types)"),
+                         ("activity_progress_observation_count", "activity-progress observations (these resolve to activities)"),
+                         ("issue_observation_count", "issue/blocker observations (routed to the issue engine)"),
+                         ("context_observation_count", "context observations (manpower/equipment/weather/metadata/target - never matched)"),
+                         ("extraction_required_source_count", "sources needing a text-extractable copy (not matched)"),
                          ("latest_date", "latest dated field evidence"),
                          ("reported_progress_record_count", "records with a reported progress percentage"),
                          ("validated_link_record_count", "validated supporting evidence records"),
@@ -209,12 +213,23 @@ def analysis_prompt(project: dict, snapshot: dict | None, files: list,
    the agent.
 4. Interpret the field evidence: what actually happened on site, which
    activities it relates to, and where the documents disagree with the
-   schedule.
+   schedule. A document (Daily Construction Report, progress register, site
+   diary) is a CONTAINER of many atomic observations, never one activity
+   observation. VEDA has already decomposed each document into typed
+   observations (observation_type: activity_progress / manpower / equipment /
+   weather / issue / target / report_metadata / signoff). Only
+   activity_progress observations resolve to a schedule activity. Never link a
+   manpower or equipment row to an activity, and never let a term that appears
+   in one section (e.g. "Welder" under MANPOWER) colour an unrelated
+   activity-progress observation.
 5. Produce:
    - evidence_links for evidence whose activity you can identify (cite the
-     evidence id in evidence_ref and the activity uid).
-   - issues for problems that already exist, with schedule impact where you can
-     justify it.
+     evidence id in evidence_ref and the activity uid). Resolve each
+     activity_progress observation on its own merits - description, location,
+     discipline, WBS, sequence - not by the rest of the document.
+   - issues for problems that already exist (each issue observation is already
+     separated from progress); resolve the affected activity from the issue's
+     own "work affected" text, with schedule impact where you can justify it.
    - risks for credible future events, distinct from the issues.
    - review_questions ONLY where a human decision genuinely changes the
      outcome, clustered by shared root cause.

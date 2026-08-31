@@ -124,11 +124,52 @@ def analyse(project_id: str) -> AgentResult:
                                      default=None),
             confidence=1.0, provenance="DETERMINISTIC_CALCULATION"))
 
-    # ---- issues drawn from evidence wording, one per source record ---------
+    # ---- issue observations: extracted as first-class issue entities ------
+    # An observation the decomposer already typed as an issue/blocker is not
+    # activity-progress; it becomes an Issue with its affected activity resolved
+    # from the "work affected" text, independent of the rest of the document.
     seen: set = set()
+    for e in db.q("SELECT * FROM evidence WHERE project_id=? AND "
+                  "observation_type='issue' ORDER BY date DESC LIMIT 2000",
+                  [project_id]):
+        rv = db.jloads(e.get("raw_values_json"), {}) or {}
+        work_affected = rv.get("work_affected")
+        ref = rv.get("reference") or _ref_of(e)
+        affected = _resolve_affected_activity(
+            project_id, work_affected, e.get("location"))
+        title = "Critical concern" + ((" " + str(ref)) if ref else "")
+        if e.get("location"):
+            title += " affecting " + str(e.get("location"))
+        di = db.jloads(e.get("date_interpretations_json"), {}) or {}
+        detail = None
+        if work_affected:
+            detail = "Work affected: " + str(work_affected)
+        if di.get("ambiguous"):
+            detail = (detail + " · " if detail else "") + \
+                "raised date " + str(di.get("raw")) + " read as " + \
+                str(di.get("normalized")) + " (" + str(di.get("reason")) + ")"
+        issues.append(Issue(
+            ref=str(ref) if ref else None,
+            title=title[:180],
+            description=str(e.get("description") or "")[:600],
+            source=str(e.get("source_file") or "uploaded document"),
+            date=e.get("date"),
+            severity="high", priority="high",
+            status="open",
+            schedule_impact_note=("Potential BLOCKED / INTERVENTION REQUIRED for "
+                                  + str(work_affected) if work_affected else None),
+            activity_uids=affected,
+            evidence_refs=[e["id"]],
+            confidence=0.75,
+            provenance="DETERMINISTIC_CALCULATION"))
+        seen.add(("issue_obs", e["id"]))
+
+    # ---- issues drawn from evidence wording, one per source record ---------
     rows = db.q("SELECT * FROM evidence WHERE project_id=? AND state NOT IN "
-                "('quarantined','rejected','duplicate') ORDER BY date DESC "
-                "LIMIT 4000", [project_id])
+                "('quarantined','rejected','duplicate','context','issue') "
+                "AND (observation_type IS NULL OR observation_type NOT IN "
+                "('manpower','equipment','weather','report_metadata','signoff',"
+                "'target','issue')) ORDER BY date DESC LIMIT 4000", [project_id])
     for e in rows:
         text = str(e.get("description") or "").lower()
         raw = db.jloads(e.get("raw_json"), {}) or {}
@@ -211,6 +252,38 @@ def analyse(project_id: str) -> AgentResult:
 def _ref_of(e: dict) -> str | None:
     m = re.match(r"^([A-Z]{2,5}-[\w\-/]+)\s*:", str(e.get("description") or ""))
     return m.group(1) if m else None
+
+
+def _resolve_affected_activity(project_id: str, work_affected: str | None,
+                               location: str | None) -> list:
+    """Resolve one issue's affected activity, independent of the whole document.
+
+    Exact name identity first (disambiguated by location), then hybrid retrieval.
+    """
+    if not work_affected or not str(work_affected).strip():
+        return []
+    try:
+        from .linking import _activity_name_index, _exact_identity_activity
+        idx = _activity_name_index(project_id)
+        probe = {"observation_type": "activity_progress",
+                 "activity_description": work_affected,
+                 "description": work_affected, "location": location}
+        act = _exact_identity_activity(probe, idx)
+        if act is not None:
+            return [int(act["uid"])]
+    except Exception:
+        pass
+    try:
+        from ..retrieval import engine as retrieval_engine
+        hs = retrieval_engine.hybrid_search(
+            project_id, {"description": work_affected, "location": location,
+                         "source_file": "issue register"}, top_k=3)
+        cands = hs.get("candidates") or []
+        if cands and float(cands[0].get("score") or 0.0) >= 0.15:
+            return [int(cands[0]["activity"]["uid"])]
+    except Exception:
+        pass
+    return []
 
 
 def _summary(snap, issues, risks, findings, ev) -> str:
