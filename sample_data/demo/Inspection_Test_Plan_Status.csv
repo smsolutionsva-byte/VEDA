@@ -1,0 +1,35 @@
+ITP_Ref,Activity,Discipline,Inspection_Type,Hold_Witness_Review,Contractor_Signoff,Client_Signoff,Status,Date_Completed,Inspector,Comments
+ITP-PL-001,Line pipe receiving inspection & MTC verification,Material,Visual & Dimensional,Hold,Yes,Yes,Completed,2025-05-15,K. Bhatt,Main Yard stockpile batches accepted against API 5L PSL2 specification
+ITP-PL-002,ROW clearing grading and center line survey,Civil,Survey & Dimensional,Witness,Yes,Yes,Completed,2025-05-25,S. Menon,Spread A ROW 12km graded and accepted; Spread B at 85%
+ITP-PL-003,Pipe stringing along pipeline corridor,Pipeline,Visual & Handling,Review,Yes,Yes,Completed,2025-06-18,S. Menon,Spread A 100% strung; Spread B stringing at 40%
+ITP-PL-004,Cold field pipe bending and ovality check,Bending,Dimensional & NDT,Witness,Yes,Yes,In Progress,,K. Bhatt,Spread A bending 70% complete; FB-4A-088 rejected per NCR-2025-024
+ITP-PL-005,Trench excavation and minimum depth of cover check,Trenching,Survey & Dimensional,Witness,Yes,Yes,In Progress,,S. Menon,Spread A trenching at 72% (8640m); Spread B rock section re-excavated
+ITP-PL-006,Trench bottom soft padding and bedding inspection,Trenching,Visual & Depth,Witness,Yes,Yes,In Progress,,S. Menon,150mm stone-free sand bedding placed ahead of lowering front
+ITP-PL-007,Pipe bevel inspection cleaning and internal line-up,Welding,Visual & Alignment,Review,Yes,Yes,In Progress,,K. Bhatt,Internal pneumatic clamps utilized; Hi-Lo mismatch <=1.6mm per API 1104
+ITP-PL-008,Pre-heating and interpass temperature monitoring,Welding,Temperature Check,Witness,Yes,Yes,In Progress,,K. Bhatt,Preheat >=100C verified with digital pyrometer per WPS-API1104-01
+ITP-PL-009,Mainline welding root and hot pass inspection,Welding,Visual & Process,Witness,Yes,Yes,In Progress,,K. Bhatt,Pacing activity on Spread A; delayed by welder shortage
+ITP-PL-010,Mainline welding filler and cap pass visual check,Welding,Visual & Dimensional,Witness,Yes,Yes,In Progress,,M. Taylor,Crown height 1.5-2.5mm within API 1104 tolerances
+ITP-PL-011,Automated Ultrasonic Testing (AUT) of mainline butt welds,NDT,AUT Scanning,Hold,Yes,Yes,In Progress,,P. Verma,Zonal discrimination AUT running on Spread A mainline
+ITP-PL-012,Radiographic Testing (RT) of tie-in & repair welds,NDT,Gamma Ray / X-Ray,Hold,Yes,No,In Progress,,P. Verma,Backlog exceeding 10 days (NCR-2025-014); 2nd RT crew mobilising mid-July
+ITP-PL-013,Welding repair procedure execution and re-NDT,Welding,Visual & RT,Hold,No,No,On Hold,,K. Bhatt,Repair WPS approved; 6 joints at CH 5+400 on hold pending re-RT
+ITP-PL-014,Field joint surface blasting to Sa 2.5 cleanliness,Coating,Surface Profile,Witness,Yes,Yes,In Progress,,M. Taylor,Anchor profile 75-100 microns verified with Testex replica tape
+ITP-PL-015,Induction pre-heating and heat shrink sleeve application,Coating,Process & Temperature,Witness,Yes,Yes,In Progress,,K. Bhatt,Induction coils used; preheat 210C verified; rain delays noted
+ITP-PL-016,Field joint coating thickness and peel adhesion testing,Coating,Destructive / DFT,Witness,Yes,No,In Progress,,M. Taylor,Spread A accepted; Spread B CH 13+200 under review (NCR-2025-017)
+ITP-PL-017,100% High-voltage spark holiday detection before lowering,Coating,Spark Testing 15kV,Hold,Yes,Yes,In Progress,,K. Bhatt,Holiday testing pacing lowering crew; CH 3+200 repairs completed
+ITP-PL-018,Pipe lowering-in trench alignment and clearance,Lowering-in,Visual & Clearance,Hold,Yes,Yes,In Progress,,S. Menon,Sidebooms operating in tandem; minimum 300mm trench side clearance
+ITP-PL-019,Rockshield mesh installation in rocky trench zones,Lowering-in,Visual,Witness,Yes,Yes,In Progress,,S. Menon,Rockshield applied between CH 5+800 and 7+200 in basalt zone
+ITP-PL-020,Selected trench padding and layer compaction testing,Backfill,Compaction & Density,Witness,Yes,No,In Progress,,K. Bhatt,Road crossing CH 2+100 failing compaction under re-work (NCR-2025-018)
+ITP-PL-021,HDD pilot hole drilling and directional gyro survey,HDD,Survey & Trajectory,Witness,Yes,Yes,Completed,2025-06-10,A. Fernandes,Pilot hole intersected target exit pit at CH 8+400 within 0.2m
+ITP-PL-022,HDD 28in and 36in reaming passes at river crossing,HDD,Drilling Fluid & Torque,Hold,No,No,On Hold,,A. Fernandes,Suspended at 36in pass due to fluid loss and collapse (NCR-2025-015)
+ITP-PL-023,HDD pre-installation hydrostatic test of pipe string,HDD,Hydrostatic Test 4h,Hold,No,No,Pending,,M. Taylor,Pipe string fabricated and welded; hydrotest pending hole stabilization
+ITP-PL-024,HDD pull-back operation and pipe coating visual check,HDD,Pull Force & Coating,Hold,No,No,Pending,,A. Fernandes,Predecessor reaming pass on hold; revised geotech drilling plan pending
+ITP-PL-025,PS-1 pump station foundation excavation and subgrade test,Civil,Plate Load Test,Witness,Yes,Yes,Completed,2025-05-20,D. Evans,Subgrade allowable bearing capacity >=250 kPa accepted
+ITP-PL-026,PS-1 pump foundation rebar and anchor bolt verification,Civil,Dimensional & Bar Check,Hold,Yes,Yes,Completed,2025-06-02,D. Evans,Rebar grade ASTM A615 Gr 60 and bolt template verified against drawing
+ITP-PL-027,PS-1 concrete pour and 28-day compressive strength test,Civil,Compressive Test,Hold,No,No,On Hold,,K. Bhatt,Foundation F-03 cube failed 28-day strength (NCR-2025-013); cores taken
+ITP-PL-028,PS-1 pump skids and motor mechanical alignment,Mechanical,Laser Alignment & Level,Hold,No,No,Pending,,M. Taylor,Mechanical erection on hold pending foundation F-03 acceptance
+ITP-PL-029,PS-1 station piping spool installation and bolt torqueing,Mechanical,Torque & Gasket Check,Witness,No,No,Pending,,K. Bhatt,MOV-101 gasket replaced per NCR-2025-020; spool erection pending
+ITP-PL-030,Mainline golden tie-in welds inspection and 100% NDT,Welding,Visual MT & RT,Hold,No,No,Pending,,P. Verma,Pending completion of mainline spreads and HDD river crossing pull
+ITP-PL-031,Cathodic protection groundbed and test station installation,CP,Electrical Continuity,Witness,Yes,No,In Progress,,K. Bhatt,TP-04 test failure under investigation per NCR-2025-021
+ITP-PL-032,Pipeline cleaning and geometric caliper pig run,Pre-commissioning,Pigging & Sizing,Hold,No,No,Pending,,R. Iyer,Multi-channel caliper pig to verify maximum 2% deformation limit
+ITP-PL-033,Pipeline 8-hour hydrostatic strength and tightness test,Testing,Hydrostatic Pressure,Hold,No,No,Pending,,R. Iyer,Test pressure 148.5 bar per ASME B31.8; scheduled post golden tie-ins
+ITP-PL-034,ROW final reinstatement marker posts & cathodic test leads,Restoration,Visual & Survey,Witness,No,No,Pending,,S. Menon,Final contouring and topsoil spread scheduled post hydrotest dewatering

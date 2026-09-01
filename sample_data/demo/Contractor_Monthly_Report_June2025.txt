@@ -1,0 +1,88 @@
+TRANS-RIDGE 24IN GAS PIPELINE - SECTION 4 (24 KM)
+CONTRACTOR MONTHLY PROGRESS REPORT - JUNE 2025
+Doc Ref: RC-TREC-MPR-2025-06 | Date: 30 June 2025
+Contractor: Ridgeline Constructors JV / Apex Pipeline Services
+Client: TransRidge Energy Corporation
+Prepared by: J. Vance (Project Director) | Approved by: R. Iyer (Site Construction Manager)
+
+1. EXECUTIVE SUMMARY
+During June 2025, overall project cumulative physical progress reached 34.2% against
+a baseline planned progress of 41.0% (Schedule Variance: -6.8%). Production across
+Spread A was constrained by welder shortages, radiography inspection cycle lags,
+and localized root pass porosity repairs. Special crossings were severely impacted
+by an unexpected borehole collapse and drilling mud loss at the CH 8+400 river HDD.
+Spread B pre-welding activities (ROW grading and stringing) advanced satisfactorily.
+Station civil works at PS-1 were halted pending non-conforming concrete core results.
+
+2. PHYSICAL PROGRESS BY DISCIPLINE
+Discipline / Work Breakdown        | Weight | Planned | Actual  | Variance
+-----------------------------------|--------|---------|---------|----------
+Engineering & Site Submittals      |  5.0%  |  98.0%  |  95.0%  |  -3.0%
+Procurement & Material Delivery    | 15.0%  | 100.0%  | 100.0%  |   0.0%
+Spread A - ROW & Grading (12 km)   |  4.0%  | 100.0%  | 100.0%  |   0.0%
+Spread A - Stringing (12 km)       |  5.0%  | 100.0%  | 100.0%  |   0.0%
+Spread A - Bending (12 km)         |  4.0%  |  85.0%  |  70.0%  | -15.0%
+Spread A - Trenching (12 km)       |  8.0%  |  55.0%  |  72.0%  | +17.0%
+Spread A - Mainline Welding (12km) | 18.0%  |  50.0%  |  35.2%  | -14.8%
+Spread A - NDT (Radiography/AUT)   |  6.0%  |  45.0%  |  22.0%  | -23.0%
+Spread A - Field Joint Coating     |  6.0%  |  40.0%  |  25.0%  | -15.0%
+Spread B - ROW & Grading (12 km)   |  4.0%  |  90.0%  |  85.0%  |  -5.0%
+Spread B - Stringing (12 km)       |  5.0%  |  50.0%  |  40.0%  | -10.0%
+Spread B - Bending (12 km)         |  4.0%  |  10.0%  |   2.0%  |  -8.0%
+Spread B - Trenching & Welding     | 10.0%  |   5.0%  |   0.0%  |  -5.0%
+HDD River Crossing (CH 8+400)      |  7.0%  |  65.0%  |  28.0%  | -37.0%
+PS-1 Compressor Station (Civil)    |  4.0%  |  80.0%  |  60.0%  | -20.0%
+Testing & Pre-Commissioning        |  0.0%  |   0.0%  |   0.0%  |   0.0%
+-----------------------------------|--------|---------|---------|----------
+TOTAL CUMULATIVE PROGRESS          | 100.0% |  41.0%  |  34.2%  |  -6.8%
+
+3. MANPOWER HISTOGRAM SUMMARY
+Total monthly manhours worked: 46,280 hours. Cumulative project manhours: 142,600 hours.
+Direct labor: 168 (Ridgeline: 114, Apex: 54). Indirect / Supervision / QA: 46.
+Peak daily manpower: 224 personnel. Average daily workforce: 214 personnel.
+
+4. EQUIPMENT UTILIZATION
+Plant Type              | Qty | Utilized | Status / Comments
+------------------------|-----|----------|----------------------------------------
+Sidebooms (CAT 572R/583)|  6  |   85%    | 5 active on Spread A stringing/welding
+Excavators (30t - 45t)  | 18  |   88%    | Spread A trenching running ahead
+Pipe Bending Machines   |  2  |   60%    | 1 on Spread A, 1 mobilized to Spread B
+American Augers HDD Rig |  1  |   45%    | Standby from 14 June due to collapse
+Mobile Welding Trucks   |  4  |   75%    | 2 crews operational; 2 undergoing refit
+
+5. MATERIAL STATUS
+- 24" OD x 14.3mm WT API 5L X70 3LPE Pipe: 100% (2,000 joints / 24,000 m) delivered.
+- Field joint heat-shrink sleeves (Canusa-CPS): 1,200 kits on site in climate storage.
+- Valves & fittings: Sectionalizing ball valves in fabrication; FAT scheduled July.
+
+6. HEALTH, SAFETY & ENVIRONMENT (HSE)
+- Lost Time Injuries (LTI): 0 | Total Recordable Incidents (TRI): 0 | LTIFR: 0.00
+- Near Misses: 2 (NM-06-02: tagline detachment during unloading; NM-06-03: minor
+  hydraulic coupling leak at excavator arm, immediately cleaned with spill kit).
+- Safety Inductions: 38 personnel. Toolbox talks: 26 daily sessions conducted.
+
+7. QUALITY ASSURANCE & QUALITY CONTROL (QA/QC)
+- Total welded joints: 432 joints. Radiographed: 270 joints. Accepted: 258 joints.
+- Repair rate: 2.8% (Target < 2.0%). API 1104 porosity repairs cleared at CH 5+400.
+- NCR Log Status: 5 Open (NCR-011 Welding porosity, NCR-012 FJC holiday, NCR-013
+  PS-1 cube strength, NCR-014 RT backlog, NCR-015 HDD collapse); 1 Closed (NCR-016).
+
+8. SCHEDULE ANALYSIS & CRITICAL PATH DISCUSSION
+The primary critical path runs through HDD CH 8+400 river crossing reaming, pipe
+pullback, and tie-in welds connecting Spread A and B. Float is currently -18 days.
+Secondary path: Spread A welding/NDT throughput and PS-1 foundation completion.
+
+9. WEATHER IMPACT
+Total 6 days of intermittent heavy rain in June. 32 effective lost work hours on
+trenching, field joint coating, and ROW grading.
+
+10. LOOKAHEAD FOR JULY 2025
+- Mobilize second NDT crew to clear the RT backlog and achieve 1:1 daily turnaround.
+- Implement HDD recovery plan: specialist fluid conditioning, grouting, and re-entry.
+- Commence Spread B mainline welding with Crew CW-04.
+- Complete PS-1 structural redesign and pour foundation modification collar.
+
+11. COST & VARIATION CLAIMS SUMMARY
+- Variation Request VR-2025-04 submitted for unforeseen subterranean riverbed
+  conditions encountered during HDD reaming (Contract Clause 12.2).
+- Weather downtime and standby plant claim submitted for client commercial review.

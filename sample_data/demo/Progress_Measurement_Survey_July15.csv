@@ -1,0 +1,38 @@
+Activity_ID,Activity_Name,WBS,Discipline,Spread,Planned_Pct,Earned_Pct,Physical_Measurement,Unit,Survey_Date,Surveyor,Method,Comments
+ACT-1010,ROW Clearing & Grading - Spread A,3.1,Civil,Spread A,100.0,100.0,12000,m,2025-07-15,P. Verma,RTK GPS Survey,ROW cleared and graded to 18m width; handed over to stringing crew
+ACT-1020,ROW Clearing & Grading - Spread B,3.2,Civil,Spread B,92.0,90.0,10800,m,2025-07-15,P. Verma,RTK GPS Survey,Grading front at CH 22+800; rock outcrop at CH 15+400 bypassed for hydraulic breaking
+ACT-1030,Access Road Construction - Spread A,3.3,Civil,Spread A,100.0,100.0,14.2,km,2025-07-15,M. Thorne,Total Station,All 6 approach roads complete with culverts and gravel surfacing
+ACT-1040,Access Road Construction - Spread B,3.3,Civil,Spread B,85.0,82.0,11.5,km,2025-07-15,M. Thorne,Total Station,4 of 5 access tracks operational; final track to rail crossing underway
+ACT-2010,Stringing - Spread A,4.1,Stringing,Spread A,100.0,100.0,1000,joints,2025-07-15,P. Verma,Joint Count & Chainage,Full 12000m stringing complete with wooden skids and end caps
+ACT-2020,Bending - Spread A,4.2,Bending,Spread A,85.0,82.0,205,joints,2025-07-15,K. Bhatt,Mandrel Gauge & Angle Check,Cold field bends completed from CH 0+000 to CH 9+840; zero wrinkle defects
+ACT-2030,Welding - Spread A,4.3,Welding,Spread A,52.0,42.5,425,joints,2025-07-15,K. Bhatt,Weld Map Audit & Visual,Lagging plan due to previous NCR-2025-011 and welder demob; CW-01 reinforced with 2 new welders
+ACT-2040,NDT / Radiography - Spread A,4.4,NDT,Spread A,48.0,37.0,370,joints,2025-07-15,K. Bhatt,Radiographic Film Review,Second RT crew deployed; backlog reduced from 11 days to 3 days behind welding
+ACT-2050,Field Joint Coating - Spread A,4.5,Coating,Spread A,42.0,51.2,512,joints,2025-07-15,K. Bhatt,High Voltage Holiday Detection,Ahead of welding pace; 100% holiday detection passed at 15kV on Canusa sleeves
+ACT-2060,Trenching - Spread A,4.6,Trenching,Spread A,55.0,74.5,8940,m,2025-07-15,P. Verma,Total Station & Depth Gauge,SCHEDULE DISCREPANCY: Schedule update carries 55.0% while actual verified open trench is 8940m (74.5%); depth >1.8m compliant
+ACT-2070,Lowering-in - Spread A,4.7,Lowering-In,Spread A,30.0,22.0,2640,m,2025-07-15,M. Thorne,Chainage Survey & Visual,Section CH 0+000 to 2+640 lowered on sand padding; awaiting coating clearance for next section
+ACT-2080,Backfilling & Reinstatement - Spread A,4.8,Civil,Spread A,25.0,18.0,2160,m,2025-07-15,M. Thorne,Compaction Test & Survey,Selected soil padding 200mm above crown placed; warning mesh installed at CH 0+000 to 2+160
+ACT-2090,Cathodic Protection Test Posts - Spread A,4.9,Civil,Spread A,30.0,25.0,6,ea,2025-07-15,K. Bhatt,Electrical Test & Visual,6 of 24 CP test post stations installed and bonded with thermite cadweld
+ACT-3010,Stringing - Spread B,5.1,Stringing,Spread B,65.0,58.0,580,joints,2025-07-15,P. Verma,Joint Count & Chainage,Stringing front at CH 18+960; pipe supply from stockyard flowing smoothly
+ACT-3020,Bending - Spread B,5.2,Bending,Spread B,35.0,28.0,70,joints,2025-07-15,K. Bhatt,Mandrel Gauge & Angle Check,Cold bending machine mobilized CH 14+200; 70 bends completed for hilly profile
+ACT-3030,Welding - Spread B,5.3,Welding,Spread B,20.0,12.0,120,joints,2025-07-15,K. Bhatt,Weld Map Audit & Visual,Mainline welding started by CW-05; 120 joints welded between CH 12+000 and 13+440
+ACT-3040,NDT / Radiography - Spread B,5.4,NDT,Spread B,18.0,10.5,105,joints,2025-07-15,K. Bhatt,Radiographic Film Review,Night RT crew coverage shared with Spread A; 105 joints inspected with 100% acceptance
+ACT-3050,Field Joint Coating - Spread B,5.5,Coating,Spread B,15.0,8.0,80,joints,2025-07-15,K. Bhatt,High Voltage Holiday Detection,Coating crew commenced at CH 12+000; holiday testing 100% compliant
+ACT-3060,Trenching - Spread B,5.6,Trenching,Spread B,30.0,26.5,3180,m,2025-07-15,P. Verma,Total Station & Depth Gauge,Trenching advanced to CH 15+180; slowed by dolomite rock ridge requiring hydraulic breaker
+ACT-3070,Lowering-in - Spread B,5.7,Lowering-In,Spread B,10.0,0.0,0,m,2025-07-15,M. Thorne,Chainage Survey,Lowering-in scheduled to commence after trench rock bedding is verified
+ACT-3080,Backfilling & Reinstatement - Spread B,5.8,Civil,Spread B,5.0,0.0,0,m,2025-07-15,M. Thorne,Visual & Survey,Dependent on lowering-in; padding material stockpiled at CH 14+000
+ACT-3090,Cathodic Protection Test Posts - Spread B,5.9,Civil,Spread B,10.0,0.0,0,ea,2025-07-15,K. Bhatt,Visual Inspection,Scheduled to start at CH 12+000 after lowering-in
+ACT-4010,HDD River Crossing CH 8+400 - Pilot Hole,6.1.1,HDD,Spread A,100.0,61.3,380,m,2025-07-15,A. Fernandes,Gyro Steering Tool & MWD,Pilot hole re-drilled past collapse zone to 380m of 620m total length; PAC-R mud maintaining full circulation
+ACT-4020,HDD River Crossing CH 8+400 - Reaming & Pullback,6.1.2,HDD,Spread A,60.0,0.0,0,m,2025-07-15,A. Fernandes,Drill Log Audit,Suspended under NCR-2025-015; reaming pass 1 to begin immediately upon pilot punch-out
+ACT-4030,HDD River Crossing - Pipe String Pre-Fabrication,6.1.3,Welding,Spread A,100.0,100.0,625,m,2025-07-15,K. Bhatt,Hydrotest Log & RT Film,625m pipe pull-section fully welded 100% RT inspected coated and pre-tested to 125 bar
+ACT-4040,Road Crossing CH 5+200 - Cased Boring,6.2,Civil,Spread A,100.0,100.0,65,m,2025-07-15,P. Verma,Total Station & Laser Level,30in casing bored and jacked 24in carrier pipe installed with casing insulators and end seals
+ACT-4050,Rail Crossing CH 17+600 - Auger Boring,6.3,Civil,Spread B,40.0,25.0,45,m,2025-07-15,P. Verma,Laser Target & Alignment,30in steel casing auger boring 45m of 72m total; railway monitoring prisms stable
+ACT-5010,PS-1 Site Clearing & Earthworks,7.1.1,Civil,Station,100.0,100.0,18500,m2,2025-07-15,M. Thorne,Total Station Topo Survey,Site grading perimeter ditching and sub-base compaction completed
+ACT-5020,PS-1 Civil Foundations & Concrete Pours,7.1.2,Civil,Station,75.0,68.0,420,m3,2025-07-15,K. Bhatt,Core Compression & Survey,420 m3 of 620 m3 poured; F-03 core tests passed 32.4 MPa NCR-2025-013 closed
+ACT-5030,PS-1 Structural Steel Erection,7.2.1,Civil,Station,30.0,15.0,45,ton,2025-07-15,M. Thorne,Weighbridge & Erection Log,Main compressor shelter primary columns erected; held temporarily during F-03 core test review
+ACT-5040,PS-1 Mechanical Equipment Setting,7.2.2,Civil,Station,20.0,5.0,2,ea,2025-07-15,K. Bhatt,Dial Indicator Alignment,Main pump skid P-101 and P-102 placed on foundation pads F-01/F-02; anchor bolting in progress
+ACT-5050,PS-1 Station Piping & Spool Fabrication,7.2.3,Welding,Station,25.0,12.0,180,m,2025-07-15,K. Bhatt,Spool Tracker & RT Review,180m header piping spools prefabricated in site fab shop; awaiting foundation release for erection
+ACT-5060,PS-1 Electrical Earthing Grid & Ducts,7.3,Civil,Station,35.0,28.0,1400,m,2025-07-15,P. Verma,Trench Depth & Resistance Test,Earth grid copper conductor buried around substation perimeter; ground resistance 1.8 ohms
+ACT-5070,Valve Station SV-01 (CH 6+000) Civil & Mechanical,7.4,Civil,Spread A,50.0,45.0,1,ea,2025-07-15,M. Thorne,Inspection Checklist,Civil slab poured 24in mainline block valve placed on support pedestals
+ACT-5080,Valve Station SV-02 (CH 18+500) Civil & Mechanical,7.5,Civil,Spread B,25.0,15.0,1,ea,2025-07-15,M. Thorne,Inspection Checklist,Excavation and mud mat complete; rebar cage tying underway
+ACT-6010,Golden Tie-in Welds,8.1,Welding,Spread A,10.0,0.0,0,joints,2025-07-15,K. Bhatt,Weld Log Audit,Awaiting completion of HDD river crossing and Spread A/B interface welding
+ACT-6020,Pre-Hydrotest Cleaning & Gauging Section 4A,8.2,NDT,Spread A,15.0,0.0,0,km,2025-07-15,M. Thorne,Test Plan Review,Pig launcher and receiver barrels delivered to site; cleaning pig run pending lowering-in

@@ -1,0 +1,32 @@
+[07/07/2025, 07:10] R. Iyer: Morning everyone. Key priorities this week: clearing the remaining RT backlog, starting cold bending on Spread B, and preparing for the client visit on Thursday.
+[07/07/2025, 07:25] K. Bhatt: Night RT film review complete. The final 2 repair joints on NCR-2025-011 at CH 5+400 are 100% acceptable per API 1104. NCR-2025-011 is officially closed.
+[07/07/2025, 07:40] S. Menon: Excellent. CW-02 has moved ahead to join the mainline welding front at CH 6+800.
+[07/07/2025, 08:00] S. Menon: Replacement welders WLD-109 and WLD-110 have reported to the site test bay. Test coupons preheated to 100°C and fit-up checked.
+[07/07/2025, 08:30] K. Bhatt: Witnessing 6G coupon welding for WLD-109 and WLD-110 using E6010 root / E8010-G fill & cap.
+[07/07/2025, 10:15] S. Menon: Spread B hydraulic cold bending machine mobilized to CH 14+200. Bending crew CW-03 setting up internal mandrel and angle gauge.
+[07/07/2025, 13:40] A. Fernandes: HDD mud mixing tanks filled with high-yield bentonite + PAC-R polymer slurry. Funnel viscosity holding at 58 sec. Drill string makeup in progress.
+[07/07/2025, 16:30] S. Menon: Spread B completed first 6 cold bends (4 sag, 2 overbend) to fit terrain profile CH 13+200 to 13+800. No ovality or buckling detected.
+[08/07/2025, 07:20] K. Bhatt: Coupon lab results in: Welder test coupons for WLD-109 and WLD-110 passed visual, nick-break, root bend, and tensile tests per API 1104 Section 6.
+[08/07/2025, 07:35] R. Iyer: Great work getting them qualified quickly. Badges issued. Assign them immediately to CW-01.
+[08/07/2025, 08:00] S. Menon: WLD-109 and WLD-110 integrated into CW-01 on Spread A. Mainline welding now back to full 4-welder capacity. Target 18 joints today.
+[08/07/2025, 10:45] Delta Civil Co: PS-1 core drilling completed on foundation F-03 by independent testing agency GeoLab. 3 core samples (100mm dia x 200mm) extracted and dispatched to lab.
+[08/07/2025, 11:15] K. Bhatt: Witnessed core extraction. Core holes cleaned and patched with non-shrink structural grout SikaGrout 214.
+[08/07/2025, 14:50] S. Menon: Spread B bending crew CW-03 produced 14 bends today. Bending front at CH 14+600.
+[08/07/2025, 17:30] K. Bhatt: Night RT crew 1 & 2 combined shot 36 joints. Backlog is down to 5 days. NDT catching up with the welding front rapidly.
+[09/07/2025, 07:15] R. Iyer: Good morning. Any preliminary results from GeoLab on the PS-1 concrete core compressive strength?
+[09/07/2025, 09:20] Delta Civil Co: Preliminary core compression test certificate received from GeoLab: Core 1 = 31.8 MPa, Core 2 = 33.1 MPa, Core 3 = 32.3 MPa. Average 32.4 MPa vs 30.0 MPa design requirement.
+[09/07/2025, 09:40] K. Bhatt: Core test results confirm in-situ concrete meets structural design criteria per ASTM C42 / ACI 318. Cube test failure was likely poor specimen compaction on site.
+[09/07/2025, 10:00] R. Iyer: Outstanding. K. Bhatt please compile the NCR-2025-013 closeout dossier with structural engineer concurrence. Ridgeline mechanical team can mobilize for equipment setting next week.
+[09/07/2025, 13:10] S. Menon: Spread A mainline welding reached CH 7+450. CW-01 and CW-02 completed 19 joints today.
+[09/07/2025, 15:45] S. Menon: Spread B stringing reached CH 16+500. 120 joints strung and aligned on skids.
+[10/07/2025, 07:30] R. Iyer: Reminder: Client Project Director and audit team arriving at 10:00. All supervisors verify PPE compliance, gas detector calibrations, and permit-to-work boards.
+[10/07/2025, 08:45] HSE Lead J. Patel: Pre-visit safety sweep complete on Spread A CH 4+000 to 7+500. Drip trays under all generators and earth bonding clamps checked.
+[10/07/2025, 10:30] S. Menon: Client delegation on ROW at CH 7+100 witnessing CW-01 root bead deposition and internal clamp alignment.
+[10/07/2025, 11:45] K. Bhatt: Client QA reviewed RT viewing cabin, film density logs, and welder qualification records. Highly satisfied with traceability and backlog reduction.
+[10/07/2025, 14:15] A. Fernandes: Walked the client team through the revised HDD bore plan at CH 8+400 river crossing. Client agreed with the engineered polymer mud plan.
+[10/07/2025, 16:45] R. Iyer: Client visit completed successfully. Zero audit findings. Great effort by all teams on site presentation and technical compliance.
+[11/07/2025, 07:15] Delta Civil Co: Pipe delivery convoy: 22 line pipes (24" OD, 11.9mm WT, API 5L X65 PSL2) arrived at Spread B CH 17+500 staging area.
+[11/07/2025, 08:30] K. Bhatt: Pipe visual inspection and MTR verification complete. Heat numbers cross-referenced with mill certificates. Unloading underway.
+[11/07/2025, 11:00] S. Menon: Spread B bending crew CW-03 completed 16 cold bends today. Bending front reached CH 15+100.
+[11/07/2025, 16:00] A. Fernandes: Pilot hole re-drilling setup on HDD river crossing CH 8+400 finalized. Rig aligned, gyroscopic steering tool calibrated. Starting rotation Monday 07:00.
+[11/07/2025, 17:30] R. Iyer: Solid week of recovery across all disciplines. RT backlog is down to 4 days, PS-1 foundation resolved, and Spread B making steady headway. Have a restful weekend.

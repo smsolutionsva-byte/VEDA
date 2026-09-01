@@ -1,0 +1,96 @@
+DAILY FOREMAN LOG - SPREAD A
+Foreman: S. Menon
+Project: Trans-Ridge 24in Gas Pipeline - Section 4
+Spread: Spread A (CH 0+000 to 12+000)
+Data Period: July 2025
+
+July 1 - Started early (06:30). CW-01 on mainline welding near KP 4+800.
+Weather: Hot, clear (34C).
+- Pushed hard on root passes with WLD-101 and WLD-103; completed 14 joints.
+- Sideboom SB-02 hydraulic leak on hoist motor; mechanic tightened fittings.
+- Bhatt (QA) pushing on RT backlog; only 12 joints shot last night. Warned Iyer we will choke the ditch.
+- Delta trenching at KP 8+650 running well ahead.
+
+July 2 - CW-02 assigned specifically to cut out 4 porosity joints at CH 5+400 (NCR-2025-011).
+Weather: Overcast, humid.
+- Grinding bevels took half morning. Preheated to 120C before root with E6010.
+- CW-01 mainline welding halted at 5+380 boundary until NCR clearance.
+- Delta PC300 excavator threw a track at KP 8+680; delayed ditching by 2 hours.
+
+July 3 - Lost 3 hours across spread due to heavy thunderstorm at 13:00.
+Weather: Torrential rain afternoon.
+- Ditch near KP 8+700 flooded; running two 4-in trash pumps to dewater.
+- Finished re-welding 2 joints at porosity section before rain hit.
+- Coating stood down early due to 92% RH; Bhatt refused holiday testing on wet pipe.
+
+July 4 - Second RT crew finally mobilized on site with mobile darkroom truck!
+Weather: Sunny, drying out.
+- Bhatt inspected isotope source certifications; crew deployed at KP 4+600 immediately.
+- Lincoln Vantage 500 generator alternator brush failed at 10:30; swapped with backup unit.
+- CW-01 completed 16 mainline joints. Ditch drying rapidly.
+
+July 5 - Saturday production shift. Mainline welding between KP 6+000 and 6+300.
+Weather: Fair, warm (31C).
+- Completed 18 joints. Both RT crews working split night shifts; 22 joints shot.
+- Trench depth at KP 8+750 hit hard rock layer; hydraulic breaker running full-time.
+- Fernandes reports geotech findings in; polymer mud additives ordered for HDD at CH 8+400.
+
+July 7 - Morning toolbox talk on rigging and pipe sling inspection.
+Weather: Clear, breezy.
+- CW-01 completed 20 mainline joints up to KP 6+600.
+- Second RT crew cleared re-welds at CH 5+400; Bhatt gave verbal clearance.
+- Internal clamp pneumatic seal leak fixed during lunch. Delta completed 35m trenching.
+
+July 8 - NCR-2025-011 officially closed and signed off by QA.
+Weather: Hot (35C).
+- All 6 repaired joints at CH 5+400 100% acceptable per API 1104 RT.
+- CW-02 merged back with CW-01; achieved 22 joints today.
+- Coating crew caught up to KP 5+200 using heat shrink sleeves. Iyer reports Spread B bending active.
+
+July 9 - Severe heat on ROW (37C by 14:00). Set up extra electrolyte hydration points.
+Weather: Extreme heat.
+- WLD-105 & WLD-101 hit spread record: 24 completed joints in single 10h shift.
+- Night RT crew cleared 30 joints. Backlog down to 5 days.
+- PS-1 core tests returned 32 MPa; Iyer confirms pad structural integrity accepted.
+
+July 10 - Mainline welding reached KP 7+500 (23 joints).
+Weather: Clear, dry.
+- RT backlog reduced to 4 days (NCR-2025-014 corrective action on track).
+- CAT D6 dozer minor hydraulic hose leak at KP 7+100; cleaned with spill kit, no soil contamination.
+- Holiday testing passed 100% on 22 joints. Fernandes prepping HDD 18in reamer tooling.
+
+July 11 - Monitored preheat strictly at 120C on heavy-wall section approaching river.
+Weather: Warm, calm.
+- CW-01 finished 21 joints. NDT cleared up to KP 7+150 with zero defects.
+- Delta trenching logged 35m in dry clay.
+- Evening meeting with Iyer & Fernandes: HDD mud tanks filled with bentonite-polymer for Monday restart.
+
+July 14 - Fernandes restarted HDD reaming at river crossing CH 8+400!
+Weather: Clear (29C).
+- Reamed 8m through gravel zone with good fluid circulation and zero pressure spikes.
+- CW-01 reached KP 8+350 (west bank boundary). Spread B trenching started at KP 12+000.
+- Great morale boost seeing river crossing bottleneck moving again.
+
+July 16 - HDD reaming advanced 18m; annular pressure stable at 45 psi.
+Weather: Humid, afternoon breeze.
+- Tied in west bank river string (W-4A-0188). East bank mainline welding started at KP 8+450.
+- Coating crew closed gap to within 1km of welding front.
+- Resolved dispute with Apex crane operator over tag lines during lowering-in.
+
+July 18 - Major milestone: HDD 18in reamer punched through cleanly into east exit pit at CH 8+400!
+Weather: Sunny, clear (30C).
+- Fernandes and HDD team did stellar job recovering the borehole.
+- Spread A welding progressed to KP 9+300. PS-1 foundation signed off by Bhatt.
+- Zero weld repairs recorded for the entire week across Spread A.
+
+July 22 - Welding steady between KP 9+600 and 9+900 (22 joints).
+Weather: Hot, clear (33C).
+- Dual RT teams turning around film interpretations in under 24 hours.
+- PS-1 mechanical crew placed secondary booster pump skid MP-02 onto plinth.
+- Commissioning team staged test manifolds and pig traps at KP 0+000.
+
+July 25 - End of Week 4. Spread A welding reached KP 10+800 (passed 52% mark).
+Weather: Fair, dry.
+- Total Spread A RT backlog officially at ZERO.
+- Fernandes completed pull-head welding on 24in pipe string; pullback slated for Tuesday.
+- PS-1 manifold tie-in welding in progress per ASME B31.8. Best week of progress to date.

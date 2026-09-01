@@ -1,0 +1,67 @@
+TRANS-RIDGE PIPELINE - SECTION 4
+WEEKLY SITE PROGRESS REPORT
+Week 28 - Period ending 11 July 2025
+Prepared by: Site Construction Manager (R. Iyer)
+Contractor: Ridgeline Constructors / Apex Pipeline Services
+
+1. SUMMARY
+Overall physical progress at cut-off reached approximately 39% against a
+planned 47% (variance of -8.0%). Radiography throughput showed marked
+improvement following full integration of the second RT crew. The HDD river
+crossing remains the critical path constraint. PS-1 structural redesign is
+actively underway.
+
+2. PIPELINE - SPREAD A (CH 0+000 to 12+000)
+Stringing is 100% complete; bending reached 84% (10,080 m).
+Mainline welding progressed to ~47% (5,640 m welded) with crews CW-01 and
+CW-02 achieving consistent daily output of 18-20 joints.
+Radiography throughput improved substantially with both Apex RT crews operating
+on staggered day/night shifts; cumulative RT completed reached 42% (5,040 m),
+reducing the inspection backlog to 5 working days.
+Field joint coating advanced to 39% (4,680 m) with holiday testing pass rates
+exceeding 98% under NACE SP0188. Trenching reached 80% (9,600 m).
+Preparation for lowering-in and padding commenced between CH 0+000 and 2+500.
+
+3. PIPELINE - SPREAD B (CH 12+000 to 24+000)
+ROW grading is at 96%. Stringing reached ~66% (7,920 m strung up to CH 19+920).
+Cold field bending advanced to 26% (3,120 m). Trenching progressed through
+mixed residual soils to 18% (2,160 m excavated to CH 14+160).
+Welding crew CW-04 arrived on site, set up welding tents, and completed line-up
+clamp verification for start of production next week.
+
+4. SPECIAL CROSSINGS
+HDD River Crossing (CH 8+400): Specialized high-capacity mud recycling unit
+and high-yield bentonite polymers arrived on site on 08 July. High-torque mud
+motor was rigged up and calibrated. Pressure grouting of the collapsed void
+zone between CH 8+340 and CH 8+390 was completed successfully on 10 July with
+quick-setting cementitious grout. The crossing remains on the project critical
+path; hole re-conditioning and pilot hole re-entry are scheduled for early W29.
+
+5. STATION WORKS
+PS-1 (Pump Station 1): Formal redesign drawings (Design Note DN-PS1-004) were
+issued by the structural engineer and approved in principle by the client.
+Contractor (Delta Civil Co) commenced chipping back the top surface of slab
+F-03, drilling dowel holes, and tying the reinforcing steel cage for the
+enlarged 350mm structural collar. Concrete pour scheduled for mid-next week.
+Compressor station piping spools delivered and inspected at laydown yard.
+
+6. TESTING AND COMMISSIONING
+Hydrotest Section 1 (Spread A) manifold fabrication and off-site pre-test
+completed at 150 bar. Water abstraction permit granted by the River Basin
+Authority for a maximum take of 4,200 m3 starting October.
+
+7. LABOUR AND PLANT
+Total site manpower increased to 242 personnel (Ridgeline 152, Apex 58, Delta
+Civil 32). All 4 welding crews on site are fully manned with qualified welders.
+Plant operational: 19 excavators, 6 sidebooms, 2 bending machines, 1 HDD rig.
+
+8. WEATHER
+Predominantly dry and clear. One afternoon convective storm on 09 July caused
+0.5 shift downtime on trench excavation.
+
+9. KEY CONCERNS RAISED BY SITE
+- River HDD re-entry and reaming sequence has zero float against the schedule;
+  continuous 24-hour drilling operations must be maintained once drilling resumes.
+- Spread B welding start must ramp up quickly to avoid lagging behind trenching.
+- Rapid 3-day and 7-day strength gain of PS-1 redesign concrete pour is critical
+  to release anchor bolt tensioning and compressor placement.

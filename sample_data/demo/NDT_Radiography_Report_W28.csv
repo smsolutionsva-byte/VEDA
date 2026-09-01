@@ -1,0 +1,41 @@
+Report_No,Date,Weld_No,Chainage,Spread,RT_Technique,Film_Density,Sensitivity_pct,Defect_Found,Defect_Type,Defect_Size_mm,Acceptance_Criteria,Result,Radiographer_ID,Comments
+RT-2025-W28-001,2025-07-07,W-4A-0272,9+250,Spread A,DWSI Ir-192,2.42,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-01; acceptable sound weld
+RT-2025-W28-002,2025-07-07,W-4B-0110,13+520,Spread B,SWSI X-Ray,2.64,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: Crawler X-ray exposure; full penetration verified
+RT-2025-W28-003,2025-07-07,W-4A-0258-R1,8+250,Spread A,DWSI Ir-192,2.38,1.8%,No,None,0.0,API 1104 Sec 9.5,Accept,RAD-02,Re-radiography of repair RPR-2025-013; previously rejected IF fully repaired and accepted
+RT-2025-W28-004,2025-07-07,W-4A-0080-R1,5+380,Spread A,DWSI Ir-192,2.45,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: NCR-2025-011 re-shot joint 1 of 6; root repair clear of porosity
+RT-2025-W28-005,2025-07-07,W-4A-0081-R1,5+392,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: NCR-2025-011 re-shot joint 2 of 6; repair accepted per API 1104
+RT-2025-W28-006,2025-07-07,W-4B-0109,13+380,Spread B,DWSI Ir-192,2.35,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: Clean root profile; weld accepted
+RT-2025-W28-007,2025-07-07,W-4A-0271,9+200,Spread A,SWSI X-Ray,2.58,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Tie-in sequence; complete sidewall fusion
+RT-2025-W28-008,2025-07-07,W-4B-0111,13+660,Spread B,DWSI Ir-192,2.30,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Sound weld metal; no linear indications
+RT-2025-W28-009,2025-07-08,W-4A-0273,9+300,Spread A,DWSI Ir-192,2.38,1.8%,Yes,Incomplete Fusion,9.2,API 1104 Sec 9.5,Reject,RAD-03,Crew 2: Lack of fusion at bevel face 9.2mm at 2 o clock; exceeds API 1104 limit
+RT-2025-W28-010,2025-07-08,W-4A-0275,9+420,Spread A,DWSI Ir-192,2.44,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; acceptable density and sensitivity
+RT-2025-W28-011,2025-07-08,W-4A-0276,9+480,Spread A,SWSI X-Ray,2.62,1.6%,Yes,Porosity,1.8,API 1104 Sec 9.3,Accept,RAD-02,Scattered pore 1.8mm in cap pass; within acceptable limits
+RT-2025-W28-012,2025-07-08,W-4B-0112,13+800,Spread B,DWSI Ir-192,2.33,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: Mainline weld CW-05; full penetration achieved
+RT-2025-W28-013,2025-07-08,W-4A-0082-R1,5+404,Spread A,DWSI Ir-192,2.41,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: NCR-2025-011 re-shot joint 3 of 6; repair accepted per API 1104
+RT-2025-W28-014,2025-07-08,W-4A-0083-R1,5+416,Spread A,DWSI Ir-192,2.48,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: NCR-2025-011 re-shot joint 4 of 6; repair accepted per API 1104
+RT-2025-W28-015,2025-07-08,W-4A-0264-R1,8+600,Spread A,DWSI Ir-192,2.50,1.8%,No,None,0.0,API 1104 Sec 9.6,Accept,RAD-01,Re-radiography of repair RPR-2025-014; root slag defect cleared and accepted
+RT-2025-W28-016,2025-07-08,W-4B-0113,13+940,Spread B,SWSI X-Ray,2.55,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Clean internal crawler exposure; accepted
+RT-2025-W28-017,2025-07-09,W-4A-0278,9+580,Spread A,DWSI Ir-192,2.46,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; sound weld metal
+RT-2025-W28-018,2025-07-09,W-4B-0114,14+080,Spread B,DWSI Ir-192,2.37,1.8%,Yes,Slag Inclusion,2.8,API 1104 Sec 9.6,Accept,RAD-04,Crew 2: Isolated slag line 2.8mm; acceptable per API 1104 Table 2
+RT-2025-W28-019,2025-07-09,W-4A-0084-R1,5+428,Spread A,DWSI Ir-192,2.43,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: NCR-2025-011 re-shot joint 5 of 6; repair accepted
+RT-2025-W28-020,2025-07-09,W-4A-0085-R1,5+440,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: NCR-2025-011 re-shot joint 6 of 6; batch repair fully accepted; NCR clearance ready
+RT-2025-W28-021,2025-07-09,W-4A-0279,9+640,Spread A,SWSI X-Ray,2.52,1.6%,Yes,Hollow Bead,16.0,API 1104 Sec 9.3,Reject,RAD-02,Hollow bead porosity extending 16.0mm in root pass; exceeds API 1104 Sec 9.3.5 allowable 1/2in.
+RT-2025-W28-022,2025-07-09,W-4B-0115,14+200,Spread B,DWSI Ir-192,2.39,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-05; full circumference clear
+RT-2025-W28-023,2025-07-09,W-4B-0116,14+320,Spread B,DWSI Ir-192,2.34,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: Good root profile; accepted
+RT-2025-W28-024,2025-07-09,W-4A-0280,9+710,Spread A,SWSI X-Ray,2.60,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Crawler X-ray; sound weldment accepted
+RT-2025-W28-025,2025-07-10,W-4A-0282,9+850,Spread A,DWSI Ir-192,2.44,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; accepted per API 1104
+RT-2025-W28-026,2025-07-10,W-4A-0283,9+910,Spread A,DWSI Ir-192,2.41,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: Full RT inspection completed; accepted
+RT-2025-W28-027,2025-07-10,W-4B-0106-R1,12+950,Spread B,SWSI X-Ray,2.65,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: Re-radiography of repair RPR-2025-015; root porosity cleared and accepted
+RT-2025-W28-028,2025-07-10,W-4B-0117,14+450,Spread B,DWSI Ir-192,2.38,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Production weld CW-04; accepted
+RT-2025-W28-029,2025-07-10,W-4A-0284,9+980,Spread A,SWSI X-Ray,2.56,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Sound weld and HAZ; accepted
+RT-2025-W28-030,2025-07-10,W-4A-0285,10+040,Spread A,DWSI Ir-192,2.47,1.8%,Yes,Porosity,1.4,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: Pinhole pore 1.4mm in fill pass; within allowable limits
+RT-2025-W28-031,2025-07-10,W-4B-0119,14+720,Spread B,DWSI Ir-192,2.35,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: Production weld CW-06; accepted
+RT-2025-W28-032,2025-07-10,W-4B-0120,14+850,Spread B,SWSI X-Ray,2.61,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Clean panoramic film; accepted
+RT-2025-W28-033,2025-07-11,W-4A-0287,10+200,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; accepted
+RT-2025-W28-034,2025-07-11,W-4B-0118,14+580,Spread B,DWSI Ir-192,2.44,1.8%,Yes,Slag Inclusion,14.0,API 1104 Sec 9.6,Reject,RAD-04,Crew 2: Continuous elongated slag line 14mm in hot pass; exceeds API 1104 Table 2 limits
+RT-2025-W28-035,2025-07-11,W-4A-0273-R1,9+300,Spread A,DWSI Ir-192,2.42,1.8%,No,None,0.0,API 1104 Sec 9.5,Accept,RAD-03,Crew 2: Re-radiography of repair RPR-2025-016; sidewall fusion restored and accepted
+RT-2025-W28-036,2025-07-11,W-4A-0289,10+350,Spread A,DWSI Ir-192,2.45,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; accepted
+RT-2025-W28-037,2025-07-11,W-4B-0122,15+120,Spread B,SWSI X-Ray,2.59,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Crawler X-ray; accepted
+RT-2025-W28-038,2025-07-11,W-4B-0124,15+400,Spread B,DWSI Ir-192,2.37,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-04,Crew 2: Sound root and capping pass; accepted
+RT-2025-W28-039,2025-07-11,W-4A-0291,10+500,Spread A,DWSI Ir-192,2.43,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-03,Crew 2: Complete radiographic evaluation; accepted
+RT-2025-W28-040,2025-07-11,W-4B-0126,15+690,Spread B,DWSI Ir-192,2.36,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Weekly RT quota reached with Crew 2 dual-operation; backlog reduced

@@ -330,8 +330,6 @@ CREATE TABLE IF NOT EXISTS evidence (
   created_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_ev_project ON evidence(project_id, state);
-CREATE INDEX IF NOT EXISTS ix_ev_obs_key ON evidence(project_id, file_id, observation_key);
-CREATE INDEX IF NOT EXISTS ix_ev_obs_type ON evidence(project_id, observation_type, state);
 
 CREATE TABLE IF NOT EXISTS evidence_links (
   id TEXT PRIMARY KEY,

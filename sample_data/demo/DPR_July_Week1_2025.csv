@@ -1,0 +1,41 @@
+DPR_No,Date,Contractor,Crew,Discipline,Spread,Chainage_From,Chainage_To,Quantity,Unit,Progress_Pct,Remarks,Reported_By
+DPR-1201,2025-07-01,Ridgeline Constructors,CW-01,Welding,Spread A,4+800,5+100,14,joints,34.5,Progress as planned; 2 joints pending hot pass,S. Menon
+DPR-1202,2025-07-01,Delta Civil Co,CW-03,Trenching,Spread A,8+640,8+670,30,m,72.2,Hard clay and gravel; progress as planned,S. Menon
+DPR-1203,2025-07-01,Apex Pipeline Services,CW-02,NDT,Spread A,4+100,4+350,12,joints,28.0,RT backlog persisting; awaiting second crew,K. Bhatt
+DPR-1204,2025-07-01,Ridgeline Constructors,CW-01,Coating,Spread A,3+600,3+800,10,joints,31.0,Holiday detection clear; 1 minor touch-up,K. Bhatt
+DPR-1205,2025-07-01,Apex Pipeline Services,CW-04,Stringing,Spread B,14+200,14+220,20,m,41.5,Pipe delivery batch TR-P4 received at ROW,R. Iyer
+DPR-1206,2025-07-01,Ridgeline Constructors,CW-05,Bending,Spread B,12+400,12+600,8,joints,6.5,Cold bending machine calibration complete,R. Iyer
+DPR-1207,2025-07-01,Delta Civil Co,CW-06,Civil,PS-1,-,-,12,m3,60.5,Core drill sampling on F-03 slab per NCR-2025-013,R. Iyer
+DPR-1208,2025-07-01,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,HDD geotechnical assessment ongoing; borehole caliper run,A. Fernandes
+DPR-1209,2025-07-02,Ridgeline Constructors,CW-01,Welding,Spread A,5+100,5+380,11,joints,35.0,Stopped at 5+380 boundary due to NCR-2025-011 hold,S. Menon
+DPR-1210,2025-07-02,Ridgeline Constructors,CW-02,Welding,Spread A,5+400,5+400,4,joints,35.2,Cut-out and bevel prep on 4 defective porosity joints,K. Bhatt
+DPR-1211,2025-07-02,Delta Civil Co,CW-03,Trenching,Spread A,8+670,8+695,25,m,72.5,Normal shift; ditch depth verified at 2.1m,S. Menon
+DPR-1212,2025-07-02,Apex Pipeline Services,CW-02,NDT,Spread A,4+350,4+600,15,joints,29.5,RT clearance issued for 14 joints; 1 repair flagged,K. Bhatt
+DPR-1213,2025-07-02,Apex Pipeline Services,CW-04,Stringing,Spread B,14+220,14+245,25,m,42.0,Normal shift; padding placed on pipe supports,R. Iyer
+DPR-1214,2025-07-02,Ridgeline Constructors,CW-05,Bending,Spread B,12+600,12+800,14,joints,8.0,Bends bent to profile for creek crossing section,R. Iyer
+DPR-1215,2025-07-02,Delta Civil Co,CW-06,Civil,Spread B,17+000,17+500,18,m3,86.0,ROW grading and access track stabilization,S. Menon
+DPR-1216,2025-07-02,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Mud engineer on site testing polymer viscosifier blends,A. Fernandes
+DPR-1217,2025-07-03,Ridgeline Constructors,CW-01,Welding,Spread A,5+420,5+700,9,joints,35.6,Rain delay 3h in afternoon; welding shelters deployed,S. Menon
+DPR-1218,2025-07-03,Ridgeline Constructors,CW-02,Welding,Spread A,5+400,5+400,2,joints,35.8,Re-welding completed on NCR-2025-011 joints W-4A-0105/0106,K. Bhatt
+DPR-1219,2025-07-03,Delta Civil Co,CW-03,Trenching,Spread A,8+695,8+710,15,m,72.6,Lost 3h due to torrential rain; ditch pumping required,S. Menon
+DPR-1220,2025-07-03,Ridgeline Constructors,CW-01,Coating,Spread A,3+800,4+000,8,joints,31.8,Coating halted early due to high humidity and rain,K. Bhatt
+DPR-1221,2025-07-03,Apex Pipeline Services,CW-04,Stringing,Spread B,14+245,14+260,15,m,42.5,Rain delay 3h; suspended crane operations,R. Iyer
+DPR-1222,2025-07-03,Ridgeline Constructors,CW-05,Bending,Spread B,12+800,13+000,10,joints,9.2,Consumables shortage in morning shift,R. Iyer
+DPR-1223,2025-07-03,Delta Civil Co,CW-06,Civil,PS-1,-,-,8,m3,61.0,Core samples dispatched to NABL accredited test lab,R. Iyer
+DPR-1224,2025-07-03,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,HDD geotechnical assessment ongoing; soil report review,A. Fernandes
+DPR-1225,2025-07-04,Ridgeline Constructors,CW-01,Welding,Spread A,5+700,6+000,16,joints,36.4,Mainline welding resumed at good pace; root/hot pass clear,S. Menon
+DPR-1226,2025-07-04,Apex Pipeline Services,CW-02,NDT,Spread A,4+600,4+800,14,joints,31.0,Second RT crew arrived on site; setting up mobile darkroom,K. Bhatt
+DPR-1227,2025-07-04,Delta Civil Co,CW-03,Trenching,Spread A,8+710,8+745,35,m,72.9,Ditch dry; double shift on Komatsu PC300 excavator,S. Menon
+DPR-1228,2025-07-04,Ridgeline Constructors,CW-01,Coating,Spread A,4+000,4+300,14,joints,33.0,Field joint coating with 3-layer PE heat shrink sleeves,K. Bhatt
+DPR-1229,2025-07-04,Apex Pipeline Services,CW-04,Stringing,Spread B,14+260,14+280,20,m,43.0,Pipe stringing in progress along Spread B ROW,R. Iyer
+DPR-1230,2025-07-04,Ridgeline Constructors,CW-05,Bending,Spread B,13+000,13+250,18,joints,11.5,Production ramping up; all bends checked with internal gauge,R. Iyer
+DPR-1231,2025-07-04,Delta Civil Co,CW-06,Civil,PS-1,-,-,15,m3,62.0,Excavation for drainage sump and cable trenching,R. Iyer
+DPR-1232,2025-07-04,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Rig re-anchoring and high-pressure mud pump servicing,A. Fernandes
+DPR-1233,2025-07-05,Ridgeline Constructors,CW-01,Welding,Spread A,6+000,6+300,18,joints,37.2,Progress as planned; 4 welder pairs active,S. Menon
+DPR-1234,2025-07-05,Apex Pipeline Services,CW-02,NDT,Spread A,4+800,5+200,22,joints,33.5,Second RT crew operational; backlog starting to clear,K. Bhatt
+DPR-1235,2025-07-05,Delta Civil Co,CW-03,Trenching,Spread A,8+745,8+775,30,m,73.1,Trenching through rocky section; hydraulic breaker active,S. Menon
+DPR-1236,2025-07-05,Ridgeline Constructors,CW-01,Coating,Spread A,4+300,4+600,16,joints,34.5,Awaiting RT clearance on joints past 4+600,K. Bhatt
+DPR-1237,2025-07-05,Apex Pipeline Services,CW-04,Stringing,Spread B,14+280,14+305,25,m,43.8,Normal shift; ROW clear ahead of stringing,R. Iyer
+DPR-1238,2025-07-05,Ridgeline Constructors,CW-05,Bending,Spread B,13+250,13+500,16,joints,13.2,Progress as planned; staging bends at road crossing,R. Iyer
+DPR-1239,2025-07-05,Delta Civil Co,CW-06,Civil,Spread B,17+500,18+000,22,m3,87.5,Culvert installation at access road KP 17+800,S. Menon
+DPR-1240,2025-07-05,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Revised drilling procedure submitted for Client review,A. Fernandes

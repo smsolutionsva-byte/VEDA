@@ -1,0 +1,21 @@
+Record_No,Date,Location,Chainage,Parameter,Measurement,Unit,Limit,Compliance,Inspector,Action_Required,Comments
+ENV-2025-001,2025-06-02,Spread A - ROW,1+500,Dust (PM10),68.4,ug/m3,150.0,Compliant,P. Vance,None,Ambient air particulate within baseline limits; water truck active
+ENV-2025-002,2025-06-04,Ridge River North Bank,8+350,Turbidity (NTU),12.6,NTU,25.0,Compliant,P. Vance,None,Upstream baseline 10.2 NTU; negligible runoff from ROW
+ENV-2025-003,2025-06-06,PS-1 Perimeter Fence,PS-1,Noise level (dBA),71.2,dBA,85.0,Compliant,M. Al-Mansoor,None,Diesel generator acoustic enclosures operational; complies with day limit
+ENV-2025-004,2025-06-08,Spread A - Agricultural Crossing,4+200,Topsoil stockpile preservation,1.8,m,2.0,Compliant,P. Vance,None,Topsoil stockpiles separated from subsoil; silt fencing installed
+ENV-2025-005,2025-06-10,Spread A - Creek Crossing,6+100,Dewatering discharge pH,7.4,pH,6.5-8.5,Compliant,P. Vance,None,Trench dewatering through sediment filter bag before discharge
+ENV-2025-006,2025-06-13,River Crossing CH 8+400,8+400,Turbidity (NTU),48.5,NTU,25.0,Non-Compliant,P. Vance,Deploy additional turbidity silt curtains and stop mud recycling discharge,Elevated turbidity downstream due to HDD mud seepage near riverbank (NCR-2025-015)
+ENV-2025-007,2025-06-15,Spread B - Rocky Ridge,14+800,Noise level (dBA),88.6,dBA,85.0,Non-Compliant,M. Al-Mansoor,Install acoustic noise blankets around rock breaker and limit operating hours,Hydraulic rock breaker exceeding 85 dBA at nearest boundary receptor (50m)
+ENV-2025-008,2025-06-17,Spread B - Forest Boundary,16+500,Vegetation clearing boundary check,28.0,m,30.0,Compliant,P. Vance,None,ROW clearing width within approved 30m corridor; boundary pegs intact
+ENV-2025-009,2025-06-19,Spread A - Main Laydown Yard,0+500,Waste segregation audit,94.0,%,90.0,Compliant,M. Al-Mansoor,None,Scrap metal timber oily rags and domestic waste properly color-coded
+ENV-2025-010,2025-06-21,PS-1 Fuel Storage Area,PS-1,Spill containment check,110.0,% capacity,110.0,Compliant,P. Vance,None,Self-bunded fuel tank inspected; containment volume compliant with EPA guidelines
+ENV-2025-011,2025-06-23,Spread B - Sloped Terrain,19+200,Soil erosion assessment,15.0,mm erosion rill,25.0,Compliant,P. Vance,None,Check dams and coir geotextile logs functioning properly after rain
+ENV-2025-012,2025-06-25,Spread A - Wetland Boundary,9+800,Trench fauna inspection,0,trapped fauna,0,Compliant,M. Al-Mansoor,None,Fauna ramps installed every 100m; trench inspected prior to daily backfilling
+ENV-2025-013,2025-06-27,Spread B - Rural Road Access,21+400,Dust (PM10),182.0,ug/m3,150.0,Non-Compliant,P. Vance,Increase water bowser spraying frequency to 3 passes per day on haul road,High dust reading caused by unpaved haul truck traffic during dry afternoon
+ENV-2025-014,2025-06-29,PS-1 Workshop & Maintenance,PS-1,Waste segregation audit,72.0,%,90.0,Non-Compliant,M. Al-Mansoor,Sort hazardous oily filters from general scrap; provide labeled bins,Mixed waste observed in general metal scrap dumpster
+ENV-2025-015,2025-07-02,Spread A - River Crossing,8+400,Turbidity (NTU),18.2,NTU,25.0,Compliant,P. Vance,None,Turbidity returned to normal levels following containment berm repairs
+ENV-2025-016,2025-07-05,Spread B - Quarry Junction,17+900,Dust (PM10),95.0,ug/m3,150.0,Compliant,P. Vance,None,Increased watering schedule successfully suppressed particulate levels
+ENV-2025-017,2025-07-08,Spread A - CH 11+200,11+200,Dewatering discharge TSS,32.0,mg/L,50.0,Compliant,M. Al-Mansoor,None,Total suspended solids well within statutory discharge permit limits
+ENV-2025-018,2025-07-11,Spread B - CH 23+000,23+000,Vegetation clearing boundary check,29.2,m,30.0,Compliant,P. Vance,None,Protected tree species tagged and buffered with high-vis barrier fencing
+ENV-2025-019,2025-07-14,PS-1 Station Sump,PS-1,Spill containment check,100.0,% integrity,100.0,Compliant,M. Al-Mansoor,None,Oily water separator inspected; hydrocarbon sensor tested and verified
+ENV-2025-020,2025-07-17,Spread B - Steep Slope,22+800,Soil erosion assessment,8.0,mm erosion rill,25.0,Compliant,P. Vance,None,Silt fencing and sandbag check dams intact after moderate overnight rainfall

@@ -1,0 +1,41 @@
+Date,Category,Resource_Type,Spread_A_Count,Spread_B_Count,Station_Count,HDD_Count,Total,Utilization_Pct,Comments
+2025-07-04,Labour,Welders (API 1104 Qualified),8,2,4,2,16,85.0,Spread A short 2 welders; replacement mobilization requested
+2025-07-04,Labour,Pipe Fitters and Riggers,14,6,8,4,32,88.0,Supporting stringing and pipe alignment on Spread A
+2025-07-04,Labour,Heavy Equipment Operators,18,12,6,4,40,90.0,Grading and trenching operations across both spreads
+2025-07-04,Labour,General Construction Labourers,32,16,12,6,66,85.0,Sandbagging dewatering and trench padding support
+2025-07-04,Labour,QA/QC and NDT Inspectors,8,2,3,2,15,92.0,Second RT crew arrived on site; night shifts initiated
+2025-07-04,Labour,Supervisors and HSE Officers,6,4,3,2,15,95.0,Active supervision across all active work fronts
+2025-07-04,Equipment,Sidebooms and Pipelayers,6,2,1,2,11,80.0,SB-02 hose repaired; all units operational
+2025-07-04,Equipment,Hydraulic Excavators,8,5,3,1,17,88.0,35-ton breaker mobilized to Spread B rock section
+2025-07-04,Equipment,Mobile Welding Rigs,8,2,4,2,16,82.0,Lincoln Vantage 500 diesel rigs deployed on ROW
+2025-07-04,Equipment,NDT Mobile RT Darkroom Units,2,0,1,0,3,90.0,Two crawler units dedicated to Spread A backlog reduction
+2025-07-11,Labour,Welders (API 1104 Qualified),10,4,4,2,20,92.0,WLD-109 and WLD-110 qualified and deployed to CW-01
+2025-07-11,Labour,Pipe Fitters and Riggers,14,10,8,4,36,90.0,Spread B fit-up crew expanded for cold bending
+2025-07-11,Labour,Heavy Equipment Operators,18,15,6,5,44,92.0,Bending machine and extra trenching excavators manned
+2025-07-11,Labour,General Construction Labourers,32,22,14,6,74,88.0,Spread B padding and stringing support ramped up
+2025-07-11,Labour,QA/QC and NDT Inspectors,8,3,3,2,16,94.0,RT backlog reduced to 4 days; core test inspection PS-1 complete
+2025-07-11,Labour,Supervisors and HSE Officers,6,5,3,2,16,96.0,Client audit walk coordinated across all active spreads
+2025-07-11,Equipment,Sidebooms and Pipelayers,6,4,1,2,13,88.0,2 additional Cat 572R sidebooms delivered to Spread B
+2025-07-11,Equipment,Hydraulic Excavators,8,6,3,1,18,90.0,Continuous rock hammering at Spread B CH 15+300
+2025-07-11,Equipment,Mobile Welding Rigs,10,4,4,2,20,90.0,All welding rigs at 100% mechanical availability
+2025-07-11,Equipment,NDT Mobile RT Darkroom Units,2,1,1,0,4,92.0,Spread B night radiography commences
+2025-07-18,Labour,Welders (API 1104 Qualified),10,8,4,2,24,90.0,CW-05 welding front expanded on Spread B
+2025-07-18,Labour,Pipe Fitters and Riggers,14,14,8,4,40,92.0,Spread B internal clamp alignment and fit-up team active
+2025-07-18,Labour,Heavy Equipment Operators,18,18,7,6,49,94.0,HDD mud recycling system and drill rig operating dual shifts
+2025-07-18,Labour,General Construction Labourers,32,28,14,8,82,86.0,Pre-storm ditch preparation and sandbagging along ROW
+2025-07-18,Labour,QA/QC and NDT Inspectors,7,4,3,2,16,95.0,Coating holiday testing and RT backlog normalized to 3 days
+2025-07-18,Labour,Supervisors and HSE Officers,6,5,3,2,16,95.0,Storm safety protocols and emergency roster enacted
+2025-07-18,Equipment,Sidebooms and Pipelayers,6,5,1,2,14,85.0,Equipment secured and anchored for incoming storm
+2025-07-18,Equipment,Hydraulic Excavators,8,7,3,1,19,88.0,Spread B rock section penetrated; transitioning to soft clay
+2025-07-18,Equipment,Mobile Welding Rigs,10,8,4,2,24,88.0,Welding shelters weatherproofed against weekend storm
+2025-07-18,Equipment,NDT Mobile RT Darkroom Units,2,1,1,0,4,90.0,Digital CR scanner calibrated for fast turnaround
+2025-07-25,Labour,Welders (API 1104 Qualified),10,10,6,2,28,94.0,Spread B welding in full production; PS-1 piping spools ramped
+2025-07-25,Labour,Pipe Fitters and Riggers,14,16,10,4,44,93.0,Spread B tie-in prep and PS-1 pump skid piping fit-up
+2025-07-25,Labour,Heavy Equipment Operators,18,20,8,6,52,95.0,Full operations resumed post-storm on both spreads
+2025-07-25,Labour,General Construction Labourers,32,32,16,8,88,90.0,Trench padding and lowering-in support at maximum mobilization
+2025-07-25,Labour,QA/QC and NDT Inspectors,7,5,4,2,18,96.0,100% RT coverage maintained within 24 hours of weld completion
+2025-07-25,Labour,Supervisors and HSE Officers,6,6,3,2,17,96.0,Full supervisory coverage on day and night shifts
+2025-07-25,Equipment,Sidebooms and Pipelayers,6,6,2,2,16,92.0,Spread A lowering-in cradle spread and Spread B stringing
+2025-07-25,Equipment,Hydraulic Excavators,8,8,3,1,20,92.0,All ditching and trenching machines in continuous production
+2025-07-25,Equipment,Mobile Welding Rigs,10,10,6,2,28,94.0,Full fleet operational across all active construction fronts
+2025-07-25,Equipment,NDT Mobile RT Darkroom Units,2,1,1,0,4,92.0,RT turnaround time under 18 hours from weld completion

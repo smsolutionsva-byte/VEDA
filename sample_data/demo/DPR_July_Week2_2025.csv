@@ -1,0 +1,46 @@
+DPR_No,Date,Contractor,Crew,Discipline,Spread,Chainage_From,Chainage_To,Quantity,Unit,Progress_Pct,Remarks,Reported_By
+DPR-1241,2025-07-07,Ridgeline Constructors,CW-01,Welding,Spread A,6+300,6+600,20,joints,38.0,Progress as planned; 2 welding spreads operating smoothly,S. Menon
+DPR-1242,2025-07-07,Apex Pipeline Services,CW-02,NDT,Spread A,5+200,5+600,26,joints,35.8,Second RT crew fully operational; evaluated NCR-2025-011 re-welds,K. Bhatt
+DPR-1243,2025-07-07,Delta Civil Co,CW-03,Trenching,Spread A,8+775,8+810,35,m,73.4,Ditch profile accepted; padding material stockpiled,S. Menon
+DPR-1244,2025-07-07,Ridgeline Constructors,CW-01,Coating,Spread A,4+600,4+900,18,joints,35.5,Holiday test 100% pass at 15kV,K. Bhatt
+DPR-1245,2025-07-07,Apex Pipeline Services,CW-04,Stringing,Spread B,14+305,14+330,25,m,44.5,Stringing along KP 14.3; pipe bevel protectors checked,R. Iyer
+DPR-1246,2025-07-07,Ridgeline Constructors,CW-05,Bending,Spread B,13+500,13+800,22,joints,15.0,Bending output ramping up on Spread B; cold bends staged,R. Iyer
+DPR-1247,2025-07-07,Delta Civil Co,CW-06,Civil,PS-1,-,-,20,m3,63.5,Formwork preparation for compressor foundation slab revision,R. Iyer
+DPR-1248,2025-07-07,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Method statement for 18in reamer bypass sidetrack submitted,A. Fernandes
+DPR-1249,2025-07-08,Ridgeline Constructors,CW-01,Welding,Spread A,6+600,6+900,22,joints,38.8,Mainline welding output improving; line-up clamp cycle 8 min,S. Menon
+DPR-1250,2025-07-08,Apex Pipeline Services,CW-02,NDT,Spread A,5+600,6+000,28,joints,38.0,RT clearance issued; NCR-2025-011 repairs officially accepted per API 1104,K. Bhatt
+DPR-1251,2025-07-08,Delta Civil Co,CW-03,Trenching,Spread A,8+810,8+840,30,m,73.7,Progress as planned; rocky strata requiring rock saw,S. Menon
+DPR-1252,2025-07-08,Ridgeline Constructors,CW-01,Coating,Spread A,4+900,5+200,18,joints,36.6,Field joint coating progressing steadily,K. Bhatt
+DPR-1253,2025-07-08,Apex Pipeline Services,CW-04,Stringing,Spread B,14+330,14+355,25,m,45.2,Stringing string-welded sections along Spread B ROW,R. Iyer
+DPR-1254,2025-07-08,Ridgeline Constructors,CW-05,Bending,Spread B,13+800,14+150,24,joints,17.2,Bending ramp-up continuing; 24 cold bends completed,R. Iyer
+DPR-1255,2025-07-08,Delta Civil Co,CW-06,Civil,Spread B,18+000,18+400,25,m3,88.5,Access track grading and turnout construction at KP 18.2,S. Menon
+DPR-1256,2025-07-08,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Client approved revised drilling fluid plan (bentonite/PAC-R blend),A. Fernandes
+DPR-1257,2025-07-09,Ridgeline Constructors,CW-01,Welding,Spread A,6+900,7+200,24,joints,39.7,Stovepipe welding pace optimal; welders WLD-101 and WLD-105 commended,S. Menon
+DPR-1258,2025-07-09,Apex Pipeline Services,CW-02,NDT,Spread A,6+000,6+400,30,joints,40.2,Radiography throughput high; 30 field welds scanned in night shift,K. Bhatt
+DPR-1259,2025-07-09,Delta Civil Co,CW-03,Trenching,Spread A,8+840,8+870,30,m,73.9,Trenching through undulating ridge terrain,S. Menon
+DPR-1260,2025-07-09,Ridgeline Constructors,CW-01,Coating,Spread A,5+200,5+500,19,joints,37.8,Completed sleeve application over repaired section at 5+400,K. Bhatt
+DPR-1261,2025-07-09,Apex Pipeline Services,CW-04,Stringing,Spread B,14+355,14+375,20,m,46.0,Stringing ahead of Spread B welding crew mobilization,R. Iyer
+DPR-1262,2025-07-09,Ridgeline Constructors,CW-05,Bending,Spread B,14+150,14+500,26,joints,19.5,Heavy wall pipe bending for road crossings KP 14+450,R. Iyer
+DPR-1263,2025-07-09,Delta Civil Co,CW-06,Civil,PS-1,-,-,16,m3,64.8,Core test report received; concrete strength verified at 32 MPa,R. Iyer
+DPR-1264,2025-07-10,Ridgeline Constructors,CW-01,Welding,Spread A,7+200,7+500,23,joints,40.6,Welding speed maintained; hot pass trailing 1 joint behind root,S. Menon
+DPR-1265,2025-07-10,Apex Pipeline Services,CW-02,NDT,Spread A,6+400,6+800,32,joints,42.5,RT backlog reduced to 4 days; AUT crew calibration verified,K. Bhatt
+DPR-1266,2025-07-10,Delta Civil Co,CW-03,Trenching,Spread A,8+870,8+900,30,m,74.2,Excavation in soft weathered sandstone,S. Menon
+DPR-1267,2025-07-10,Ridgeline Constructors,CW-01,Coating,Spread A,5+500,5+850,22,joints,39.2,Coating crew running parallel; peel tests meet specification,K. Bhatt
+DPR-1268,2025-07-10,Apex Pipeline Services,CW-04,Stringing,Spread B,14+375,14+395,20,m,46.8,Consumables shortage in morning shift; crane fuel replenished,R. Iyer
+DPR-1269,2025-07-10,Ridgeline Constructors,CW-05,Bending,Spread B,14+500,14+850,25,joints,21.8,Bending machine operator on overtime to support next week tie-ins,R. Iyer
+DPR-1270,2025-07-10,Delta Civil Co,CW-06,Civil,Spread B,18+400,19+000,30,m3,89.8,ROW clearing and topsoil berm construction,S. Menon
+DPR-1271,2025-07-10,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Drill rig positioning new 18in hole opener and mud mixing tanks,A. Fernandes
+DPR-1272,2025-07-11,Ridgeline Constructors,CW-01,Welding,Spread A,7+500,7+800,21,joints,41.5,Welding progress as planned; preheat temperature maintained at 120C,S. Menon
+DPR-1273,2025-07-11,Apex Pipeline Services,CW-02,NDT,Spread A,6+800,7+150,27,joints,44.0,NDT clearance complete up to KP 7+150; 0 repairs today,K. Bhatt
+DPR-1274,2025-07-11,Delta Civil Co,CW-03,Trenching,Spread A,8+900,8+935,35,m,74.5,Ditcher machine operating in dry clay,S. Menon
+DPR-1275,2025-07-11,Ridgeline Constructors,CW-01,Coating,Spread A,5+850,6+200,24,joints,40.8,Joint coating clearance granted; holiday testing completed,K. Bhatt
+DPR-1276,2025-07-11,Apex Pipeline Services,CW-04,Stringing,Spread B,14+395,14+415,20,m,47.5,Pipe stringing in progress along Spread B mainline,R. Iyer
+DPR-1277,2025-07-11,Ridgeline Constructors,CW-05,Bending,Spread B,14+850,15+200,28,joints,24.2,Spread B bending output at peak; 28 joints cold bent,R. Iyer
+DPR-1278,2025-07-11,Delta Civil Co,CW-06,Civil,PS-1,-,-,22,m3,66.0,Grout bed preparation and structural holding-down bolt alignment,R. Iyer
+DPR-1279,2025-07-12,Ridgeline Constructors,CW-01,Welding,Spread A,7+800,8+050,19,joints,42.2,Mainline welding nearing river crossing tie-in boundary,S. Menon
+DPR-1280,2025-07-12,Apex Pipeline Services,CW-02,NDT,Spread A,7+150,7+500,28,joints,45.8,RT backlog officially closed per NCR-2025-014 corrective action,K. Bhatt
+DPR-1281,2025-07-12,Delta Civil Co,CW-03,Trenching,Spread A,8+935,8+965,30,m,74.7,Trenching progressing smoothly; safety benching checked,S. Menon
+DPR-1282,2025-07-12,Ridgeline Constructors,CW-01,Coating,Spread A,6+200,6+550,23,joints,42.4,Progress as planned; sleeve shrink application inspected,K. Bhatt
+DPR-1283,2025-07-12,Apex Pipeline Services,CW-04,Stringing,Spread B,14+415,14+435,20,m,48.2,Stringing complete up to KP 14+435,R. Iyer
+DPR-1284,2025-07-12,Ridgeline Constructors,CW-05,Bending,Spread B,15+200,15+500,22,joints,26.0,Bending staged ahead for upcoming trenching front,R. Iyer
+DPR-1285,2025-07-12,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,0,m,15.0,Fluid circulation test with new polymer mud formulation successful,A. Fernandes

@@ -1,0 +1,41 @@
+DPR_No,Date,Contractor,Crew,Discipline,Spread,Chainage_From,Chainage_To,Quantity,Unit,Progress_Pct,Remarks,Reported_By
+DPR-1326,2025-07-21,Ridgeline Constructors,CW-01,Welding,Spread A,9+300,9+600,24,joints,47.8,Progress as planned; mainline welding production steady,S. Menon
+DPR-1327,2025-07-21,Apex Pipeline Services,CW-02,NDT,Spread A,9+000,9+300,23,joints,53.8,Dual RT teams operational; film interpretation per API 1104,K. Bhatt
+DPR-1328,2025-07-21,Delta Civil Co,CW-03,Trenching,Spread B,12+160,12+195,35,m,3.2,Trenching advancing on Spread B; rock wheel ditcher operational,S. Menon
+DPR-1329,2025-07-21,Ridgeline Constructors,CW-01,Coating,Spread A,8+350,8+700,26,joints,52.8,Joint coating applied up to river east tie-in point,K. Bhatt
+DPR-1330,2025-07-21,Apex Pipeline Services,CW-05,Welding,Spread B,13+200,13+500,22,joints,12.8,Welding progressing on Spread B; weld IDs W-4B-0110 to 0131,R. Iyer
+DPR-1331,2025-07-21,Delta Civil Co,CW-06,Mechanical,PS-1,-,-,2,skids,15.0,PS-1 mechanical erection started; Main Booster Pump Skid MP-01 positioned,R. Iyer
+DPR-1332,2025-07-21,Apex Pipeline Services,CW-04,Civil,Spread A,0+000,0+100,15,m3,10.0,Commissioning prep: staging hydrotest filling header and pig trap foundation,R. Iyer
+DPR-1333,2025-07-21,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,15,m,42.0,HDD final 24in barrel reaming pass advancing; mud weight 1.18 SG,A. Fernandes
+DPR-1334,2025-07-22,Ridgeline Constructors,CW-01,Welding,Spread A,9+600,9+900,22,joints,48.9,Mainline welding running on schedule; pre-heat verified,S. Menon
+DPR-1335,2025-07-22,Apex Pipeline Services,CW-02,NDT,Spread A,9+300,9+600,24,joints,55.0,RT clearance granted up to KP 9+600; zero repairs,K. Bhatt
+DPR-1336,2025-07-22,Delta Civil Co,CW-03,Trenching,Spread B,12+195,12+230,35,m,3.8,Spread B trenching progressing smoothly in gravelly soil,S. Menon
+DPR-1337,2025-07-22,Ridgeline Constructors,CW-01,Coating,Spread A,8+700,9+000,24,joints,54.2,Field joint sleeve heat shrink application and visual QA,K. Bhatt
+DPR-1338,2025-07-22,Apex Pipeline Services,CW-05,Welding,Spread B,13+500,13+800,20,joints,15.0,Welding pace consistent; 20 joints completed and marked,R. Iyer
+DPR-1339,2025-07-22,Delta Civil Co,CW-06,Mechanical,PS-1,-,-,1,skids,25.0,Secondary Booster Pump Skid MP-02 placed on plinth; anchor bolts torqued,R. Iyer
+DPR-1340,2025-07-22,Apex Pipeline Services,CW-04,Civil,Spread A,0+000,0+000,1,units,15.0,Hydrotest test manifold spool fabrication and pre-test calibration,R. Iyer
+DPR-1341,2025-07-22,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,20,m,52.0,Final reamer pass progressing; hole clean zero torque spikes,A. Fernandes
+DPR-1342,2025-07-23,Ridgeline Constructors,CW-01,Welding,Spread A,9+900,10+200,25,joints,50.0,Milestone: Spread A mainline welding reaches 50% completion,S. Menon
+DPR-1343,2025-07-23,Apex Pipeline Services,CW-02,NDT,Spread A,9+600,9+900,22,joints,56.2,NDT team maintaining pace with welding front; RT turnaround <24h,K. Bhatt
+DPR-1344,2025-07-23,Delta Civil Co,CW-03,Trenching,Spread B,12+230,12+260,30,m,4.3,Trench depth compliance verified against pipeline alignment sheet,S. Menon
+DPR-1345,2025-07-23,Ridgeline Constructors,CW-01,Coating,Spread A,9+000,9+350,26,joints,55.6,High-voltage holiday test performed at 15kV on 26 joints,K. Bhatt
+DPR-1346,2025-07-23,Apex Pipeline Services,CW-05,Welding,Spread B,13+800,14+100,22,joints,17.2,Spread B mainline welding output improving; 4 welder pairs active,R. Iyer
+DPR-1347,2025-07-23,Delta Civil Co,CW-06,Mechanical,PS-1,-,-,12,spools,35.0,Suction/discharge manifold pipe spools aligned and tack welded,R. Iyer
+DPR-1348,2025-07-23,Apex Pipeline Services,CW-04,Civil,Spread A,0+000,0+000,1,units,25.0,Bi-directional cleaning and gauging pigs inspected and certified,R. Iyer
+DPR-1349,2025-07-23,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,25,m,65.0,24in reaming pass reached KP 8+400 exit pit; hole swabbed clean,A. Fernandes
+DPR-1350,2025-07-24,Ridgeline Constructors,CW-01,Welding,Spread A,10+200,10+500,23,joints,51.2,Welding progress as planned; internal lineup clamp used,S. Menon
+DPR-1351,2025-07-24,Apex Pipeline Services,CW-02,NDT,Spread A,9+900,10+200,25,joints,57.5,Radiography completed; 1 minor slag inclusion repaired and re-shot,K. Bhatt
+DPR-1352,2025-07-24,Delta Civil Co,CW-03,Trenching,Spread B,12+260,12+295,35,m,4.9,Excavation proceeding towards block valve BV-02 site,S. Menon
+DPR-1353,2025-07-24,Ridgeline Constructors,CW-01,Coating,Spread A,9+350,9+700,27,joints,57.0,Shrink sleeve application and holiday testing up to KP 9+700,K. Bhatt
+DPR-1354,2025-07-24,Apex Pipeline Services,CW-05,Welding,Spread B,14+100,14+400,21,joints,19.5,Normal shift; welding passing through road crossing tie-in,R. Iyer
+DPR-1355,2025-07-24,Delta Civil Co,CW-06,Mechanical,PS-1,-,-,8,joints,45.0,PS-1 manifold tie-in welding in progress per ASME B31.8,R. Iyer
+DPR-1356,2025-07-24,Apex Pipeline Services,CW-04,Civil,Spread A,0+000,0+000,1,units,35.0,Hydrotest fill pump staging and break tank water filling connection,R. Iyer
+DPR-1357,2025-07-24,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,1,units,80.0,Pull-head welded onto 24in pipe string; buoyancy control tanks fitted,A. Fernandes
+DPR-1358,2025-07-25,Ridgeline Constructors,CW-01,Welding,Spread A,10+500,10+800,22,joints,52.4,Spread A welding on track; welders maintaining 22 joints/day average,S. Menon
+DPR-1359,2025-07-25,Apex Pipeline Services,CW-02,NDT,Spread A,10+200,10+500,23,joints,58.8,RT clearance granted; total spread RT backlog down to zero,K. Bhatt
+DPR-1360,2025-07-25,Delta Civil Co,CW-03,Trenching,Spread B,12+295,12+330,35,m,5.5,Trenching completed for Spread B section 1; ready for lowering-in,S. Menon
+DPR-1361,2025-07-25,Ridgeline Constructors,CW-01,Coating,Spread A,9+700,10+050,26,joints,58.4,Field joint coating progressing at 26 joints/day; peel tests verified,K. Bhatt
+DPR-1362,2025-07-25,Apex Pipeline Services,CW-05,Welding,Spread B,14+400,14+700,23,joints,21.8,Mainline welding output steady across Spread B,R. Iyer
+DPR-1363,2025-07-25,Delta Civil Co,CW-06,Mechanical,PS-1,-,-,6,joints,55.0,Hydrostatic test manifold at PS-1 fabricated and NDT cleared,R. Iyer
+DPR-1364,2025-07-25,Apex Pipeline Services,CW-04,Civil,Spread A,0+000,0+000,1,units,50.0,Pre-test pressure recorder and deadweight tester calibration verified,R. Iyer
+DPR-1365,2025-07-25,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,1,units,95.0,Pipe string pullback setup complete; safety briefing prior to pullback,A. Fernandes

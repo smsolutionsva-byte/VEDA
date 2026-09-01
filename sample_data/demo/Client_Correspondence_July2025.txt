@@ -1,0 +1,95 @@
+TRANS-RIDGE PIPELINE - SECTION 4
+RECORD OF FORMAL CLIENT / CONTRACTOR CORRESPONDENCE - JULY 2025
+Client: TransRidge Energy Corporation (TREC)
+Contractor: Ridgeline Constructors JV / Apex Pipeline Services
+
+================================================================================
+ITEM 1: CLIENT NOTICE OF SCHEDULE SLIPPAGE & DEMAND FOR RECOVERY PLAN
+Date: 03 July 2025 | Ref: TREC-RC-LTR-2025-0082
+From: M. Thornton (Project Director, TransRidge Energy Corporation)
+To: J. Vance (Project Director, Ridgeline Constructors JV)
+
+Dear Mr. Vance,
+TransRidge Energy Corporation notes with serious concern the Week 26 progress
+report indicating cumulative physical progress of 34.2% against the contractual
+baseline of 41.0% (a negative variance of 6.8%).
+The critical delays on Spread A welding, the unmitigated radiography backlog
+exceeding ten working days (NCR-2025-014), and the stalled HDD crossing at
+CH 8+400 present an unacceptable risk to Project Mechanical Completion.
+Pursuant to General Conditions of Contract Clause 8.4, Contractor is hereby
+instructed to submit a comprehensive Schedule Recovery Plan within seven (7)
+days detailing manpower uplift, equipment additions, and revised shift patterns.
+Yours sincerely,
+Marcus Thornton, Project Director
+
+================================================================================
+ITEM 2: CONTRACTOR RESPONSE & RECOVERY PLAN SUBMISSION
+Date: 07 July 2025 | Ref: RC-TREC-LTR-2025-0114
+From: J. Vance (Project Director, Ridgeline Constructors JV)
+To: M. Thornton (Project Director, TransRidge Energy Corporation)
+
+Dear Mr. Thornton,
+We acknowledge receipt of TREC-RC-LTR-2025-0082. Ridgeline Constructors is fully
+committed to recovering schedule momentum. Our recovery strategy incorporates:
+1. Mobilisation of second Apex NDT crew on 02 July; full dual-shift radiography
+   is now active to eliminate the inspection backlog by Week 29.
+2. Mobilisation of replacement welders for CW-01 and deployment of Crew CW-04 on
+   Spread B commencing 14 July.
+3. Implementation of the GeoEngineers recovery methodology for the CH 8+400 HDD,
+   including high-viscosity polymer drilling fluid and void grouting.
+4. Adoption of 6-day x 11-hour work weeks across all coating and trenching crews.
+Detailed Revision 3 Recovery Schedule is enclosed for your review and approval.
+Yours faithfully,
+Julian Vance, Project Director
+
+================================================================================
+ITEM 3: CLIENT NOTICE REGARDING HYDROTEST WATER ABSTRACTION WINDOW
+Date: 10 July 2025 | Ref: TREC-RC-LTR-2025-0088
+From: D. Campbell (Commissioning Manager, TransRidge Energy Corporation)
+To: R. Iyer (Site Construction Manager, Ridgeline Constructors JV)
+
+Dear Mr. Iyer,
+Please be reminded that the environmental water abstraction permit issued by the
+River Basin Authority limits pipeline hydrostatic test filling to the period
+between 15 November and 05 December 2025 due to downstream agricultural flows.
+Any failure to achieve mechanical completion of Spread A, Spread B, and the
+CH 8+400 river crossing prior to 10 November 2025 will result in the loss of
+this test window and a mandatory four-month deferral under environmental statute.
+All tie-in welding and cleaning pig runs must be scheduled accordingly.
+Regards,
+David Campbell, Commissioning Manager
+
+================================================================================
+ITEM 4: CONTRACTOR NOTICE OF CLAIM FOR EXTENSION OF TIME (EOT-01) - HDD
+Date: 14 July 2025 | Ref: RC-TREC-LTR-2025-0121
+From: J. Vance (Project Director, Ridgeline Constructors JV)
+To: M. Thornton (Project Director, TransRidge Energy Corporation)
+
+Dear Mr. Thornton,
+In accordance with Contract Clause 12.2 (Unforeseeable Subsurface Conditions),
+Contractor formally submits Notice of Claim for an Extension of Time of twenty-one
+(21) calendar days resulting from the buried gravel palaeochannel encountered at
+CH 8+400 HDD crossing, as verified by GeoEngineers Report GE-2025-R08.
+The geotechnical baseline provided at tender did not indicate loose cobble lenses
+at borehole depth. Substantiation of delay analysis and standing plant cost
+records are attached for commercial evaluation.
+Yours faithfully,
+Julian Vance, Project Director
+
+================================================================================
+ITEM 5: CLIENT SITE INSTRUCTION - PS-1 FOUNDATION MODIFICATION
+Date: 16 July 2025 | Ref: TREC-RC-LTR-2025-0094 / SI-2025-019
+From: P. Holbrook (Lead Civil/Structural Engineer, TransRidge Energy Corporation)
+To: J. Vance (Project Director, Ridgeline Constructors JV)
+
+Dear Mr. Vance,
+TransRidge Engineering has reviewed Delta Civil Co core test results for PS-1
+compressor slab F-03 and the structural remedial proposal.
+Contractor is hereby formally instructed via Site Instruction SI-2025-019 to
+proceed immediately with the foundation perimeter collar modification per
+Design Note DN-PS1-004 Rev 1.
+Mix design C35/45 high-early-strength concrete with silica fume additive shall
+be utilized. Delta Civil shall ensure full inspection coverage during rebar
+anchoring and epoxy grouting.
+Regards,
+Peter Holbrook, Lead Civil/Structural Engineer

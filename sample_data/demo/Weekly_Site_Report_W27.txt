@@ -1,0 +1,71 @@
+TRANS-RIDGE PIPELINE - SECTION 4
+WEEKLY SITE PROGRESS REPORT
+Week 27 - Period ending 04 July 2025
+Prepared by: Site Construction Manager (R. Iyer)
+Contractor: Ridgeline Constructors / Apex Pipeline Services
+
+1. SUMMARY
+Overall physical progress at cut-off stands at approximately 37% against a
+planned 44% (variance of -7.0%). Pacing activities remain Spread A mainline
+welding/radiography sequencing and the river crossing HDD works at CH 8+400.
+Spread B trenching has commenced.
+
+2. PIPELINE - SPREAD A (CH 0+000 to 12+000)
+Stringing remains 100% complete. Bending advanced to 78% (cumulative 9,360 m).
+Mainline welding reached ~42% (5,040 m) with crews CW-01 and CW-02 active.
+Weld repairs on NCR-2025-011 (CH 5+400 root porosity) were completed,
+re-examined by radiography, and formally accepted by QA (K. Bhatt).
+Subcontractor Apex NDT mobilized the second radiography crew on 02 July;
+darkroom calibration and local radiation safety clearance were completed, but
+the crew has not yet achieved productive throughput. Radiography backlog is
+currently 9 working days behind welding (down from 11 days).
+Field joint coating (FJC) is starting to catch up, reaching 31% (3,720 m) with
+crew CW-03 applying heat-shrink sleeves following closure of NCR-2025-012.
+Trenching progress is accepted at 76% (9,120 m).
+
+3. PIPELINE - SPREAD B (CH 12+000 to 24+000)
+ROW grading reached 92%. Stringing advanced steadily to ~55% (6,600 m strung,
+currently at CH 18+600) with pipe haulage running smoothly. Cold field bending
+commenced on 30 June and stands at 15% (1,800 m bent). Trenching operations
+started on 01 July in soft clay/sandstone sections between CH 12+000 and
+12+850 (~7% of spread). Mainline welding crew CW-04 mobilization is on track
+for mid-July.
+
+4. SPECIAL CROSSINGS
+HDD River Crossing (CH 8+400): Comprehensive geotechnical reassessment report
+was received on 01 July from GeoEngineers Ltd. The report confirms an unmapped
+buried cobble/gravel palaeochannel between CH 8+320 and CH 8+490 that triggered
+the mud loss and borehole collapse (NCR-2025-015). HDD Lead A. Fernandes has
+submitted a revised drilling programme adding approximately 3 weeks to the
+crossing schedule. Contractor is mobilizing specialist high-density mud solids
+recycling equipment and premium polymer additives, with delivery due 08 July.
+
+5. STATION WORKS
+PS-1 (Pump Station 1): Core test results (ASTM C42) for compressor foundation
+slab F-03 returned compressive strengths averaging 21.5 MPa against the 28-day
+design requirement of 30.0 MPa (NCR-2025-013). Civil consultant structural
+review recommends a partial redesign involving an enlarged perimeter collar and
+epoxy-grouted dowel grid rather than full demolition. Client approval is awaited.
+Mechanical erection remains on hold.
+
+6. TESTING AND COMMISSIONING
+Pre-hydrotest engineering submittals for Test Section 1 (Spread A, CH 0+000 to
+8+350) submitted for client review. Test manifold fabrication initiated at the
+central pipe yard. River water abstraction permit application submitted.
+
+7. LABOUR AND PLANT
+Total site manpower averaged 228 personnel across all shifts. Two replacement
+welders for crew CW-01 mobilized and completed ASME Sec IX testing. Equipment
+on site: 18 excavators, 6 sidebooms, 2 cold bending machines, 1 HDD rig.
+
+8. WEATHER
+Four rain events during the period resulting in 1.5 shifts lost on field joint
+coating and trench dewatering.
+
+9. KEY CONCERNS RAISED BY SITE
+- Revised HDD programme adds 3 weeks to the critical path, tightening the
+  window ahead of the golden tie-in and November hydrotest deadline.
+- Second RT crew must reach full daily production immediately to clear backlog.
+- PS-1 foundation redesign approval urgently required to unblock station civil
+  works and compressor skid installation.
+- Timely pipe delivery to Spread B must be sustained to avoid stringing gaps.

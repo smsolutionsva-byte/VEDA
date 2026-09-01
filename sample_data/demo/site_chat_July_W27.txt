@@ -1,0 +1,32 @@
+[30/06/2025, 07:15] R. Iyer: Morning team. Second RT crew from Apex subcontractor is arriving at site office by 11:00 today.
+[30/06/2025, 07:22] S. Menon: Copy. Spread A welding crew CW-01 is setting up at CH 6+100. CW-02 is ready for the repair work at CH 5+400 once K. Bhatt gives go-ahead.
+[30/06/2025, 07:35] K. Bhatt: Approved repair procedure WPS-P-04 is in hand. CW-02 can proceed with defect gouging on the 6 porosity joints (NCR-2025-011).
+[30/06/2025, 08:10] S. Menon: Spread B stringing crew CW-05 has 20 joints strung between CH 13+200 and 13+500. Pipe transport running smoothly.
+[30/06/2025, 09:45] A. Fernandes: Geotechnical consultant submitted draft borehole logs for CH 8+400 river crossing. 4.5m cobble/gravel seam confirmed at elevation -12m.
+[30/06/2025, 11:30] K. Bhatt: Second RT crew (RT-02) checked in at gate. Darkroom mobile lab inspected and isotope source storage certified.
+[30/06/2025, 14:10] R. Iyer: @K. Bhatt please coordinate night shift shooting plan. We need both RT crews running tonight to attack the backlog.
+[30/06/2025, 14:25] K. Bhatt: RT-01 will shoot Spread A CH 4+800 to 5+600. RT-02 will take CH 5+800 to 6+400. Target 40 joints interpreted by morning.
+[01/07/2025, 07:10] S. Menon: Morning update. Sideboom SB-02 blew a hydraulic hose near CH 5+900 during pipe cradling. Mechanic dispatched.
+[01/07/2025, 08:45] S. Menon: SB-02 hydraulic line replaced and pressure tested. Machine back on the line, minimal downtime.
+[01/07/2025, 09:15] K. Bhatt: Night RT report: 34 joints shot and evaluated. 32 accepted, 2 minor slag inclusions flagged for buffing. Backlog reduced to 9 days.
+[01/07/2025, 11:20] A. Fernandes: Reviewing HDD remedial strategy with Apex drilling lead. Proposing high-viscosity bentonite slurry with PAC-R polymer and walnut shell LCM.
+[01/07/2025, 11:40] R. Iyer: A. Fernandes make sure the hydrogeologist signs off on the mud composition. We cannot afford another fluid fracture under the riverbed.
+[01/07/2025, 15:30] Delta Civil Co: Stockyard delivery update: 18 pipes 24in X65 received from railhead. Offloaded and visually inspected at Spread B yard.
+[01/07/2025, 18:05] K. Bhatt: Holiday detector calibration completed for CW-04 coating crew. Voltage set at 15kV per NACE SP0188.
+[02/07/2025, 07:05] S. Menon: CW-02 has completed root and hot pass repair on 4 out of 6 joints on NCR-2025-011 at CH 5+400.
+[02/07/2025, 08:30] K. Bhatt: Visual and dye penetrant inspection of root repairs passed. CW-02 cleared to complete capping passes.
+[02/07/2025, 10:15] S. Menon: Spread B ROW grading: Delta Civil motor grader reached CH 17+800. Encountered rocky ridge between CH 15+200 and 15+600.
+[02/07/2025, 10:35] R. Iyer: Order a 35-ton excavator with hydraulic breaker for Spread B rocky section. Do not blast near the high-tension pylon.
+[02/07/2025, 13:45] HSE Lead J. Patel: Weather alert: Severe convective thunderstorm approaching from southwest. High wind and heavy rain expected within 45 mins.
+[02/07/2025, 14:30] R. Iyer: All crane lifts and sideboom operations cease immediately. Secure open trench and cover welding stations with tarps.
+[02/07/2025, 16:15] S. Menon: Site shut down due to torrential rain. Dewatering pumps staged at low spots CH 3+400 and CH 7+100.
+[03/07/2025, 07:00] S. Menon: Dewatering pumps ran through early morning. Water drained at CH 3+400. Trench walls held firm, no collapse observed.
+[03/07/2025, 07:45] K. Bhatt: Night RT results: 28 joints cleared. Backlog down to 7 days. Repairs on joints 1-4 at CH 5+400 show 100% sound weld metal.
+[03/07/2025, 10:00] A. Fernandes: Geotechnical recommendation finalized. Borehole stabilization plan approved by third-party reviewer. Mud mixing rig mobilization tomorrow.
+[03/07/2025, 14:15] Delta Civil Co: Hydraulic hammer excavator arrived at Spread B CH 15+200. Beginning rock trenching.
+[03/07/2025, 16:50] S. Menon: CW-01 achieved 15 completed mainline welds today on Spread A. Good rebound after yesterday's rain stoppage.
+[04/07/2025, 07:15] S. Menon: CW-02 completed capping on final 2 repair joints for NCR-2025-011 at CH 5+400. Ready for final RT tonight.
+[04/07/2025, 09:30] R. Iyer: What is the status of the two replacement welders requested from the labour contractor?
+[04/07/2025, 09:45] S. Menon: Subcontractor confirmed welders WLD-109 and WLD-110 will arrive Monday 07:00 for API 1104 coupon qualification test.
+[04/07/2025, 14:00] A. Fernandes: High-shear mud mixing hopper positioned at HDD entry pit CH 8+400. Mud materials staged (120 bags bentonite, 40 sacks PAC-R).
+[04/07/2025, 17:15] R. Iyer: Weekly site progress meeting at 17:45 in main conference room. Supervisors please bring completed daily tally sheets.

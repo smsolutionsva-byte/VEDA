@@ -1,0 +1,21 @@
+Equipment_ID,Description,Serial_No,Manufacturer,Calibration_Standard,Last_Calibration,Next_Due,Status,Calibrated_By,Certificate_No,Location
+CAL-EQ-001,Deadweight Tester Hydraulic (0-250 bar),DWT-88192,Budenberg,ISO/IEC 17025 / BS EN 837,2025-03-10,2026-03-09,Current,Metrology Services Ltd,CAL-2025-MS-1044,Main Yard Lab
+CAL-EQ-002,Digital Master Pressure Gauge (0-200 bar 0.05% FS),CPG-1500-44,WIKA,ASME B40.100 / NIST,2025-04-12,2025-10-11,Current,Metrology Services Ltd,CAL-2025-MS-1288,PS-1 Site
+CAL-EQ-003,Analog Test Pressure Gauge (0-160 bar Class 0.5),PG-2104,Ashcroft,ASME B40.100 / EN 837-1,2025-01-15,2025-07-14,Current,Metrology Services Ltd,CAL-2025-MS-0891,Spread A - Hydrotest Rig
+CAL-EQ-004,Digital Torque Wrench 100-1000 Nm 3/4in Drive,TW-1000-09,Norbar,ISO 6789-2:2017,2025-01-10,2025-07-09,Current,Apex Calibrations Lab,ACL-2025-TW-034,PS-1 Mechanical Shop
+CAL-EQ-005,Mechanical Torque Wrench 50-300 Nm 1/2in Drive,TW-300-14,Stahlwille,ISO 6789-2:2017,2024-12-05,2025-06-04,Overdue,Apex Calibrations Lab,ACL-2024-TW-882,Spread A - Crew CW-01
+CAL-EQ-006,High Voltage Spark Holiday Detector (0-30 kV),HD-30-02,Elcometer 236,NACE SP0188 / ASTM D5162,2025-03-20,2025-09-19,Current,Elcometer Certified Center,ECC-2025-8811,Spread A - Coating CW-04
+CAL-EQ-007,High Voltage Spark Holiday Detector (0-30 kV),HD-30-05,PCWI Compact DC30,NACE SP0188 / ASTM D5162,2024-12-18,2025-06-17,Overdue,Apex Calibrations Lab,ACL-2024-HD-993,Spread B - Coating CW-05
+CAL-EQ-008,Dry Film Coating Thickness Gauge (F/NF),DFT-456-01,Elcometer 456,SSPC-PA 2 / ISO 2808,2025-04-05,2025-10-04,Current,Elcometer Certified Center,ECC-2025-8942,Spread A - QA Mobile Lab
+CAL-EQ-009,Climatic Dew Point & Temp Meter,DP-319-03,Elcometer 319,ISO 8502-4 / ASTM E337,2025-02-14,2025-08-13,Current,Elcometer Certified Center,ECC-2025-8670,Spread A - Coating CW-04
+CAL-EQ-010,AUT Phased Array Flaw Detector,OMNI-X3-01,Olympus OmniScan X3,ASME Sec V Art 4 / ISO 18563,2025-02-01,2026-01-31,Current,Olympus NDT Service,OLY-2025-NDT-410,Spread A - NDT Truck 1
+CAL-EQ-011,Industrial Gamma Radiography Projector (Ir-192),SENT-880-02,QSA Global Sentinel 880,ISO 3999 / IAEA SSR-6,2025-04-18,2025-10-17,Current,Bureau Veritas NDT Lab,BV-2025-RT-1140,Spread A - NDT Bunker
+CAL-EQ-012,Transmission Optical Film Densitometer (0-4.0 D),DEN-301-01,X-Rite 301,ASTM E1079 / ISO 14857,2025-03-15,2025-09-14,Current,Metrology Services Ltd,CAL-2025-MS-1152,Darkroom Trailer
+CAL-EQ-013,Total Station Survey Instrument 1-sec Accuracy,TS16-883,Leica Geosystems TS16,ISO 17123-3 / ISO 17123-4,2025-01-20,2026-01-19,Current,Leica Authorized Service,LAS-2025-SUR-081,Spread A - Survey Team
+CAL-EQ-014,GNSS RTK Base & Rover Survey Receiver,R12-771,Trimble R12,ISO 17123-8,2025-01-22,2026-01-21,Current,Trimble Geo Center,TGC-2025-GNSS-44,Spread B - Survey Team
+CAL-EQ-015,Multi-Process Diesel Welding Generator 500A,WG-500-03,Lincoln Vantage 500,BS EN 60974-14 / API 1104,2025-03-25,2025-09-24,Current,Lincoln Service Center,LSC-2025-W-5501,Spread A - Crew CW-01
+CAL-EQ-016,Multi-Process Diesel Welding Generator 500A,WG-500-07,Lincoln Vantage 500,BS EN 60974-14 / API 1104,2024-11-28,2025-05-27,Overdue,Lincoln Service Center,LSC-2024-W-4920,Spread B - Crew CW-03
+CAL-EQ-017,Infrared Temperature Gun (-50 to 800C),IR-800-04,Fluke 62 Max+,NIST Traceable / ASTM E1256,2025-04-10,2025-10-09,Current,Metrology Services Ltd,CAL-2025-MS-1310,Spread A - Crew CW-02
+CAL-EQ-018,Digital Concrete Test Rebound Hammer,SCH-01,Proceq SilverSchmidt,ASTM C805 / EN 12504-2,2025-02-10,2026-02-09,Current,Proceq Certified Lab,PCL-2025-CIV-102,PS-1 Civil QA
+CAL-EQ-019,4-Pin Wenner Soil Resistivity Meter,SRM-400-02,Miller 400D,ASTM G57 / NACE TM0497,2025-03-05,2025-09-04,Current,Apex Calibrations Lab,ACL-2025-CP-209,Spread A - CP Team
+CAL-EQ-020,Digital Caliper & Micrometer Set (0-300mm),MIC-300-01,Mitutoyo Digimatic,DIN 862 / ISO 3599,2025-02-28,2026-02-27,Current,Metrology Services Ltd,CAL-2025-MS-1102,Main Yard QA Lab

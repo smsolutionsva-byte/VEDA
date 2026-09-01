@@ -1,0 +1,61 @@
+TRANS-RIDGE PIPELINE - SECTION 4
+WEEKLY SITE PROGRESS REPORT
+Week 29 - Period ending 18 July 2025
+Prepared by: Site Construction Manager (R. Iyer)
+Contractor: Ridgeline Constructors / Apex Pipeline Services
+
+1. SUMMARY
+Overall physical progress at cut-off reached approximately 41% against a
+planned 50% (variance of -9.0%). Spread B mainline welding commenced. HDD pilot
+hole drilling at the river crossing was restarted successfully with good mud
+returns. Coating progress on Spread A was strong throughout the week.
+
+2. PIPELINE - SPREAD A (CH 0+000 to 12+000)
+Mainline welding reached ~51% (6,120 m completed) with 510 production joints
+accepted. Radiography backlog has normalized to 3 working days behind the weld
+front; NCR-2025-014 has been formally closed by QA (K. Bhatt).
+Field joint coating achieved excellent progress, reaching 48% (5,760 m) with
+dual induction preheating crews working between CH 4+500 and 5+800.
+Trenching is at 84% (10,080 m). First pipeline lowering-in and padding
+operations commenced between CH 0+500 and 1+800 (1.3 km accepted).
+
+3. PIPELINE - SPREAD B (CH 12+000 to 24+000)
+Spread B mainline welding commenced on 14 July with Crew CW-04 operating from
+CH 12+000; 48 joints (580 m, ~5% of spread) completed with zero weld repairs.
+Stringing advanced to 76% (9,120 m strung up to CH 21+120). Cold field bending
+progressed to 38% (4,560 m). Trenching reached 29% (3,480 m excavated to
+CH 15+480) with two excavator crews working in rock-free terrain.
+
+4. SPECIAL CROSSINGS
+HDD River Crossing (CH 8+400): Pilot hole re-drilling restarted on 15 July
+utilizing an 8-3/4" mud motor and gyro steering tool with polymer-fortified
+bentonite drilling fluid. Drill bit navigated successfully through the grouted
+gravel palaeochannel without fluid loss. Cumulative pilot bore reached 320 m
+of the 780 m crossing profile (41% of pilot bore) with 100% drilling fluid
+returns to the recycling pit.
+
+5. STATION WORKS
+PS-1 (Pump Station 1): Structural collar reinforcement and formwork for slab
+F-03 completed. Concrete pour executed on 16 July utilizing C35/45 high-early-
+strength concrete mix. 3-day cylinder compressive tests broke at 28.2 MPa,
+exceeding interim design threshold. Grouting of compressor skid anchor pocket
+sleeves scheduled for early next week to allow mechanical staging.
+
+6. TESTING AND COMMISSIONING
+Hydrotest Section 1 test plan revision approved by client. Water fill routing
+and filtration skid location at CH 0+000 confirmed. Pre-cleaning pigging
+sequence drafted.
+
+7. LABOUR AND PLANT
+Total site manpower reached 256 personnel. Equipment fleet fully operational
+with 20 excavators, 7 sidebooms, 2 bending machines, and 1 HDD spread.
+
+8. WEATHER
+Dry and sunny throughout the week; zero weather downtime recorded.
+
+9. KEY CONCERNS RAISED BY SITE
+- 24-hour drilling roster required for HDD reaming passes to prevent mud gelation.
+- Procurement delivery dates for 24" sectionalizing ball valves for block valve
+  stations require client expediting.
+- Lowering-in and tie-in sequencing must be maintained to stay within trench
+  stability time limits before seasonal late-summer rains.

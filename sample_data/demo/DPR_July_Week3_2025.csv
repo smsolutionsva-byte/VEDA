@@ -1,0 +1,41 @@
+DPR_No,Date,Contractor,Crew,Discipline,Spread,Chainage_From,Chainage_To,Quantity,Unit,Progress_Pct,Remarks,Reported_By
+DPR-1286,2025-07-14,Ridgeline Constructors,CW-01,Welding,Spread A,8+050,8+350,22,joints,43.5,Progress as planned; mainline approaching river west tie-in,S. Menon
+DPR-1287,2025-07-14,Apex Pipeline Services,CW-02,NDT,Spread A,7+500,7+850,26,joints,47.2,Dual RT crews active; 100% film interpretation complete,K. Bhatt
+DPR-1288,2025-07-14,Ridgeline Constructors,CW-01,Coating,Spread A,6+550,6+900,26,joints,44.2,Coating catching up on Spread A mainline,K. Bhatt
+DPR-1289,2025-07-14,Delta Civil Co,CW-03,Trenching,Spread B,12+000,12+030,30,m,0.5,Spread B trenching commenced at KP 12+000; CAT 336 excavator active,S. Menon
+DPR-1290,2025-07-14,Apex Pipeline Services,CW-04,Stringing,Spread B,14+435,14+460,25,m,49.0,Normal shift; pipe delivery convoy 6 loads unloaded,R. Iyer
+DPR-1291,2025-07-14,Apex Pipeline Services,CW-05,Welding,Spread B,12+000,12+150,10,joints,2.5,Spread B mainline welding commenced; internal line-up clamp deployed,R. Iyer
+DPR-1292,2025-07-14,Delta Civil Co,CW-06,Civil,PS-1,-,-,18,m3,67.5,Pump Station 1 pedestal grouting using MasterFlow 928,R. Iyer
+DPR-1293,2025-07-14,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,8,m,17.5,HDD restart attempt initiated; 18in reaming forward 8m with polymer sweeps,A. Fernandes
+DPR-1294,2025-07-15,Ridgeline Constructors,CW-01,Welding,Spread A,8+350,8+400,8,joints,44.0,Completed west bank river tie-in string; staged for golden weld,S. Menon
+DPR-1295,2025-07-15,Apex Pipeline Services,CW-02,NDT,Spread A,7+850,8+200,25,joints,48.6,Radiography and ultrasonic verification clear per API 1104,K. Bhatt
+DPR-1296,2025-07-15,Ridgeline Constructors,CW-01,Coating,Spread A,6+900,7+250,25,joints,46.0,Sleeve preheat induction coils operating smoothly,K. Bhatt
+DPR-1297,2025-07-15,Delta Civil Co,CW-03,Trenching,Spread B,12+030,12+065,35,m,1.0,Trenching on Spread B advancing in firm loam soil,S. Menon
+DPR-1298,2025-07-15,Apex Pipeline Services,CW-04,Stringing,Spread B,14+460,14+480,20,m,49.8,Progress as planned; stringing ahead of trenching crew,R. Iyer
+DPR-1299,2025-07-15,Apex Pipeline Services,CW-05,Welding,Spread B,12+150,12+350,15,joints,4.2,Welding pace increasing on Spread B; root and hot pass accepted,R. Iyer
+DPR-1300,2025-07-15,Delta Civil Co,CW-06,Civil,Spread B,19+000,19+600,28,m3,91.0,Water crossing ramp grading and erosion silt fencing installed,S. Menon
+DPR-1301,2025-07-15,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,14,m,21.0,Reaming pass 2 advancing steadily; annular pressure stable at 45 psi,A. Fernandes
+DPR-1302,2025-07-16,Ridgeline Constructors,CW-01,Welding,Spread A,8+450,8+700,18,joints,44.8,Welding commenced on east bank of river crossing,S. Menon
+DPR-1303,2025-07-16,Apex Pipeline Services,CW-02,NDT,Spread A,8+200,8+400,16,joints,49.8,Full NDT clearance on river west tie-in section,K. Bhatt
+DPR-1304,2025-07-16,Ridgeline Constructors,CW-01,Coating,Spread A,7+250,7+600,27,joints,47.8,Spread A coating catching up rapidly with welding front,K. Bhatt
+DPR-1305,2025-07-16,Delta Civil Co,CW-03,Trenching,Spread B,12+065,12+095,30,m,1.6,Ditch depth 2.2m verified; no water ingress encountered,S. Menon
+DPR-1306,2025-07-16,Apex Pipeline Services,CW-04,Stringing,Spread B,14+480,14+505,25,m,50.5,Milestone: Spread B stringing reached 50% completion,R. Iyer
+DPR-1307,2025-07-16,Apex Pipeline Services,CW-05,Welding,Spread B,12+350,12+600,18,joints,6.0,Consumables shortage in morning shift; argon cylinders replaced,R. Iyer
+DPR-1308,2025-07-16,Delta Civil Co,CW-06,Civil,PS-1,-,-,14,m3,68.8,Foundation remediation completed; QC sign-off on compressor pad,R. Iyer
+DPR-1309,2025-07-16,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,18,m,25.5,HDD drilling progress good; penetrated gravel zone without fluid loss,A. Fernandes
+DPR-1310,2025-07-17,Ridgeline Constructors,CW-01,Welding,Spread A,8+700,9+000,21,joints,45.8,Progress as planned; 3 welding stations manned,S. Menon
+DPR-1311,2025-07-17,Apex Pipeline Services,CW-02,NDT,Spread A,8+450,8+700,18,joints,51.0,Night RT inspection completed on east bank string,K. Bhatt
+DPR-1312,2025-07-17,Ridgeline Constructors,CW-01,Coating,Spread A,7+600,8+000,28,joints,49.5,Coating team on Spread A now only 1km behind welding front,K. Bhatt
+DPR-1313,2025-07-17,Delta Civil Co,CW-03,Trenching,Spread B,12+095,12+130,35,m,2.2,Spread B trenching output exceeding target; double trench box in place,S. Menon
+DPR-1314,2025-07-17,Apex Pipeline Services,CW-04,Stringing,Spread B,14+505,14+525,20,m,51.2,Pipe stringing in progress along Spread B,R. Iyer
+DPR-1315,2025-07-17,Apex Pipeline Services,CW-05,Welding,Spread B,12+600,12+900,22,joints,8.2,Spread B welding output solid; API 1104 WPS-01 followed,R. Iyer
+DPR-1316,2025-07-17,Delta Civil Co,CW-06,Civil,Spread B,19+600,20+200,32,m3,92.5,Access culvert backfilling and compaction testing (95% Proctor),S. Menon
+DPR-1317,2025-07-17,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,22,m,31.0,Reaming pass 2 completed across river channel; reamer exited east side,A. Fernandes
+DPR-1318,2025-07-18,Ridgeline Constructors,CW-01,Welding,Spread A,9+000,9+300,23,joints,46.8,Welding pace maintained; pipe pup transitions completed,S. Menon
+DPR-1319,2025-07-18,Apex Pipeline Services,CW-02,NDT,Spread A,8+700,9+000,21,joints,52.5,RT clearance granted; zero reject rate on week's welds,K. Bhatt
+DPR-1320,2025-07-18,Ridgeline Constructors,CW-01,Coating,Spread A,8+000,8+350,25,joints,51.2,Field joint coating complete up to river crossing tie-in,K. Bhatt
+DPR-1321,2025-07-18,Delta Civil Co,CW-03,Trenching,Spread B,12+130,12+160,30,m,2.7,Trenching progressing toward KP 12+200,S. Menon
+DPR-1322,2025-07-18,Apex Pipeline Services,CW-04,Stringing,Spread B,14+525,14+550,25,m,52.0,Unloaded 5 trailers; stringing uninterrupted,R. Iyer
+DPR-1323,2025-07-18,Apex Pipeline Services,CW-05,Welding,Spread B,12+900,13+200,24,joints,10.5,Welding advancing towards intermediate block valve location,R. Iyer
+DPR-1324,2025-07-18,Delta Civil Co,CW-06,Civil,PS-1,-,-,20,m3,70.0,PS-1 foundation slab cure 100%; handover to mechanical team approved,R. Iyer
+DPR-1325,2025-07-18,Apex Pipeline Services,CW-07,HDD,Spread A,8+400,8+400,12,m,34.0,Swabbing pass commenced; preparing 24in barrel reamer for final pass,A. Fernandes

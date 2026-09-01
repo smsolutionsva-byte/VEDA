@@ -1,0 +1,36 @@
+Report_No,Date,Weld_No,Chainage,Spread,RT_Technique,Film_Density,Sensitivity_pct,Defect_Found,Defect_Type,Defect_Size_mm,Acceptance_Criteria,Result,Radiographer_ID,Comments
+RT-2025-W27-001,2025-06-30,W-4A-0251,8+050,Spread A,DWSI Ir-192,2.35,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Full 360 deg circumferential exposure; sound weld per API 1104
+RT-2025-W27-002,2025-06-30,W-4A-0252,8+100,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Wire IQI 10 DIN visible; weld acceptable
+RT-2025-W27-003,2025-06-30,W-4A-0253,8+120,Spread A,SWSI X-Ray,2.55,1.6%,Yes,Porosity,1.2,API 1104 Sec 9.3,Accept,RAD-02,Isolated pinhole pore in hot pass; within API 1104 Sec 9.3.2 allowable size
+RT-2025-W27-004,2025-06-30,W-4A-0254,8+150,Spread A,DWSI Ir-192,2.30,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,No reportable indications; weld acceptable
+RT-2025-W27-005,2025-06-30,W-4A-0257,8+220,Spread A,DWSI Ir-192,2.45,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Acceptable penetration and profile; no indications
+RT-2025-W27-006,2025-06-30,W-4A-0258,8+250,Spread A,DWSI Ir-192,2.42,1.8%,Yes,Incomplete Fusion,8.5,API 1104 Sec 9.5,Reject,RAD-01,Lack of side-wall fusion at 4 o clock 8.5mm; exceeds API 1104 Sec 9.5 limit
+RT-2025-W27-007,2025-06-30,W-4A-0260,8+300,Spread A,SWSI X-Ray,2.62,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Crawler X-ray panoramic shot; complete fusion and penetration
+RT-2025-W27-008,2025-07-01,W-4B-0095,12+020,Spread B,DWSI Ir-192,2.28,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Backlog clearance shot; full circumference acceptable
+RT-2025-W27-009,2025-07-01,W-4B-0096,12+050,Spread B,DWSI Ir-192,2.32,1.8%,Yes,Slag Inclusion,2.4,API 1104 Sec 9.6,Accept,RAD-01,Isolated slag inclusion 2.4mm; acceptable under API 1104 Sec 9.6 Table 2
+RT-2025-W27-010,2025-07-01,W-4B-0098,12+100,Spread B,SWSI X-Ray,2.50,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Good definition and contrast; weld accepted
+RT-2025-W27-011,2025-07-01,W-4B-0100,12+150,Spread B,DWSI Ir-192,2.38,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Weld clear of volumetric defects; accepted
+RT-2025-W27-012,2025-07-01,W-4A-0261,8+150,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Mainline production joint; full RT coverage; accepted
+RT-2025-W27-013,2025-07-01,W-4B-0101,12+150,Spread B,SWSI X-Ray,2.58,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Internal crawler X-ray; sound root and cap profile
+RT-2025-W27-014,2025-07-01,W-4A-0248,7+950,Spread A,DWSI Se-75,2.34,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Tie-in weld; Se-75 source utilized; clear film quality
+RT-2025-W27-015,2025-07-02,W-4A-0263,8+450,Spread A,DWSI Ir-192,2.44,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Girth butt weld; fully acceptable
+RT-2025-W27-016,2025-07-02,W-4B-0103,12+450,Spread B,DWSI Ir-192,2.36,1.8%,Yes,Porosity,1.5,API 1104 Sec 9.3,Accept,RAD-01,Scattered porosity < 2mm; within API 1104 allowable distribution
+RT-2025-W27-017,2025-07-02,W-4A-0264,8+600,Spread A,DWSI Ir-192,2.50,1.8%,Yes,Slag Inclusion,7.5,API 1104 Sec 9.6,Reject,RAD-02,Elongated slag inclusion 7.5mm in root pass exceeding allowable single length (6.0mm)
+RT-2025-W27-018,2025-07-02,W-4A-0250,8+020,Spread A,SWSI X-Ray,2.65,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Backlog clearance shot; panoramic exposure; accepted
+RT-2025-W27-019,2025-07-02,W-4B-0092,11+920,Spread B,DWSI Ir-192,2.31,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Backlog clearance; acceptable weld quality
+RT-2025-W27-020,2025-07-02,W-4B-0094,11+980,Spread B,DWSI Ir-192,2.42,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Weld acceptable per API 1104 Section 9
+RT-2025-W27-021,2025-07-02,W-4A-0245,7+880,Spread A,SWSI X-Ray,2.56,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Sound weld metal and heat affected zone; accepted
+RT-2025-W27-022,2025-07-03,W-4A-0266,8+850,Spread A,DWSI Ir-192,2.40,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Production weld CW-02; complete root penetration
+RT-2025-W27-023,2025-07-03,W-4A-0268,9+020,Spread A,DWSI Ir-192,2.48,1.8%,Yes,Slag Inclusion,3.1,API 1104 Sec 9.6,Accept,RAD-02,Isolated elongated slag 3.1mm at 10 o clock; acceptable
+RT-2025-W27-024,2025-07-03,W-4B-0105,12+800,Spread B,SWSI X-Ray,2.60,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Crawler X-ray; excellent root condition; accepted
+RT-2025-W27-025,2025-07-03,W-4B-0091,11+880,Spread B,DWSI Ir-192,2.33,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Backlog clearance joint; accepted
+RT-2025-W27-026,2025-07-03,W-4B-0093,11+950,Spread B,DWSI Ir-192,2.37,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Backlog clearance joint; accepted
+RT-2025-W27-027,2025-07-03,W-4A-0249,7+980,Spread A,DWSI Se-75,2.29,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Tie-in weld; no linear indications found
+RT-2025-W27-028,2025-07-03,W-4B-0097,12+080,Spread B,SWSI X-Ray,2.54,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Clean root and cap; accepted
+RT-2025-W27-029,2025-07-04,W-4B-0106,12+950,Spread B,SWSI X-Ray,2.60,1.6%,Yes,Porosity,18.0,API 1104 Sec 9.3,Reject,RAD-01,Cluster porosity aggregate diameter > 1/2in. in 12in. weld length; exceeds API 1104 Sec 9.3.2
+RT-2025-W27-030,2025-07-04,W-4B-0108,13+240,Spread B,DWSI Ir-192,2.36,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Production weld CW-05; sound weld metal
+RT-2025-W27-031,2025-07-04,W-4A-0270,9+150,Spread A,DWSI Ir-192,2.44,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Full RT evaluation complete; acceptable
+RT-2025-W27-032,2025-07-04,W-4B-0099,12+120,Spread B,DWSI Ir-192,2.39,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-02,Backlog clearance joint; accepted per standard
+RT-2025-W27-033,2025-07-04,W-4A-0255,8+180,Spread A,SWSI X-Ray,2.58,1.6%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Crawler X-ray; clean root bead
+RT-2025-W27-034,2025-07-04,W-4A-0256,8+200,Spread A,DWSI Ir-192,2.41,1.8%,Yes,Undercut,0.4,API 1104 Sec 9.7,Accept,RAD-02,Minor external undercut 0.4mm depth < 0.8mm limit; acceptable
+RT-2025-W27-035,2025-07-04,W-4A-0259,8+280,Spread A,DWSI Ir-192,2.46,1.8%,No,None,0.0,API 1104 Sec 9.3,Accept,RAD-01,Final shot for W27 shift; sound weld metal accepted
