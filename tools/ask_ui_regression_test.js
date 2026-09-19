@@ -20,7 +20,7 @@ if (!app.includes("askState.restoreScroll =")) {
 if (!views.includes('scroll.scrollTop = restoreScroll.top')) {
   throw new Error('Ask VEDA must restore reader scroll position after refresh');
 }
-if (!html.includes('views.js?v=1.59')) {
+if (!html.includes('views.js?v=1.64')) {
   throw new Error('Ask VEDA frontend cache version was not updated');
 }
 

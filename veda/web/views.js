@@ -149,9 +149,31 @@ const ST = { complete: 'green', in_progress: 'blue', not_started: 'grey',
   monitoring: 'blue', cleared: 'green', waived: 'violet', ready: 'green',
   blocked: 'red', attention: 'amber', not_assessed: 'grey', proposed: 'violet' };
 
+function dashboardHero(title, detail, welcome = false) {
+  return '<section class="dashboard-hero' + (welcome ? ' welcome-hero' : '') + '">' +
+    '<span class="hero-caption">Illustrative project imagery</span>' +
+    '<div class="eyebrow">' + (welcome ? 'VEDA · Project Intelligence' : 'Dashboard · Project Intelligence') + '</div>' +
+    '<h1>' + E(title) + '</h1><p>From field reality to schedule certainty.</p>' +
+    '<div class="hero-source">' + detail + '</div></section>';
+}
+
+function dashboardShortcuts() {
+  const items = [
+    ['controls', 'Execution Control', 'Lookaheads & constraints', 'M4 6h16M7 3v6M4 13h16M16 10v6M4 20h16'],
+    ['ask', 'Ask VEDA', 'Grounded project answers', 'M4 5h16v12H9l-5 3V5zM8 10h8M8 13h5'],
+    ['timeline', 'Schedule Timeline', 'Dates, logic & progress', 'M3 5h18v14H3zM7 9h7M10 13h8M5 17h9'],
+    ['capture', 'Capture field update', 'Bring site evidence into view', 'M4 6h16v14H4zM9 6l1-3h4l1 3M12 10a3 3 0 100 6 3 3 0 000-6'],
+  ];
+  return '<nav class="dashboard-shortcuts" aria-label="Dashboard shortcuts">' + items.map(([id, title, detail, path]) =>
+    '<button type="button" onclick="go(\'' + id + '\')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + path + '"/></svg>' +
+    '<span><b>' + title + '</b><small>' + detail + '</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></button>'
+  ).join('') + '</nav>';
+}
+
 /* ===================================================== no project */
 VIEWS.noproject = () =>
-  '<div class="panel" style="max-width:640px;margin:60px auto">' +
+  dashboardHero("Your project, connected.", "<span>Schedule · Evidence · Decisions</span>", true) +
+  '<div class="panel welcome-panel">' +
   '<header>Get started</header><div class="body">' +
   '<p style="margin-top:0;color:var(--ink-2)">VEDA reads a construction ' +
   'schedule through Horizun, interprets the field paperwork around it, and ' +
@@ -540,13 +562,31 @@ VIEWS.overview = async (pid) => {
     int(Number(c.open_hindrances || 0) + Number(c.open_constraints || 0)) +
     ' execution control flags</b><span>Review active hindrances and look-ahead readiness constraints</span><i>Open controls →</i></button>');
 
-  return '<div class="head"><div><div class="eyebrow">Dashboard</div>' +
-    '<h1>' + E(o.project.name) + '</h1>' +
-    '<div class="sub">Authoritative schedule: ' + E(s.project_name || '') +
-    (o.project.location ? ' · ' + E(o.project.location) : '') +
-    ' · data/status date ' + (s.data_date ? day(s.data_date) : 'not evaluable') +
-    ' · schedule revision ' + E(s.revision) +
-    '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
+  return dashboardHero(o.project.name,
+    '<span>Authoritative schedule: ' + E(s.project_name || '') + '</span>' +
+    (o.project.location ? '<span>' + E(o.project.location) + '</span>' : '') +
+    '<span>Data/status date · ' + (s.data_date ? day(s.data_date) : 'not evaluable') + '</span>' +
+    '<span>Revision ' + E(s.revision) + '</span>') +
+    '<div class="dashboard-key">' + provKey() + '</div>' +
+
+    '<div class="grid g4 dashboard-metrics">' +
+    stat('Current forecast finish', forecastValue, E(forecastDetail),
+      lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
+    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : '—',
+      progressAvailable ? E(progressDetail) : 'Not evaluable — ' + E(progressDetail)) +
+    stat('Critical activities', criticalAvailable ? int(c.critical) : '—',
+      criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
+        : 'Not evaluable — ' + E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
+    stat('Source-evaluable schedule QA', qaValue, qaDetail,
+      evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
+    '</div>' +
+
+    '<div class="control-visual-grid">' +
+      completionTrajectoryCard(insights.completion_trajectory) +
+      activityDistributionCard(insights.activity_distribution) +
+    '</div>' +
+
+    dashboardShortcuts() +
 
     '<div class="control-strip">' +
       '<div><span>Decisions</span><b class="' + (decisionCount ? 'warm' : 'good') + '">' +
@@ -568,25 +608,9 @@ VIEWS.overview = async (pid) => {
         '<div class="control-clear"><b>Project inputs are reconciled.</b><span>New evidence will appear here when it creates an exception.</span></div>') +
       '</div></section>' +
 
-    '<div class="control-visual-grid">' +
-      completionTrajectoryCard(insights.completion_trajectory) +
-      activityDistributionCard(insights.activity_distribution) +
-    '</div>' +
-
     siteVisionDashboard() +
 
-    '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Current forecast finish', forecastValue, E(forecastDetail),
-      lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
-    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : '—',
-      progressAvailable ? E(progressDetail) : 'Not evaluable — ' + E(progressDetail)) +
-    stat('Critical activities', criticalAvailable ? int(c.critical) : '—',
-      criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
-        : 'Not evaluable — ' + E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
-    stat('Source-evaluable schedule QA', qaValue, qaDetail,
-      evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
-    '</div>' +
-
+    '<details class="dashboard-details"' + (VIEWS._dashboardDetails?.[pid] ? ' open' : '') + '><summary>Detailed project metrics<span>Schedule, evidence and decisions</span></summary>' +
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Overdue vs reference plan', overdueEvaluable ? int(c.overdue) : '—',
       overdueEvaluable ? 'unfinished activities whose reference finish is before the supplied data/status date' :
@@ -629,6 +653,8 @@ VIEWS.overview = async (pid) => {
       'records a human explicitly chose to leave unassigned for now; they are not silently unresolved',
       f.deferred_record_count ? 'warm' : 'good') +
     '</div>' +
+
+    '</details>' +
 
     (o.state_summary ? panel('Current state summary',
       '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' +
@@ -707,6 +733,11 @@ VIEWS.overview = async (pid) => {
 };
 
 VIEWS.bind_overview = (pid) => {
+  const details = document.querySelector('.dashboard-details');
+  if (details) details.addEventListener('toggle', () => {
+    VIEWS._dashboardDetails = VIEWS._dashboardDetails || {};
+    VIEWS._dashboardDetails[pid] = details.open;
+  });
   const root = document.getElementById('site-vision-panel');
   if (!root) return;
   VIEWS._siteVisionBusy = false;
@@ -3815,9 +3846,10 @@ VIEWS.files = async (pid) => {
       'Schedules + DPRs + spreadsheets + scanned PDFs/photos can arrive together. ' +
       'Focus this box and paste a screenshot too.</div>' +
       '<button class="btn" id="pickfiles" type="button">Browse files</button> ' +
-      '<button class="btn" id="pickfolder" type="button">Browse project folder</button>' +
+      '<button class="btn" id="pickfolder" type="button">Select project folder</button>' +
       '<input type="file" id="fileinput" multiple accept="' + accept + '" hidden>' +
       '<input type="file" id="folderinput" multiple webkitdirectory directory hidden>' +
+      '<small id="folderhelp" style="display:block;color:var(--ink-3);margin-top:8px">Choose a folder to stage its supported files recursively.</small>' +
       '</div>' +
       '<div id="stagedfiles" style="margin-top:10px">' + stagedHtml + '</div>' +
       '<div style="margin:18px 0 8px;border-top:1px solid var(--line)"></div>' +
@@ -4044,32 +4076,26 @@ VIEWS.bind_files = (pid) => {
 
   if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
 
-  // "Browse project folder" prefers the File System Access API: its native
-  // dialog is an explicit folder chooser (a "Select Folder" confirm action),
-  // not a file-open dialog. A `webkitdirectory` <input> is kept only as the
-  // fallback for browsers that lack that API (Firefox, Safari) - and where
-  // even the input's directory mode isn't actually supported, the button is
-  // hidden rather than silently opening a plain file picker.
+  // Folder selection needs the File System Access API. Some embedded Chromium
+  // hosts render a webkitdirectory chooser but return an empty FileList after
+  // selection, so showing that fallback gives the operator a false success.
   const hasDirPicker = typeof window.showDirectoryPicker === 'function';
-  const inputDirSupported = !!folderInp && 'webkitdirectory' in folderInp;
-  const folderSupported = hasDirPicker || inputDirSupported;
-  if (folderInp && !hasDirPicker && inputDirSupported) {
-    folderInp.webkitdirectory = true;
-    folderInp.multiple = true;
-    try { folderInp.setAttribute('webkitdirectory', ''); } catch (_) {}
-  }
+  const folderHelp = document.getElementById('folderhelp');
   if (folderInp) {
     folderInp.onchange = () => {
       const picked = folderInp.files ? folderInp.files.length : 0;
       addFiles(folderInp.files);
       folderInp.value = '';
-      if (!picked) window.toast('No files found in that folder.', 'bad');
+      if (picked) window.toast(picked + ' file(s) staged from the selected folder.', 'good');
+      else window.toast('No folder was imported. Highlight the folder and press Select Folder; if it still returns 0, use Browse files and select its contents.', 'bad');
     };
   }
   if (pickFolder) {
-    if (!folderSupported) {
+    if (!hasDirPicker) {
       pickFolder.hidden = true;
-    } else if (hasDirPicker) {
+      if (folderHelp) folderHelp.textContent =
+        'Folder selection is unavailable in this embedded browser. Use Browse files (Ctrl+A inside the folder), or drag the folder into this box.';
+    } else {
       const label = pickFolder.textContent;
       pickFolder.onclick = async (e) => {
         e.stopPropagation();
@@ -4095,8 +4121,6 @@ VIEWS.bind_files = (pid) => {
           pickFolder.textContent = label;
         }
       };
-    } else {
-      pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
     }
   }
   inp.onchange = () => { addFiles(inp.files); inp.value = ''; };

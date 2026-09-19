@@ -1,0 +1,38 @@
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const path = require('path');
+const source = fs.readFileSync(path.join(__dirname, '../veda/web/views.js'), 'utf8');
+const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+let data;
+const reads = [];
+const sandbox = {window: {esc, api: async url => {
+  reads.push(url);
+  return url.includes('field-captures') ? {captures: []} : data;
+}, post: () => {throw Error('Dashboard browsing must not write');}}};
+vm.createContext(sandbox);
+vm.runInContext(source + '\nthis.views = VIEWS;', sandbox);
+(async () => {
+  data = {project: {name:'<img src=x onerror=alert(1)>'}, schedule:null};
+  const empty = await sandbox.views.overview('test');
+  assert(empty.includes('No authoritative schedule'));
+  assert(!empty.includes('<img src=x'));
+  data = {project:{name:'<img src=x onerror=alert(1)>'}, schedule:{project_name:'Test',revision:1,percent_complete:77,critical_count:5},
+    counts:{activities:20,critical:5}, quality:{passed:0,failed:0,not_evaluated:14}};
+  let html = await sandbox.views.overview('test');
+  assert(html.includes('&lt;img'));
+  assert(!html.includes('77.0%'), 'Unavailable progress must not become a fact');
+  assert(html.includes('Not evaluable'));
+  assert.strictEqual((html.match(/class="stat /g)||[]).length,16,'Preserve all sixteen original metrics');
+  assert(html.includes('Illustrative project imagery'));
+  assert(html.includes('class="dashboard-details"'));
+  sandbox.views._dashboardDetails = {test:true};
+  data.schedule.progress_available=1;
+  data.schedule.criticality_available=1;
+  html = await sandbox.views.overview('test');
+  assert(html.includes('77.0%'));
+  assert(html.includes('class="dashboard-details" open'), 'Expanded metrics survive a refresh');
+  assert(reads.every(url=> /^\/projects\/test\/(overview|field-captures\?limit=3)$/.test(url)));
+  console.log('Dashboard UI regression test: PASS (empty state, escaping, source availability, metrics, read-only rendering, disclosure state)');
+})().catch(error => {console.error(error); process.exitCode=1;});

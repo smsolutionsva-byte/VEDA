@@ -6,16 +6,16 @@
 <title>VEDA - Construction Project Intelligence</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0F1319">
+<meta name="theme-color" content="#F3F7F4">
 <script>
 (() => {
   let saved = null;
   try { saved = localStorage.getItem('veda-theme'); } catch (_) {}
-  const system = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.dataset.theme = saved || system;
+  document.documentElement.dataset.theme = saved === 'dark' ? 'dark' : 'light';
 })();
 </script>
-<link rel="stylesheet" href="/static/app.css?v=1.59">
+<link rel="stylesheet" href="/static/app.css?v=1.66">
+<link rel="stylesheet" href="/static/design.css?v=1.66">
 </head>
 <body>
 <div id="app">
@@ -24,7 +24,7 @@
             aria-controls="rail" aria-expanded="true">
       <span class="nav-glyph" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
-    <div class="brand"><b>VEDA</b><span>Project Intelligence</span></div>
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M3 7h9l8 23 8-23h9L24 37h-8L3 7Z" fill="currentColor"/><path d="M14 7h12l-3.5 8h-5L14 7Z" fill="#399E8E"/></svg><div><b>VEDA</b><span>Project Intelligence</span></div></div>
     <div class="topbar-page" aria-live="polite"><span>Workspace</span><b id="topbar-view">Dashboard</b></div>
     <div class="topbar-project">
       <select class="projpick" id="projpick" aria-label="Current project"></select>
@@ -58,6 +58,10 @@
           <div><button type="button" data-role-switch="supervisor"><b>Supervisor</b><small>Controls &amp; approvals</small></button>
           <button type="button" data-role-switch="worker"><b>Site worker</b><small>Capture &amp; submit</small></button></div>
         </div>
+        <button type="button" id="profile-theme-toggle" class="profile-theme-toggle" role="menuitemcheckbox" aria-checked="false">
+          <span><span>Dark mode</span><small id="profile-theme-label">Light appearance</small></span>
+          <i class="theme-switch" aria-hidden="true"></i>
+        </button>
         <button type="button" role="menuitem" data-profile-go="system" data-supervisor-only><span>System &amp; integrations</span><small>Providers, bridge and health</small></button>
         <button type="button" role="menuitem" data-profile-go="anywhere" data-supervisor-only><span>Connected devices</span><small>VEDA Anywhere access</small></button>
       </div>
@@ -71,9 +75,9 @@
   <main class="main" id="main"></main>
 </div>
 <div class="toasts" id="toasts"></div>
-<script src="/static/views.js?v=1.59"></script>
-<script src="/static/vision-tracker.js?v=1.59"></script>
-<script src="/static/field-capture.js?v=1.59"></script>
-<script src="/static/app.js?v=1.59"></script>
+<script src="/static/views.js?v=1.66"></script>
+<script src="/static/vision-tracker.js?v=1.66"></script>
+<script src="/static/field-capture.js?v=1.66"></script>
+<script src="/static/app.js?v=1.66"></script>
 </body>
 </html>

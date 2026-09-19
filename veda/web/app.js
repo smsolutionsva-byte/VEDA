@@ -172,7 +172,8 @@ function renderRail() {
     items.map(([id, label, key]) => {
       const n = key ? c[key] : undefined;
       const alert = key === 'attention' && n > 0;
-      return '<a data-v="' + id + '" title="' + label + '" aria-label="' + label +
+      return '<a href="#' + id + '"' + (S.view === id ? ' aria-current="page"' : '') +
+        ' data-v="' + id + '" title="' + label + '" aria-label="' + label +
         '" class="' + (S.view === id ? 'on' : '') + '">' +
         '<span class="nav-ico">' + navIcon(id) + '</span>' +
         '<span class="nav-label">' + label + '</span>' +
@@ -182,7 +183,7 @@ function renderRail() {
     }).join('') + '</section>'
   )).join('');
   $('#rail').querySelectorAll('a').forEach(a =>
-    a.onclick = () => go(a.dataset.v));
+    a.onclick = (event) => { event.preventDefault(); go(a.dataset.v); });
   const page = $('#topbar-view');
   if (page) page.textContent = currentNavLabel();
   const notice = $('#notifications');
@@ -324,10 +325,16 @@ async function refreshHealth() {
   }
 }
 
-/* The shell follows the OS colour preference. There is intentionally no
-   everyday theme control in the header; project actions stay the focus. */
+/* Appearance lives in the profile menu and defaults to the light palette. */
 function applyTheme(theme, persist) {
   document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const toggle = $('#profile-theme-toggle');
+  if (toggle) toggle.setAttribute('aria-checked', String(dark));
+  const label = $('#profile-theme-label');
+  if (label) label.textContent = dark ? 'Dark appearance' : 'Light appearance';
+  const themeColor = $('meta[name="theme-color"]');
+  if (themeColor) themeColor.content = dark ? '#0F1319' : '#F3F7F4';
   if (persist) {
     try { localStorage.setItem('veda-theme', document.documentElement.dataset.theme); }
     catch (_) { /* Theme still applies when browser storage is unavailable. */ }
@@ -357,6 +364,7 @@ function restoreNavigationState() {
 }
 
 function toggleNavigation() {
+  closeProfileMenu();
   if (desktopNavigation()) {
     const collapsed = document.body.classList.toggle('rail-collapsed');
     try { localStorage.setItem(RAIL_STATE_KEY, collapsed ? '1' : '0'); } catch (_) {}
@@ -378,6 +386,10 @@ function toggleProfileMenu() {
   const button = $('#profile-toggle');
   if (!menu || !button) return;
   const open = menu.hidden;
+  if (open) {
+    document.body.classList.remove('nav-open');
+    syncNavigationToggle();
+  }
   menu.hidden = !open;
   button.setAttribute('aria-expanded', String(open));
 }
@@ -852,6 +864,10 @@ async function init() {
   if (navToggle) navToggle.onclick = toggleNavigation;
   $('#quick-ask').onclick = () => go('ask');
   $('#notifications').onclick = () => go('attention');
+  applyTheme(document.documentElement.dataset.theme, false);
+  $('#profile-theme-toggle').onclick = () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+  };
   $('#profile-toggle').onclick = (e) => {
     e.stopPropagation();
     toggleProfileMenu();
@@ -880,12 +896,7 @@ async function init() {
     }
     syncNavigationToggle();
   });
-  const systemTheme = matchMedia('(prefers-color-scheme: light)');
-  systemTheme.addEventListener('change', (e) => {
-    let saved = null;
-    try { saved = localStorage.getItem('veda-theme'); } catch (_) {}
-    if (!saved) applyTheme(e.matches ? 'light' : 'dark', false);
-  });
+  // The reference design defaults to light; retain explicitly saved preferences.
   $('#projpick').onchange = async (e) => {
     const previous = S.project;
     S.project = e.target.value || null;
