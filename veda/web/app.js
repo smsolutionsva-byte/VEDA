@@ -15,6 +15,11 @@ const S = {
 };
 
 const $ = (s, r) => (r || document).querySelector(s);
+const PROVIDER_UI_NAMES = {
+  auto: 'VEDA Auto', antigravity_cli: 'VEDA-A', claude_code: 'VEDA-B',
+  codex: 'VEDA-C', gemini_api: 'VEDA-A Cloud', local_antigravity: 'VEDA Bridge',
+};
+const providerUiName = (key, fallback) => PROVIDER_UI_NAMES[key] || String(fallback || key || 'VEDA');
 
 /* ------------------------------------------------------ read coalescing
    A live run fires many events, and each one asks the header and the current
@@ -67,19 +72,20 @@ const SUPERVISOR_NAV = [
   ['Workspace', [
     ['capture', 'Capture field update'], ['files', 'Files'],
     ['proposals', 'Edit / proposed changes'],
-    ['attention', 'Review Inbox', 'attention'],
+    ['attention', 'Decisions', 'attention'],
   ]],
   ['Control', [
-    ['overview', 'Dashboard'], ['controls', 'Execution Control'], ['ask', 'Ask VEDA'],
+    ['overview', 'Dashboard'], ['portfolio', 'Portfolio'],
+    ['controls', 'Recovery & Scenarios'], ['ask', 'Ask VEDA'],
   ]],
   ['Field Truth', [
-    ['evidence', 'Evidence', 'evidence'], ['observed', 'Field vs Schedule'],
+    ['evidence', 'Evidence', 'evidence'], ['observed', 'Plan vs Reality'],
     ['issues', 'Issues', 'issues'], ['risks', 'Risks', 'risks'],
   ]],
   ['Schedule', [
     ['timeline', 'Schedule Timeline'], ['activities', 'Activities', 'activities'],
     ['critical', 'Critical Path', 'critical'],
-    ['milestones', 'Milestones', 'milestones'], ['quality', 'Schedule QA', 'qa_failed'],
+    ['milestones', 'Milestones', 'milestones'], ['quality', 'Schedule Health', 'qa_failed'],
   ]],
   ['Project Data', [
     ['certificates', 'Actuals Certificates'],
@@ -117,6 +123,7 @@ const NAV_ICONS = {
   proposals: '<path d="M4 18.5V20h1.5L17 8.5 15.5 7 4 18.5zM14 8.5l1.5 1.5M14.5 5.5l1-1a1.5 1.5 0 012 0l2 2a1.5 1.5 0 010 2l-1 1"/>',
   attention: '<path d="M4 5h16v14H4zM4 14h5l1.5 2h3L15 14h5"/>',
   overview: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>',
+  portfolio: '<path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M3 20h18"/>',
   controls: '<path d="M4 6h16M7 3v6M4 13h16M16 10v6M4 20h16M10 17v6"/>',
   timeline: '<path d="M3 5h18v14H3zM7 9h7M10 13h8M5 17h9"/>',
   ask: '<path d="M4 5h16v12H9l-5 3V5zM9 10h6M9 13h4"/>',
@@ -172,7 +179,8 @@ function renderRail() {
     items.map(([id, label, key]) => {
       const n = key ? c[key] : undefined;
       const alert = key === 'attention' && n > 0;
-      return '<a data-v="' + id + '" title="' + label + '" aria-label="' + label +
+      return '<a href="#' + id + '"' + (S.view === id ? ' aria-current="page"' : '') +
+        ' data-v="' + id + '" title="' + label + '" aria-label="' + label +
         '" class="' + (S.view === id ? 'on' : '') + '">' +
         '<span class="nav-ico">' + navIcon(id) + '</span>' +
         '<span class="nav-label">' + label + '</span>' +
@@ -182,7 +190,7 @@ function renderRail() {
     }).join('') + '</section>'
   )).join('');
   $('#rail').querySelectorAll('a').forEach(a =>
-    a.onclick = () => go(a.dataset.v));
+    a.onclick = (event) => { event.preventDefault(); go(a.dataset.v); });
   const page = $('#topbar-view');
   if (page) page.textContent = currentNavLabel();
   const notice = $('#notifications');
@@ -218,7 +226,7 @@ window.go = go;
 /* Views that are workspace-level, not project-level: they read config or
    runtime state, never a project, so they stay reachable before the first
    project exists. */
-const PROJECT_OPTIONAL_VIEWS = new Set(['anywhere', 'system']);
+const PROJECT_OPTIONAL_VIEWS = new Set(['portfolio', 'anywhere', 'system']);
 
 /* ------------------------------------------------------------ render */
 async function render() {
@@ -312,8 +320,9 @@ async function refreshHealth() {
     const a = h.providers[h.active_provider] || {};
     const ca = $('#chip-agent');
     ca.className = 'chip ' + (a.ok ? 'ok' : 'bad');
-    const agentName = h.active_provider === 'auto' && a.selected_label
-      ? 'Auto → ' + a.selected_label : (a.label || h.active_provider);
+    const agentName = h.active_provider === 'auto' && a.selected
+      ? 'VEDA Auto → ' + providerUiName(a.selected, a.selected_label)
+      : providerUiName(h.active_provider, a.label);
     ca.querySelector('span').textContent = agentName + (a.ok ? '' : ' offline');
     const cm = $('#chip-mcp');
     cm.className = 'chip ' + (h.horizun.ok ? 'ok' : 'bad');
@@ -324,10 +333,16 @@ async function refreshHealth() {
   }
 }
 
-/* The shell follows the OS colour preference. There is intentionally no
-   everyday theme control in the header; project actions stay the focus. */
+/* Appearance lives in the profile menu and defaults to the light palette. */
 function applyTheme(theme, persist) {
   document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const toggle = $('#profile-theme-toggle');
+  if (toggle) toggle.setAttribute('aria-checked', String(dark));
+  const label = $('#profile-theme-label');
+  if (label) label.textContent = dark ? 'Dark appearance' : 'Light appearance';
+  const themeColor = $('meta[name="theme-color"]');
+  if (themeColor) themeColor.content = dark ? '#0F1319' : '#F3F7F4';
   if (persist) {
     try { localStorage.setItem('veda-theme', document.documentElement.dataset.theme); }
     catch (_) { /* Theme still applies when browser storage is unavailable. */ }
@@ -357,6 +372,7 @@ function restoreNavigationState() {
 }
 
 function toggleNavigation() {
+  closeProfileMenu();
   if (desktopNavigation()) {
     const collapsed = document.body.classList.toggle('rail-collapsed');
     try { localStorage.setItem(RAIL_STATE_KEY, collapsed ? '1' : '0'); } catch (_) {}
@@ -378,6 +394,10 @@ function toggleProfileMenu() {
   const button = $('#profile-toggle');
   if (!menu || !button) return;
   const open = menu.hidden;
+  if (open) {
+    document.body.classList.remove('nav-open');
+    syncNavigationToggle();
+  }
   menu.hidden = !open;
   button.setAttribute('aria-expanded', String(open));
 }
@@ -846,12 +866,18 @@ window.esc = esc;
 window.api = api; window.post = post; window.toast = toast;
 
 async function init() {
+  const skipMain = $('#skip-main');
+  if (skipMain) skipMain.onclick = () => $('#main').focus({ preventScroll: false });
   syncPersonaShell();
   restoreNavigationState();
   const navToggle = $('#nav-toggle');
   if (navToggle) navToggle.onclick = toggleNavigation;
   $('#quick-ask').onclick = () => go('ask');
   $('#notifications').onclick = () => go('attention');
+  applyTheme(document.documentElement.dataset.theme, false);
+  $('#profile-theme-toggle').onclick = () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+  };
   $('#profile-toggle').onclick = (e) => {
     e.stopPropagation();
     toggleProfileMenu();
@@ -880,12 +906,7 @@ async function init() {
     }
     syncNavigationToggle();
   });
-  const systemTheme = matchMedia('(prefers-color-scheme: light)');
-  systemTheme.addEventListener('change', (e) => {
-    let saved = null;
-    try { saved = localStorage.getItem('veda-theme'); } catch (_) {}
-    if (!saved) applyTheme(e.matches ? 'light' : 'dark', false);
-  });
+  // The reference design defaults to light; retain explicitly saved preferences.
   $('#projpick').onchange = async (e) => {
     const previous = S.project;
     S.project = e.target.value || null;

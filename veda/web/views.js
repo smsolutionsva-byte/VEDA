@@ -149,9 +149,64 @@ const ST = { complete: 'green', in_progress: 'blue', not_started: 'grey',
   monitoring: 'blue', cleared: 'green', waived: 'violet', ready: 'green',
   blocked: 'red', attention: 'amber', not_assessed: 'grey', proposed: 'violet' };
 
+function dashboardHero(title, detail, welcome = false) {
+  return '<section class="dashboard-hero' + (welcome ? ' welcome-hero' : '') + '">' +
+    '<span class="hero-caption">Illustrative project imagery</span>' +
+    '<div class="eyebrow">' + (welcome ? 'VEDA · Project Intelligence' : 'Dashboard · Project Intelligence') + '</div>' +
+    '<h1>' + E(title) + '</h1><p>From field reality to schedule certainty.</p>' +
+    '<div class="hero-source">' + detail + '</div></section>';
+}
+
+function dashboardShortcuts() {
+  const items = [
+    ['controls', 'Recovery & Scenarios', 'Lookahead, blockers & options', 'M4 6h16M7 3v6M4 13h16M16 10v6M4 20h16'],
+    ['ask', 'Ask VEDA', 'Grounded project answers', 'M4 5h16v12H9l-5 3V5zM8 10h8M8 13h5'],
+    ['timeline', 'Schedule Timeline', 'Dates, logic & progress', 'M3 5h18v14H3zM7 9h7M10 13h8M5 17h9'],
+    ['capture', 'Capture field update', 'Bring site evidence into view', 'M4 6h16v14H4zM9 6l1-3h4l1 3M12 10a3 3 0 100 6 3 3 0 000-6'],
+  ];
+  return '<nav class="dashboard-shortcuts" aria-label="Dashboard shortcuts">' + items.map(([id, title, detail, path]) =>
+    '<button type="button" onclick="go(\'' + id + '\')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + path + '"/></svg>' +
+    '<span><b>' + title + '</b><small>' + detail + '</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></button>'
+  ).join('') + '</nav>';
+}
+
+function controlScoreCard(o, reportingLag) {
+  const s = o.schedule || {}, c = o.counts || {}, f = o.field_context || {};
+  const evaluated = Number(o.quality.passed || 0) + Number(o.quality.failed || 0);
+  const schedule = evaluated ? Math.max(0, Math.min(100, Number(s.health_score || 0))) : null;
+  const evidenceTotal = Number(f.record_count || f.evidence_observation_count || 0);
+  const evidence = evidenceTotal
+    ? Math.max(0, Math.min(100, 100 * Number(f.validated_link_record_count || 0) / evidenceTotal)) : null;
+  const freshness = reportingLag === null ? null : Math.max(0, Math.min(100, 100 - reportingLag * 12.5));
+  const decisions = Math.max(0, 100 - 12 * (Number(c.pending_reviews || 0) + Number(c.pending_proposals || 0)));
+  const exposure = Math.max(0, 100 - 9 * Number(c.open_risks || 0) - 7 * Number(c.open_issues || 0) -
+    8 * Number(c.open_hindrances || 0) - 6 * Number(c.open_constraints || 0));
+  const parts = [
+    ['Schedule health', schedule, evaluated ? o.quality.failed + ' failed checks' : 'not evaluable'],
+    ['Evidence confidence', evidence, evidenceTotal ? int(f.validated_link_record_count || 0) + ' validated links' : 'no observations'],
+    ['Reporting freshness', freshness, reportingLag === null ? 'not evaluable' : reportingLag + 'd behind status date'],
+    ['Decision flow', decisions, int(Number(c.pending_reviews || 0) + Number(c.pending_proposals || 0)) + ' waiting'],
+    ['Risk exposure', exposure, int(Number(c.open_risks || 0) + Number(c.open_issues || 0)) + ' open records'],
+  ];
+  const scored = parts.filter(x => x[1] !== null);
+  const score = scored.length ? Math.round(scored.reduce((n, x) => n + x[1], 0) / scored.length) : null;
+  const tone = score === null ? 'unknown' : score >= 80 ? 'good' : score >= 60 ? 'warm' : 'hot';
+  const label = score === null ? 'Awaiting project signals' : score >= 80 ? 'Under control' : score >= 60 ? 'Needs attention' : 'Intervention required';
+  return '<section class="control-score ' + tone + '"><div class="control-score-main"><div>' +
+    '<span class="eyebrow">VEDA Control Score</span><b>' + (score === null ? '—' : score) +
+    '</b><strong>' + E(label) + '</strong><small>Transparent operational index · available inputs only</small></div>' +
+    '<i style="--score:' + (score || 0) + '" aria-hidden="true"></i></div><div class="control-score-parts">' +
+    parts.map(x => '<button type="button" onclick="go(\'' +
+      (x[0] === 'Schedule health' ? 'quality' : x[0] === 'Evidence confidence' ? 'evidence' :
+       x[0] === 'Decision flow' ? 'attention' : x[0] === 'Risk exposure' ? 'risks' : 'controls') + '\')">' +
+      '<span>' + E(x[0]) + '</span><b>' + (x[1] === null ? '—' : Math.round(x[1])) +
+      '</b><small>' + E(x[2]) + '</small></button>').join('') + '</div></section>';
+}
+
 /* ===================================================== no project */
 VIEWS.noproject = () =>
-  '<div class="panel" style="max-width:640px;margin:60px auto">' +
+  dashboardHero("Your project, connected.", "<span>Schedule · Evidence · Decisions</span>", true) +
+  '<div class="panel welcome-panel">' +
   '<header>Get started</header><div class="body">' +
   '<p style="margin-top:0;color:var(--ink-2)">VEDA reads a construction ' +
   'schedule through Horizun, interprets the field paperwork around it, and ' +
@@ -290,14 +345,14 @@ VIEWS.capture = async (pid) => {
       '<button class="capture-action worker-only" id="capture-video-record" type="button"><i>◉</i><b>Record site video</b><small>Open this device’s camera</small></button>' +
       '<button class="capture-action cctv" id="capture-cctv" type="button" aria-expanded="false" aria-controls="capture-cctv-panel"><i>▶</i><b>Review CCTV</b><small>Inspect footage and draft progress</small></button></div>' +
       '<section class="cctv-workstation" id="capture-cctv-panel" hidden aria-label="CCTV progress review workstation">' +
-        '<header class="cctv-head"><div><span class="cctv-kicker"><i></i> LOCAL CAMERA · DEMO REVIEW</span>' +
+        '<header class="cctv-head"><div><span class="cctv-kicker"><i></i> LOCAL CCTV · RECORDED REVIEW</span>' +
         '<h3>Site Vision Review</h3><p>Pause, rewind, jump to an observation, then verify the AI draft before it becomes field evidence.</p></div>' +
         '<button class="cctv-close" id="capture-cctv-close" type="button" aria-label="Close CCTV review">×</button></header>' +
         '<div class="cctv-grid"><div class="cctv-feed-column"><div class="cctv-feed">' +
           '<video id="capture-cctv-player" title="Local site camera footage" src="/static/staticcams/CCTV_2.mp4" controls autoplay muted playsinline preload="metadata"></video>' +
           '<div class="site-vision-box-layer" id="capture-cctv-boxes" aria-hidden="true"><i class="vision-scan-line"></i></div>' +
           '<div class="cctv-feed-meta"><span><i></i> AI TRACKING</span><b id="capture-cctv-camera-label">Pipe laydown yard · CAM-03</b><time id="capture-cctv-clock">Frame 00:53</time></div>' +
-        '</div><div class="cctv-feed-toolbar"><label><span>Demo camera</span><select class="inp" id="capture-cctv-camera">' +
+        '</div><div class="cctv-feed-toolbar"><label><span>Local camera</span><select class="inp" id="capture-cctv-camera">' +
           '<option value="yard">Pipe laydown yard · CAM-03</option>' +
           '<option value="drilling">Drilling operations · CAM-01</option>' +
         '</select></label><div class="vision-mode-switch" id="capture-cctv-mode"><button class="selected" type="button" data-capture-cctv-mode="ai">AI scan</button>' +
@@ -334,7 +389,7 @@ VIEWS.capture = async (pid) => {
       '<option value="fr">Français</option><option value="ur">اردو</option></select></label>' +
       '<div class="capture-transcript-state" id="capture-transcript-state"><i></i><span>Waiting for an observation</span></div></div>' +
       '<div class="capture-language-help"><i>↳</i><div><b>Adaptive language understanding</b>' +
-      '<span>Common site phrases stay instant. If the corrected wording is unfamiliar, VEDA asks only the local reasoning service for a structured draft—never Claude or Codex—and you still edit every field.</span></div></div>' +
+      '<span>Common site phrases stay instant. If the corrected wording is unfamiliar, VEDA asks the configured VEDA reasoning engine for a structured draft—and you still edit every field.</span></div></div>' +
       '<label class="capture-wide-label"><span>Raw note / draft voice transcript <em>kept as source evidence</em></span>' +
       '<textarea class="inp" id="capture-original" rows="4" placeholder="Describe the work, exact area, quantities, blockers, and what you personally observed."></textarea></label>' +
       '<div class="capture-transcript-source" id="capture-transcript-source">Type a note, or record voice for a browser draft transcript.</div>' +
@@ -540,13 +595,33 @@ VIEWS.overview = async (pid) => {
     int(Number(c.open_hindrances || 0) + Number(c.open_constraints || 0)) +
     ' execution control flags</b><span>Review active hindrances and look-ahead readiness constraints</span><i>Open controls →</i></button>');
 
-  return '<div class="head"><div><div class="eyebrow">Dashboard</div>' +
-    '<h1>' + E(o.project.name) + '</h1>' +
-    '<div class="sub">Authoritative schedule: ' + E(s.project_name || '') +
-    (o.project.location ? ' · ' + E(o.project.location) : '') +
-    ' · data/status date ' + (s.data_date ? day(s.data_date) : 'not evaluable') +
-    ' · schedule revision ' + E(s.revision) +
-    '</div></div><div class="spacer"></div>' + provKey() + '</div>' +
+  return dashboardHero(o.project.name,
+    '<span>Authoritative schedule: ' + E(s.project_name || '') + '</span>' +
+    (o.project.location ? '<span>' + E(o.project.location) + '</span>' : '') +
+    '<span>Data/status date · ' + (s.data_date ? day(s.data_date) : 'not evaluable') + '</span>' +
+    '<span>Revision ' + E(s.revision) + '</span>') +
+    '<div class="dashboard-key">' + provKey() + '</div>' +
+
+    controlScoreCard(o, reportingLag) +
+
+    '<div class="grid g4 dashboard-metrics">' +
+    stat('Current forecast finish', forecastValue, E(forecastDetail),
+      lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
+    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : '—',
+      progressAvailable ? E(progressDetail) : 'Not evaluable — ' + E(progressDetail)) +
+    stat('Critical activities', criticalAvailable ? int(c.critical) : '—',
+      criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
+        : 'Not evaluable — ' + E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
+    stat('Source-evaluable schedule QA', qaValue, qaDetail,
+      evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
+    '</div>' +
+
+    '<div class="control-visual-grid">' +
+      completionTrajectoryCard(insights.completion_trajectory) +
+      activityDistributionCard(insights.activity_distribution) +
+    '</div>' +
+
+    dashboardShortcuts() +
 
     '<div class="control-strip">' +
       '<div><span>Decisions</span><b class="' + (decisionCount ? 'warm' : 'good') + '">' +
@@ -568,25 +643,9 @@ VIEWS.overview = async (pid) => {
         '<div class="control-clear"><b>Project inputs are reconciled.</b><span>New evidence will appear here when it creates an exception.</span></div>') +
       '</div></section>' +
 
-    '<div class="control-visual-grid">' +
-      completionTrajectoryCard(insights.completion_trajectory) +
-      activityDistributionCard(insights.activity_distribution) +
-    '</div>' +
-
     siteVisionDashboard() +
 
-    '<div class="grid g4" style="margin-bottom:14px">' +
-    stat('Current forecast finish', forecastValue, E(forecastDetail),
-      lateFinish ? 'hot' : (s.forecast_finish ? 'good' : '')) +
-    stat('Recorded schedule progress', progressAvailable ? num(s.percent_complete, 1) + '%' : '—',
-      progressAvailable ? E(progressDetail) : 'Not evaluable — ' + E(progressDetail)) +
-    stat('Critical activities', criticalAvailable ? int(c.critical) : '—',
-      criticalAvailable ? ('of ' + int(c.activities) + ' source activities · ' + E(criticalDetail))
-        : 'Not evaluable — ' + E(criticalDetail), criticalAvailable && c.critical ? 'warm' : '') +
-    stat('Source-evaluable schedule QA', qaValue, qaDetail,
-      evaluatedQa && Number(s.health_score) < 60 ? 'hot' : (evaluatedQa ? 'good' : '')) +
-    '</div>' +
-
+    '<details class="dashboard-details"' + (VIEWS._dashboardDetails?.[pid] ? ' open' : '') + '><summary>Detailed project metrics<span>Schedule, evidence and decisions</span></summary>' +
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Overdue vs reference plan', overdueEvaluable ? int(c.overdue) : '—',
       overdueEvaluable ? 'unfinished activities whose reference finish is before the supplied data/status date' :
@@ -630,6 +689,8 @@ VIEWS.overview = async (pid) => {
       f.deferred_record_count ? 'warm' : 'good') +
     '</div>' +
 
+    '</details>' +
+
     (o.state_summary ? panel('Current state summary',
       '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' +
       E(o.state_summary) + '</div><div style="margin-top:10px">' + prov('DERIVED') +
@@ -639,7 +700,7 @@ VIEWS.overview = async (pid) => {
       '<div class="body"><div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' + E(o.summary) + '</div>' +
       '<div style="margin-top:10px">' + prov('AI_INFERENCE') +
       ' <span style="color:var(--ink-3);font-size:12px">Interpretive analysis from ' +
-      E(o.provider_label || o.active_provider) + '; it does not override the deterministic current-state summary above.</span></div></div>') : '') +
+      E(providerAliasText(o.provider_label || providerDisplayName(o.active_provider))) + '; it does not override the deterministic current-state summary above.</span></div></div>') : '') +
 
     '<div class="grid g2">' +
     panel('Authoritative schedule facts', '<div class="body"><dl class="kv">' +
@@ -707,6 +768,11 @@ VIEWS.overview = async (pid) => {
 };
 
 VIEWS.bind_overview = (pid) => {
+  const details = document.querySelector('.dashboard-details');
+  if (details) details.addEventListener('toggle', () => {
+    VIEWS._dashboardDetails = VIEWS._dashboardDetails || {};
+    VIEWS._dashboardDetails[pid] = details.open;
+  });
   const root = document.getElementById('site-vision-panel');
   if (!root) return;
   VIEWS._siteVisionBusy = false;
@@ -1025,6 +1091,50 @@ VIEWS.hasActiveSiteVision = () => Boolean(VIEWS._siteVisionBusy);
 
 const row = (k, v) => '<dt>' + E(k) + '</dt><dd>' + v + '</dd>';
 
+/* ====================================================== portfolio control */
+VIEWS.portfolio = async () => {
+  const r = await A('/projects');
+  const projects = r.projects || [];
+  const totals = projects.reduce((out, p) => {
+    const c = p.counts || {};
+    out.activities += Number(c.activities || 0);
+    out.evidence += Number(c.evidence || 0);
+    out.attention += Number(c.issues || 0) + Number(c.risks || 0) + Number(c.open_reviews || 0);
+    return out;
+  }, {activities: 0, evidence: 0, attention: 0});
+  const rows = projects.map(p => {
+    const c = p.counts || {}, hasSchedule = !!p.snapshot || Number(c.activities || 0) > 0;
+    const attention = Number(c.issues || 0) + Number(c.risks || 0) + Number(c.open_reviews || 0);
+    return '<button class="portfolio-row" type="button" data-open-project="' + E(p.id) + '">' +
+      '<div class="portfolio-project"><span class="portfolio-state ' +
+        (!hasSchedule ? 'unknown' : attention ? 'warm' : 'good') + '"></span><div><b>' + E(p.name) +
+        '</b><small>' + E([p.client, p.location].filter(Boolean).join(' · ') || 'Project workspace') +
+        '</small></div></div><div><span>Activities</span><b>' + int(c.activities || 0) +
+        '</b></div><div><span>Evidence</span><b>' + int(c.evidence || 0) + '</b></div><div><span>Attention</span><b>' +
+        int(attention) + '</b></div><div class="portfolio-open">Open project →</div></button>';
+  }).join('');
+  return head('Portfolio', 'Every project, its available control signals, and where attention is required') +
+    '<div class="grid g4 control-summary">' +
+      stat('Projects', int(projects.length), 'active VEDA workspaces') +
+      stat('Activities', int(totals.activities), 'available across project schedules') +
+      stat('Evidence records', int(totals.evidence), 'field observations across the portfolio') +
+      stat('Attention records', int(totals.attention), 'issues, risks and open decisions', totals.attention ? 'warm' : 'good') +
+    '</div><section class="portfolio-board"><header><div><span class="eyebrow">Portfolio control</span>' +
+      '<h2>Project health at a glance</h2></div><small>Counts show stored records; unavailable schedule data remains explicit.</small></header>' +
+      '<div class="portfolio-columns"><span>Project</span><span>Activities</span><span>Evidence</span><span>Attention</span><span></span></div>' +
+      (rows || empty('No projects yet', 'Create a project to begin portfolio control.')) + '</section>';
+};
+
+VIEWS.bind_portfolio = () => {
+  document.querySelectorAll('[data-open-project]').forEach(button => button.onclick = () => {
+    const picker = document.getElementById('projpick');
+    if (!picker) return;
+    picker.value = button.dataset.openProject;
+    picker.dispatchEvent(new Event('change', {bubbles: true}));
+    go('overview');
+  });
+};
+
 /* ===================================================== 2. EPS */
 VIEWS.eps = async (pid) => {
   const r = await A('/projects/' + pid + '/eps');
@@ -1178,9 +1288,13 @@ function readinessCard(a) {
 
 VIEWS.controls = async (pid, params) => {
   params = params || {};
-  const r = await A('/projects/' + pid + '/execution-controls?' + new URLSearchParams({
-    days: params.days || 42, anchor: params.anchor || '',
-  }));
+  const [r, overview, timeline] = await Promise.all([
+    A('/projects/' + pid + '/execution-controls?' + new URLSearchParams({
+      days: params.days || 42, anchor: params.anchor || '',
+    })),
+    A('/projects/' + pid + '/overview'),
+    A('/projects/' + pid + '/timeline?window=full&limit=120'),
+  ]);
   const look = r.lookahead || {activities: [], counts: {}};
   const hindrances = (r.hindrances || []).map(h => '<article class="hindrance-card"><header><div>' +
     '<small>' + E(h.ref || h.category || 'Site hindrance') + '</small><h3>' + E(h.title) + '</h3></div>' +
@@ -1243,13 +1357,72 @@ VIEWS.controls = async (pid, params) => {
     '<label><span>BIM identifier</span><input class="inp mono" name="identifier_value"></label><label><span>BIM model</span><input class="inp" name="model_name"></label></div>' +
     '<label><span>Why this is new scope</span><textarea class="inp" rows="3" name="reason"></textarea></label>', 'Create governed proposal');
 
-  return head('Execution Control', 'Look-ahead readiness · hindrances · field context · BIM identity',
+  const schedule = overview.schedule || {};
+  const scenarioLab = '<section class="scenario-lab"><header><div><span class="eyebrow">Non-destructive planning studio</span>' +
+    '<h2>Scenario Lab</h2><p>Set an objective, apply explicit levers, and compare the result with the current forecast.</p></div>' +
+    '<span class="tag violet">does not edit the schedule</span></header>' +
+    '<div class="scenario-presets"><span>Quick starts</span>' +
+      '<button type="button" data-scenario-preset="recover">Recover 5 days</button>' +
+      '<button type="button" data-scenario-preset="protect">Protect a milestone</button>' +
+      '<button type="button" data-scenario-preset="disruption">Lowest disruption</button>' +
+    '</div><div class="scenario-workspace"><div class="scenario-builder">' +
+      '<div class="scenario-step"><i>1</i><div><b>Choose the objective</b><small>What should this option optimize?</small></div></div>' +
+      '<div class="scenario-objectives" role="group" aria-label="Scenario objective">' +
+        '<button class="on" type="button" data-scenario-objective="balanced"><b>Balanced</b><small>Time × cost</small></button>' +
+        '<button type="button" data-scenario-objective="fastest"><b>Fastest</b><small>Recover time</small></button>' +
+        '<button type="button" data-scenario-objective="lowest_cost"><b>Lowest cost</b><small>Limit spend</small></button>' +
+      '</div><div class="scenario-step"><i>2</i><div><b>Define the levers</b><small>Only values you enter are used.</small></div></div>' +
+      '<div class="scenario-inputs"><label><span>Scenario name</span><input class="inp" id="scenario-name" value="Recovery option A"></label>' +
+        '<label><span>Target milestone date</span><input class="inp" id="scenario-target" type="date"></label>' +
+        '<label><span>Possible delay</span><div class="scenario-number"><input class="inp" id="scenario-delay" type="number" min="0" step="1" value="0"><i>days</i></div></label>' +
+        '<label><span>Expected recovery</span><div class="scenario-number"><input class="inp" id="scenario-recovery" type="number" min="0" step="1" value="0"><i>days</i></div></label>' +
+        '<label class="scenario-wide"><span>Added crew / equipment cost</span><div class="scenario-number"><input class="inp" id="scenario-cost" type="number" min="0" step="1000" value="0"><i>estimate</i></div></label>' +
+      '</div><button class="btn primary scenario-compare" type="button" id="scenario-run">Compare with current plan</button>' +
+    '</div><div class="scenario-analysis"><div class="scenario-baseline"><span>Current schedule</span><b>' +
+      (schedule.forecast_finish ? day(schedule.forecast_finish) : 'Forecast unavailable') +
+      '</b><small>' + E(schedule.forecast_basis || 'Source-supported forecast required for an absolute date') + '</small></div>' +
+      '<div class="scenario-result" id="scenario-result" data-forecast="' + E(schedule.forecast_finish || '') + '">' +
+        '<div class="scenario-result-empty"><span>OPTION COMPARISON</span><b>Ready for assumptions</b>' +
+        '<p>Choose a quick start or enter your own levers. VEDA will separate the result from schedule facts.</p></div>' +
+      '</div></div></div><footer><span>Screening arithmetic</span><span>CPM validation required</span><span>Human approval before change</span></footer></section>';
+
+  VIEWS._spatialPayload = VIEWS._spatialPayload || {};
+  const spatialActivities = (timeline.activities || []).filter(a => a.start || a.finish).slice(0, 24);
+  VIEWS._spatialPayload[pid] = {
+    activities: spatialActivities.length ? spatialActivities : (look.activities || []).slice(0, 24),
+    rangeStart: timeline.range_start || look.anchor,
+    rangeFinish: timeline.range_finish || look.horizon,
+    anchor: timeline.anchor || look.anchor,
+    bimCount: Number(r.counts.bim_links || 0),
+  };
+  const spatialControl = '<section class="spatial-control"><header><div><span class="eyebrow">VEDA Spatial Control</span>' +
+    '<h2>See the plan in space</h2><p>Play dated schedule activities through a clear spatial workfront view.</p></div>' +
+    '<span class="tag amber">schedule-driven · representative geometry</span></header>' +
+    '<div class="spatial-toolbar" role="group" aria-label="Spatial view">' +
+      '<button class="on" type="button" data-spatial-mode="site"><i>01</i><span><b>Site</b><small>Whole construction area</small></span></button>' +
+      '<button type="button" data-spatial-mode="workfront"><i>02</i><span><b>Workfront</b><small>Focus pipes and spools</small></span></button>' +
+      '<button type="button" data-spatial-mode="scenario"><i>03</i><span><b>Scenario</b><small>Show proposed route</small></span></button>' +
+    '</div><div class="spatial-stage"><div class="spatial-canvas" id="veda-spatial-canvas" aria-label="Interactive schedule-driven construction model"></div>' +
+      '<div class="spatial-hud"><span><i></i> VEDA SPATIAL / LOCAL</span><small>Drag any direction to orbit · right-drag to pan · scroll to zoom</small></div>' +
+      '<div class="spatial-camera" aria-label="Camera views"><button type="button" data-spatial-camera="orbit">3D</button>' +
+        '<button type="button" data-spatial-camera="top">Top</button><button type="button" data-spatial-camera="ground">Ground</button></div>' +
+      '<aside class="spatial-inspector" id="spatial-inspector"><span>SPATIAL INSPECTOR</span><b>Preparing construction view…</b></aside>' +
+      '<div class="spatial-legend"><span class="active"><i></i>Active</span><span class="constrained"><i></i>Constrained</span>' +
+        '<span class="future"><i></i>Future</span><span class="proposed"><i></i>Scenario</span></div></div>' +
+    '<footer class="spatial-phase"><div><span>Schedule playback</span><b id="spatial-phase-label">Loading schedule dates…</b></div>' +
+      '<button type="button" class="spatial-play" id="spatial-play">▶ Play</button>' +
+      '<input id="spatial-phase" type="range" min="0" max="100" value="100" aria-label="Schedule playback date">' +
+      '<small id="spatial-source-note">Activity dates drive visibility. Geometry stays representative until a model and exact BIM identifiers are linked.</small></footer></section>';
+
+  return head('Recovery & Scenarios', 'Lookahead readiness · hindrances · recovery screening · field context',
     '<select class="inp" id="lookahead-days"><option value="14">2 weeks</option><option value="42">6 weeks</option><option value="90">90 days</option></select>' +
     '<button class="btn sm" onclick="go(\'timeline\',{window:\'42\'})">Open timeline</button>') +
     '<div class="grid g4 control-summary">' + stat('Open hindrances', int(r.counts.open_hindrances), 'observed obstructions', r.counts.open_hindrances ? 'warm' : 'good') +
     stat('Open readiness constraints', int(r.counts.open_constraints), 'drawing, material, access and other holds', r.counts.open_constraints ? 'warm' : 'good') +
     stat('Confirmed BIM identities', int(r.counts.bim_links), 'exact model-to-activity links') +
     stat('New-scope events', int(r.counts.new_scope_waiting), 'not yet represented by a governed activity proposal', r.counts.new_scope_waiting ? 'warm' : 'good') + '</div>' +
+    scenarioLab +
+    spatialControl +
     '<div class="control-forms">' + constraintForm + hindranceForm + contextForm + bimForm + suggestionForm + '</div>' +
     '<div class="section-divider"><span>' + E(look.anchor) + ' → ' + E(look.horizon) + '</span><small>Readiness look-ahead</small></div>' +
     '<div class="readiness-strip"><span class="green">' + int(look.counts.ready) + ' ready</span><span class="red">' + int(look.counts.blocked) +
@@ -1270,6 +1443,70 @@ VIEWS.controls = async (pid, params) => {
 VIEWS.bind_controls = (pid, params) => {
   const days = document.getElementById('lookahead-days');
   if (days) { days.value = String(params.days || 42); days.onchange = () => go('controls', {days: days.value}); }
+  const scenarioRun = document.getElementById('scenario-run');
+  let scenarioObjective = 'balanced';
+  const runScenario = () => {
+    const result = document.getElementById('scenario-result');
+    const base = result.dataset.forecast;
+    const delay = Math.max(0, Number(document.getElementById('scenario-delay').value) || 0);
+    const recovery = Math.max(0, Number(document.getElementById('scenario-recovery').value) || 0);
+    const cost = Math.max(0, Number(document.getElementById('scenario-cost').value) || 0);
+    const target = document.getElementById('scenario-target').value;
+    const net = delay - recovery;
+    let finish = 'Not evaluable';
+    if (base) {
+      const value = new Date(day(base) + 'T00:00:00Z');
+      value.setUTCDate(value.getUTCDate() + net);
+      finish = value.toISOString().slice(0, 10);
+    }
+    const targetGap = target && finish !== 'Not evaluable'
+      ? Math.round((new Date(finish + 'T00:00:00Z') - new Date(target + 'T00:00:00Z')) / 86400000) : null;
+    const tone = net > 0 ? 'worse' : net < 0 ? 'better' : 'neutral';
+    const maxDays = Math.max(10, Math.abs(net) + 4);
+    const point = Math.max(8, Math.min(92, 50 + (net / maxDays) * 42));
+    const objectiveLabel = scenarioObjective === 'fastest' ? 'Fastest finish' :
+      scenarioObjective === 'lowest_cost' ? 'Lowest cost' : 'Balanced time and cost';
+    const targetText = targetGap === null ? 'No comparable target date' : targetGap <= 0
+      ? Math.abs(targetGap) + 'd inside target' : targetGap + 'd beyond target';
+    result.className = 'scenario-result ' + tone;
+    result.innerHTML = '<div class="scenario-result-head"><div><span>SCREENING RESULT</span><b>' +
+      E(document.getElementById('scenario-name').value || 'Scenario') + '</b></div><em>' + E(objectiveLabel) + '</em></div>' +
+      '<div class="scenario-kpis"><div><span>Candidate finish</span><b>' + E(finish) + '</b></div>' +
+      '<div><span>Calendar movement</span><b>' + (net > 0 ? '+' : '') + E(net) + 'd</b></div>' +
+      '<div><span>Added cost</span><b>' + (cost ? E(cost.toLocaleString()) : '0') + '</b></div></div>' +
+      '<div class="scenario-tradeoff"><header><span>Earlier</span><b>TIME / COST TRADE-OFF</b><span>Later</span></header>' +
+      '<div class="scenario-tradeoff-track"><i class="base" style="left:50%"><small>Current</small></i>' +
+      '<i class="candidate" style="left:' + point + '%"><small>Option</small></i></div></div>' +
+      '<div class="scenario-verdict"><strong>' + E(targetText) + '</strong><span>' +
+      (net < 0 ? 'Screens as an earlier finish; validate the driving activities and resource capacity.' :
+       net > 0 ? 'Screens later than the current plan; mitigation or formal acceptance is required.' :
+       'No net calendar movement from the entered assumptions.') + '</span></div>' +
+      '<details><summary>Assumptions and validation boundary</summary><p>Delay ' + E(delay) +
+      'd · recovery ' + E(recovery) + 'd · added cost ' + E(cost.toLocaleString()) +
+      '. This is screening arithmetic, not a CPM run. Validate logic, calendars, resources, cost and the critical path before proposing a change.</p></details>';
+  };
+  if (scenarioRun) scenarioRun.onclick = runScenario;
+  document.querySelectorAll('[data-scenario-objective]').forEach(button => button.onclick = () => {
+    document.querySelectorAll('[data-scenario-objective]').forEach(x => x.classList.remove('on'));
+    button.classList.add('on'); scenarioObjective = button.dataset.scenarioObjective;
+  });
+  document.querySelectorAll('[data-scenario-preset]').forEach(button => button.onclick = () => {
+    const preset = button.dataset.scenarioPreset;
+    const name = document.getElementById('scenario-name');
+    const delay = document.getElementById('scenario-delay');
+    const recovery = document.getElementById('scenario-recovery');
+    const cost = document.getElementById('scenario-cost');
+    if (preset === 'recover') { name.value = 'Five-day recovery'; delay.value = 0; recovery.value = 5; cost.value = 25000; }
+    if (preset === 'protect') { name.value = 'Milestone protection'; delay.value = 7; recovery.value = 7; cost.value = 40000; }
+    if (preset === 'disruption') { name.value = 'Lowest disruption'; delay.value = 3; recovery.value = 3; cost.value = 0; }
+    runScenario();
+  });
+  const spatialPayload = (VIEWS._spatialPayload && VIEWS._spatialPayload[pid]) || {activities: []};
+  if (window.SpatialControl) window.SpatialControl.mount('veda-spatial-canvas', spatialPayload);
+  else {
+    window.__vedaSpatialPending = {hostId:'veda-spatial-canvas', payload:spatialPayload};
+    window.dispatchEvent(new CustomEvent('veda:spatial-mount', {detail: window.__vedaSpatialPending}));
+  }
   const payload = form => {
     const body = Object.fromEntries(new FormData(form).entries());
     form.querySelectorAll('input[type="checkbox"][name]').forEach(box => body[box.name] = box.checked);
@@ -1729,7 +1966,9 @@ VIEWS.quality = async (pid) => {
   const r = await A('/projects/' + pid + '/quality');
   const s = r.summary || {};
   const g = s.semanticGuard || {};
-  return head('Schedule QA', 'Source-evaluable DCMA/Horizun checks',
+  const failed = (r.findings || []).filter(f => f.status === 'fail');
+  const affected = new Set(failed.flatMap(f => f.task_uids || [])).size;
+  return head('Schedule Health', 'Source-evaluable quality checks with exact findings and fixes',
     prov('MCP_FACT') + ' ' + prov('DETERMINISTIC_CALCULATION')) +
     '<div class="grid g4" style="margin-bottom:14px">' +
     stat('Evaluable-check pass rate', num(r.health_score, 1) + '%', 'passed / evaluated checks only; not-evaluated checks are excluded',
@@ -1740,6 +1979,16 @@ VIEWS.quality = async (pid) => {
       'reported honestly, never passed') +
     '</div>' +
     '<div class="note mcp" style="margin-bottom:14px">' + E(r.basis) + '</div>' +
+    '<section class="assurance-focus"><div><span class="eyebrow">Planner focus</span><h2>' +
+      (failed.length ? int(failed.length) + ' checks need attention' : 'No evaluated failures') +
+      '</h2><p>' + (failed.length ? int(affected) + ' unique activities are referenced by failed checks. Work from critical findings down.' :
+        'Not-evaluated checks remain visible and are never counted as passes.') + '</p></div>' +
+      '<div class="assurance-filters" role="group" aria-label="Filter schedule findings">' +
+        '<button class="on" type="button" data-quality-filter="all">All <b>' + int(r.findings.length) + '</b></button>' +
+        '<button type="button" data-quality-filter="fail">Failed <b>' + int(s.failed || 0) + '</b></button>' +
+        '<button type="button" data-quality-filter="not_evaluated">Not evaluated <b>' + int(s.notEvaluated || 0) + '</b></button>' +
+        '<button type="button" data-quality-filter="pass">Passed <b>' + int(s.passed || 0) + '</b></button>' +
+      '</div></section>' +
     (g.applied ? '<div class="note" style="margin-bottom:14px">' +
       '<b>Source-semantic guard applied.</b> ' +
       (g.sourceFormat ? E(String(g.sourceFormat).toUpperCase()) + ': ' : '') +
@@ -1752,21 +2001,32 @@ VIEWS.quality = async (pid) => {
           (g.baselineAssigned ? 'assigned baseline present' : 'assigned baseline absent'))) +
       (g.dataDate ? ' · data date ' + day(g.dataDate) : ' · data/status date unavailable') + '</div>' : '') +
     panel('Findings <small>' + r.findings.length + '</small>',
-      '<div class="body">' + (r.findings.length ? r.findings.map(f =>
-      '<div class="check"><span class="m ' +
+      '<div class="body quality-findings">' + (r.findings.length ? r.findings.map(f =>
+      '<div class="check" data-quality-status="' + E(f.status) + '"><span class="m ' +
       (f.status === 'pass' ? 'pass' : f.status === 'fail' ? 'fail' : 'warn') +
       '">' + E(f.status === 'not_evaluated' ? 'not evaluated' : f.status) + '</span>' +
       '<span class="n">' + E(f.code) + '</span>' +
       '<span style="flex:1">' + E(f.title) + ' — ' + E(f.detail || '') +
       (f.task_uids && f.task_uids.length
         ? '<br><span class="mono" style="font-size:11px;color:var(--ink-3)">' +
-          'affects uid ' + f.task_uids.slice(0, 24).map(E).join(', ') +
+          'affects ' + f.task_uids.slice(0, 24).map(uid => '<button class="link" onclick="go(\'activity\',{id:' +
+            Number(uid) + '})">UID ' + E(uid) + '</button>').join(' · ') +
           (f.task_uids.length > 24 ? ' …' : '') + '</span>' : '') +
       '</span>' + prov(f.provenance) + '<span class="sev-' +
       E(String(f.severity || '').toLowerCase()) +
       '" style="font-family:var(--mono);font-size:11px">' + E(f.severity || '') +
       '</span></div>').join('')
       : empty('No quality findings', 'Analyse a schedule first.')) + '</div>');
+};
+
+VIEWS.bind_quality = () => {
+  document.querySelectorAll('[data-quality-filter]').forEach(button => button.onclick = () => {
+    const filter = button.dataset.qualityFilter;
+    document.querySelectorAll('[data-quality-filter]').forEach(x => x.classList.toggle('on', x === button));
+    document.querySelectorAll('[data-quality-status]').forEach(row => {
+      row.hidden = filter !== 'all' && row.dataset.qualityStatus !== filter;
+    });
+  });
 };
 
 /* ==================================================== 9. Baselines */
@@ -2289,7 +2549,7 @@ VIEWS['bind_review-evidence'] = (pid) =>
 /* ============================================ 17. Observed progress */
 VIEWS.observed = async (pid) => {
   const r = await A('/projects/' + pid + '/observed-progress');
-  return head('Observed progress', 'Field reports beside the schedule') +
+  return head('Plan vs Reality', 'Verified field reports beside the authoritative schedule') +
     '<div class="note warn" style="margin-bottom:14px">' + E(r.note) + '</div>' +
     panel('Comparison <small>' + r.rows.length + '</small>',
       table([{ t: 'UID' }, { t: 'Activity' }, { t: 'Official' },
@@ -3018,9 +3278,10 @@ VIEWS.stopAskVoice = (pid) => {
 };
 
 const ASK_SUGGESTIONS = [
-  'What is driving the current forecast finish?',
-  'Which activities have unresolved evidence conflicts right now?',
-  'Summarize open risks sitting on the critical path.',
+  'What changed since the last schedule update?',
+  'Why did the forecast finish move?',
+  'Which activities still need verified field evidence?',
+  'Show the safest recovery options for the current critical path.',
 ];
 
 function askTurn(turn, steps, calls) {
@@ -3609,10 +3870,28 @@ function executionMap(job, activity) {
 /* Reasoning provider labels, mirroring agent/registry.py LABELS so the console
    reads well even before /health has landed in window.S. */
 const PROVIDER_LABELS = {
-  auto: 'Auto', antigravity_cli: 'Antigravity', claude_code: 'Claude Code',
-  codex: 'Codex', gemini_api: 'Gemini API',
-  local_antigravity: 'Antigravity · local bridge',
+  auto: 'VEDA Auto', antigravity_cli: 'VEDA-A', claude_code: 'VEDA-B',
+  codex: 'VEDA-C', gemini_api: 'VEDA-A Cloud',
+  local_antigravity: 'VEDA Bridge',
 };
+function providerDisplayName(key, fallback) {
+  return PROVIDER_LABELS[key] || providerAliasText(fallback || key || 'VEDA reasoning engine');
+}
+function providerAliasText(value) {
+  return String(value || '')
+    .replace(/npm install -g @anthropic-ai\/claude-code/gi, 'Install the configured VEDA-B runtime')
+    .replace(/no GEMINI_API_KEY\s*\/\s*GOOGLE_API_KEY in the environment/gi,
+      'VEDA-A Cloud credentials are not configured')
+    .replace(/set GEMINI_API_KEY to use (?:VEDA-A\/)?Gemini/gi,
+      'Configure VEDA-A Cloud credentials to enable this engine')
+    .replace(/Local reasoning agent/gi, 'VEDA Bridge')
+    .replace(/Antigravity\s*[·-]\s*local bridge/gi, 'VEDA Bridge')
+    .replace(/Claude CLI/gi, 'VEDA-B runtime')
+    .replace(/Claude Code/gi, 'VEDA-B')
+    .replace(/Gemini API/gi, 'VEDA-A Cloud')
+    .replace(/Antigravity/gi, 'VEDA-A')
+    .replace(/Codex/gi, 'VEDA-C');
+}
 
 /* The full execution visualiser, nested inside a run's thinking panel. It is
    auto-collapsed until there is a run to show, then unfolds with the panel so
@@ -3649,10 +3928,10 @@ function providerConsole(job) {
   let key = (job && job.provider) || activeName || null;
   if (key === 'auto') key = (auto && auto.selected) || 'auto';
   const ph = key ? providers[key] : null;
-  const label = (ph && ph.label) || PROVIDER_LABELS[key] || key || 'Reasoning provider';
+  const label = providerDisplayName(key, ph && ph.label);
   const reachable = ph ? !!ph.ok : null;
   const model = (ph && (ph.model || ph.version)) || '';
-  const note = (ph && (ph.note || ph.hint)) || '';
+  const note = providerAliasText((ph && (ph.note || ph.hint)) || '');
   const isLocal = key === 'local_antigravity' || key === 'antigravity_cli' ||
     activeName === 'local_antigravity';
   const chain = (auto && auto.chain) || [];
@@ -3694,7 +3973,7 @@ function providerConsole(job) {
       ? '<div class="pc-chain"><span>Fallback order</span>' + chain.map(c =>
           '<i class="' + (c.ok ? 'ok' : 'down') +
           (c.provider === key ? ' on' : '') + '">' +
-          E(PROVIDER_LABELS[c.provider] || c.provider) + '</i>').join('') + '</div>'
+          E(providerDisplayName(c.provider, c.label)) + '</i>').join('') + '</div>'
       : '') +
     (note ? '<p class="pc-note">' + E(note) + '</p>' : '') +
     (job && job.error
@@ -3815,9 +4094,10 @@ VIEWS.files = async (pid) => {
       'Schedules + DPRs + spreadsheets + scanned PDFs/photos can arrive together. ' +
       'Focus this box and paste a screenshot too.</div>' +
       '<button class="btn" id="pickfiles" type="button">Browse files</button> ' +
-      '<button class="btn" id="pickfolder" type="button">Browse project folder</button>' +
+      '<button class="btn" id="pickfolder" type="button">Select project folder</button>' +
       '<input type="file" id="fileinput" multiple accept="' + accept + '" hidden>' +
       '<input type="file" id="folderinput" multiple webkitdirectory directory hidden>' +
+      '<small id="folderhelp" style="display:block;color:var(--ink-3);margin-top:8px">Choose a folder to stage its supported files recursively.</small>' +
       '</div>' +
       '<div id="stagedfiles" style="margin-top:10px">' + stagedHtml + '</div>' +
       '<div style="margin:18px 0 8px;border-top:1px solid var(--line)"></div>' +
@@ -3861,13 +4141,13 @@ VIEWS.files = async (pid) => {
     (pendingBatch ? panel('Schedule selection required <small>' + pendingCandidates.length + ' candidates</small>',
       '<div class="body"><div class="note warn" style="margin-bottom:10px">This project folder contains multiple schedule revisions. VEDA has paused before choosing one.</div>' +
       '<button class="btn primary" data-choose-schedule-batch="' + E(pendingBatch.id) + '">Choose authoritative schedule</button></div>') : '') +
-    (revs.length ? panel('Schedule revisions <small>' + revs.length + '</small>',
+    (revs.length ? panel('Update comparison <small>' + revs.length + ' schedule revisions</small>',
       '<div class="note" style="margin:0 12px 10px">A new schedule is a new ' +
       'revision. VEDA compares activities by Horizun stable UID and keeps the ' +
       'source file immutable.</div>' +
       table([{ t: 'Rev' }, { t: 'Source' }, { t: 'Activities', r: true },
         { t: 'Added', r: true }, { t: 'Removed', r: true },
-        { t: 'Updated', r: true }, { t: 'Current' }], revs, x =>
+        { t: 'Updated', r: true }, { t: 'Current' }, {t: ''}], revs, x =>
         '<tr><td class="mono">r' + int(x.revision) + '</td>' +
         '<td class="trunc mono" style="max-width:260px">' +
         E((x.source_path || '').split(/[\\/]/).pop() || '—') + '</td>' +
@@ -3877,7 +4157,8 @@ VIEWS.files = async (pid) => {
         '">−' + int(x.removed_count || 0) + '</td>' +
         '<td class="r mono">' + int(x.updated_count || 0) + '</td>' +
         '<td>' + (x.is_current ? '<span class="tag green">current</span>' : '') +
-        '</td></tr>')) : '') +
+        '</td><td><button class="btn sm" type="button" data-revision="' + int(x.revision) +
+        '">Inspect changes</button></td></tr>') + '<div id="revision-change-view"></div>') : '') +
     panel('Source library <small>' + r.files.length + '</small>',
       table([{ t: 'Name' }, { t: 'Type / schema' }, { t: 'Relevance' }, { t: 'Source mode' },
         { t: 'Size', r: true }, { t: 'SHA-256' }, { t: 'Extraction' },
@@ -3954,6 +4235,26 @@ VIEWS.bind_files = (pid) => {
   VIEWS._ingestState = VIEWS._ingestState || {};
   const st = VIEWS._ingestState[pid] ||
     (VIEWS._ingestState[pid] = { files: [], text: '', mode: 'field_note', title: '' });
+  document.querySelectorAll('[data-revision]').forEach(button => button.onclick = async () => {
+    const host = document.getElementById('revision-change-view');
+    button.disabled = true;
+    try {
+      const r = await A('/projects/' + pid + '/schedule-revisions/' + button.dataset.revision + '/changes');
+      const changes = r.changes || [];
+      host.innerHTML = '<section class="revision-inspector"><header><div><span class="eyebrow">Revision ' +
+        E(r.revision) + '</span><h3>Exact schedule changes</h3></div><b>' + int(changes.length) +
+        ' changed activities</b></header>' + (changes.length ? table([
+          {t:'Change'}, {t:'Activity UID'}, {t:'Fields'}, {t:'Before → after'}
+        ], changes, change => '<tr><td>' + tagFor(change.change_type, {added:'green',removed:'red',updated:'amber'}) +
+          '</td><td class="mono">' + E(change.activity_uid || '—') + '</td><td>' +
+          E((change.changed_fields || []).join(', ') || '—') + '</td><td class="revision-diff">' +
+          E(change.before && change.after ? JSON.stringify(change.before) + ' → ' + JSON.stringify(change.after) :
+            change.after ? JSON.stringify(change.after) : change.before ? JSON.stringify(change.before) : '—') +
+          '</td></tr>') : empty('No activity-level changes', 'This revision may be the first imported schedule.')) + '</section>';
+      host.scrollIntoView({behavior:'smooth', block:'nearest'});
+    } catch (error) { window.toast('Could not load revision changes: ' + error.message, 'bad'); }
+    finally { button.disabled = false; }
+  });
   const inp = document.getElementById('fileinput');
   const dz = document.getElementById('ingestdrop');
   const pick = document.getElementById('pickfiles');
@@ -4044,32 +4345,26 @@ VIEWS.bind_files = (pid) => {
 
   if (pick) pick.onclick = (e) => { e.stopPropagation(); inp.click(); };
 
-  // "Browse project folder" prefers the File System Access API: its native
-  // dialog is an explicit folder chooser (a "Select Folder" confirm action),
-  // not a file-open dialog. A `webkitdirectory` <input> is kept only as the
-  // fallback for browsers that lack that API (Firefox, Safari) - and where
-  // even the input's directory mode isn't actually supported, the button is
-  // hidden rather than silently opening a plain file picker.
+  // Folder selection needs the File System Access API. Some embedded Chromium
+  // hosts render a webkitdirectory chooser but return an empty FileList after
+  // selection, so showing that fallback gives the operator a false success.
   const hasDirPicker = typeof window.showDirectoryPicker === 'function';
-  const inputDirSupported = !!folderInp && 'webkitdirectory' in folderInp;
-  const folderSupported = hasDirPicker || inputDirSupported;
-  if (folderInp && !hasDirPicker && inputDirSupported) {
-    folderInp.webkitdirectory = true;
-    folderInp.multiple = true;
-    try { folderInp.setAttribute('webkitdirectory', ''); } catch (_) {}
-  }
+  const folderHelp = document.getElementById('folderhelp');
   if (folderInp) {
     folderInp.onchange = () => {
       const picked = folderInp.files ? folderInp.files.length : 0;
       addFiles(folderInp.files);
       folderInp.value = '';
-      if (!picked) window.toast('No files found in that folder.', 'bad');
+      if (picked) window.toast(picked + ' file(s) staged from the selected folder.', 'good');
+      else window.toast('No folder was imported. Highlight the folder and press Select Folder; if it still returns 0, use Browse files and select its contents.', 'bad');
     };
   }
   if (pickFolder) {
-    if (!folderSupported) {
+    if (!hasDirPicker) {
       pickFolder.hidden = true;
-    } else if (hasDirPicker) {
+      if (folderHelp) folderHelp.textContent =
+        'Folder selection is unavailable in this embedded browser. Use Browse files (Ctrl+A inside the folder), or drag the folder into this box.';
+    } else {
       const label = pickFolder.textContent;
       pickFolder.onclick = async (e) => {
         e.stopPropagation();
@@ -4095,8 +4390,6 @@ VIEWS.bind_files = (pid) => {
           pickFolder.textContent = label;
         }
       };
-    } else {
-      pickFolder.onclick = (e) => { e.stopPropagation(); folderInp.click(); };
     }
   }
   inp.onchange = () => { addFiles(inp.files); inp.value = ''; };
@@ -4232,23 +4525,25 @@ VIEWS.system = async (pid) => {
   const h = await A('/health');
   const hz = h.horizun || {};
   const caps = hz.capabilities || {};
-  return head('System', 'Runtime, MCP and reasoning providers') +
+  return head('System', 'Runtime, MCP and VEDA reasoning engines') +
     '<div class="grid g3" style="margin-bottom:14px">' +
     stat('Horizun', hz.ok ? 'online' : 'offline',
       E(hz.backend || hz.error || ''), hz.ok ? 'good' : 'hot') +
-    stat('Active provider', E(h.active_provider === 'auto' &&
-      (h.providers.auto || {}).selected_label
-        ? 'auto → ' + h.providers.auto.selected_label : h.active_provider),
+    stat('Active engine', E(h.active_provider === 'auto' &&
+      ((h.providers.auto || {}).selected || (h.providers.auto || {}).selected_label)
+        ? 'VEDA Auto → ' + providerDisplayName(
+            h.providers.auto.selected, h.providers.auto.selected_label)
+        : providerDisplayName(h.active_provider)),
       (h.providers[h.active_provider] || {}).ok ? 'reachable' : 'unavailable',
       (h.providers[h.active_provider] || {}).ok ? 'good' : 'hot') +
     stat('Worker', h.worker.current_job ? 'busy' : 'idle',
       E(h.worker.current_job || 'no job running')) +
     '</div>' +
-    panel('Reasoning providers <small>VEDA is provider-neutral</small>',
+    panel('VEDA reasoning engines <small>deployment-flexible runtime</small>',
       '<div class="body">' + Object.keys(h.providers).map(k => {
         const p = h.providers[k];
         return '<div class="review"><div class="h" style="display:flex;gap:9px;' +
-          'align-items:center;flex-wrap:wrap"><b>' + E(p.label || k) + '</b>' +
+          'align-items:center;flex-wrap:wrap"><b>' + E(providerDisplayName(k, p.label)) + '</b>' +
           (p.ok ? '<span class="tag green">reachable</span>'
                 : '<span class="tag red">unavailable</span>') +
           (p.active ? '<span class="tag blue">active</span>' : '') +
@@ -4257,12 +4552,12 @@ VIEWS.system = async (pid) => {
             '">Make active</button>') + '</div>' +
           '<div class="samples" style="padding-top:12px"><dl class="kv">' +
           (p.version ? row('Version', E(p.version)) : '') +
-          (p.model ? row('Model', E(p.model)) : '') +
+          (p.model ? row('Engine profile', E(providerAliasText(p.model))) : '') +
           (p.path ? row('Path', '<span class="mono" style="font-size:11px">' +
             E(p.path) + '</span>') : '') +
-          (p.error ? row('Error', '<span class="sev-high">' + E(p.error) +
+          (p.error ? row('Error', '<span class="sev-high">' + E(providerAliasText(p.error)) +
             '</span>') : '') +
-          (p.hint ? row('Hint', E(p.hint)) : '') +
+          (p.hint ? row('Hint', E(providerAliasText(p.hint))) : '') +
           '</dl></div></div>';
       }).join('') + '</div>') +
     panel('Horizun capability matrix <small>honoured, never assumed</small>',

@@ -1,4 +1,4 @@
-/* Frame-synchronised local computer-vision overlays for VEDA demo footage. */
+/* Frame-synchronised local computer-vision overlays for recorded CCTV footage. */
 (() => {
   const cache = new Map();
 

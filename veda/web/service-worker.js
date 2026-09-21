@@ -1,9 +1,13 @@
-const CACHE = 'veda-shell-1.59';
+const CACHE = 'veda-shell-1.75';
 const SHELL = [
   '/', '/manifest.webmanifest', '/static/favicon.svg',
-  '/static/app.css?v=1.59', '/static/views.js?v=1.59',
-  '/static/vision-tracker.js?v=1.59', '/static/app.js?v=1.59',
-  '/static/field-capture.js?v=1.59'
+  '/static/app.css?v=1.75', '/static/views.js?v=1.75',
+  '/static/vision-tracker.js?v=1.75', '/static/app.js?v=1.75',
+  '/static/field-capture.js?v=1.75',
+  '/static/design.css?v=1.75', '/static/spatial-control.js?v=1.75',
+  '/static/vendor/three/three.module.min.js?v=1.75', '/static/vendor/three/three.core.min.js',
+  '/static/vendor/three/OrbitControls.js?v=1.75',
+  '/static/assets/pipeline-hero.jpg'
 ];
 const DB = 'veda-field-sync';
 const STORE = 'outbox';

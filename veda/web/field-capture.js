@@ -400,14 +400,14 @@
 
     const button = el('capture-cctv-use');
     button.disabled = true; button.textContent = 'Preparing editable draft…';
-    const transcript = 'CCTV review (' + camera + ', demo video frame ' + observation.time + '): ' +
+    const transcript = 'CCTV review (' + camera + ', recorded frame ' + observation.time + '): ' +
       activityId + ' ' + activityName + ' visual progress is estimated at ' + progress + '%. Work remains. ' +
       (note ? note + ' ' : '') +
-      'Local camera demo observation; human verification required.';
+      'Local CCTV observation; human verification required.';
     state.transcriptDirty = false;
     state.voiceCaptured = false;
     setTranscript(transcript,
-      'CCTV review draft · local demo clip ' + feed.src.split('/').pop() +
+      'CCTV review draft · local recorded footage ' + feed.src.split('/').pop() +
       ' · reviewer confirmation required.', false);
     el('capture-confirmed').value = transcript;
     el('capture-location-label').value = camera;
@@ -834,8 +834,11 @@
     document.querySelectorAll('[data-capture-cctv-mode]').forEach(button =>
       button.onclick = () => setCctvMode(button.dataset.captureCctvMode));
     el('capture-cctv-player').ontimeupdate = () => {
-      const seconds = Math.max(0, Math.round(el('capture-cctv-player').currentTime || 0));
-      el('capture-cctv-clock').textContent = 'Frame ' +
+      const player = el('capture-cctv-player');
+      const clock = el('capture-cctv-clock');
+      if (!player || !clock) return;
+      const seconds = Math.max(0, Math.round(player.currentTime || 0));
+      clock.textContent = 'Frame ' +
         String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
     };
     document.querySelectorAll('[data-cctv-observation]').forEach(button => {

@@ -194,7 +194,7 @@ def main() -> None:
               "data-capture-cctv-mode=\"raw\"" in views,
               "CCTV footage review workstation is missing")
         check("useCctvObservation" in capture and "await interpretEvent(projectId)" in capture and
-              "Local camera demo observation; human verification required." in capture,
+              "Local CCTV observation; human verification required." in capture,
               "CCTV observations must enter the governed editable capture flow")
         check("visual progress is estimated at ' + progress + '%. Work remains." in capture and
               "if (progressRadio) progressRadio.checked = true;" in capture,

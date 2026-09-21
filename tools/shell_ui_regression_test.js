@@ -25,7 +25,9 @@ requireText(app, "const RAIL_STATE_KEY = 'veda-navigation-collapsed'",
 requireText(css, 'body.rail-collapsed #app', 'Compact navigation layout is missing');
 requireText(css, '@media (prefers-reduced-motion: reduce)',
   'Navigation motion must respect reduced-motion preferences');
-requireText(worker, "const CACHE = 'veda-shell-1.59'", 'Shell cache version is stale');
+requireText(worker, "const CACHE = 'veda-shell-1.75'", 'Shell cache version is stale');
+requireText(worker, '/static/spatial-control.js?v=1.75', 'Spatial viewer is missing from the offline shell');
+requireText(html, '/static/spatial-control.js?v=1.75', 'Local spatial viewer module is missing');
 requireText(html, 'data-role-switch="worker"', 'Worker persona switch is missing');
 requireText(app, "const WORKER_NAV =", 'Worker navigation must be separate from supervisor navigation');
 requireText(app, "const WORKER_VIEWS = new Set", 'Worker route boundary is missing');

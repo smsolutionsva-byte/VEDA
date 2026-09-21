@@ -36,9 +36,12 @@ def main() -> int:
              "Python syntax", env)
     node = shutil.which("node")
     if node:
-        for source in ("veda/web/app.js", "veda/web/views.js", "veda/web/field-capture.js"):
+        for source in ("veda/web/app.js", "veda/web/views.js", "veda/web/field-capture.js",
+                       "veda/web/spatial-control.js"):
             ok = run([node, "--check", source], "JavaScript syntax: " + source, env) and ok
-        for test in ("tools/shell_ui_regression_test.js", "tools/ask_ui_regression_test.js"):
+        for test in ("tools/shell_ui_regression_test.js", "tools/ask_ui_regression_test.js",
+                     "tools/dashboard_ui_regression_test.js",
+                     "tools/execution_ui_regression_test.js"):
             ok = run([node, str(ROOT / test)], test, env) and ok
     else:
         print("SKIP JavaScript syntax: node is not installed")

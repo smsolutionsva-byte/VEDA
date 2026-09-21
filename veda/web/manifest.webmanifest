@@ -5,8 +5,8 @@
   "start_url": "/#capture",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0A0C0F",
-  "theme_color": "#0F1319",
+  "background_color": "#F3F7F4",
+  "theme_color": "#F3F7F4",
   "icons": [
     {"src": "/static/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
   ]
