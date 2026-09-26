@@ -6,8 +6,7 @@ Place the local demo clips in this directory using these exact names:
 - `CCTV_2.mp4` — pipe-laydown-yard fixed-camera demo
 - `LiveCamera_1.mp4` — worker-uploaded site walk-through demo
 
-The MP4 files are intentionally excluded from Git because site footage can be
-large or sensitive. VEDA serves them locally under `/static/staticcams/` and
+VEDA serves these demo clips locally under `/static/staticcams/` and
 does not upload them to an external AI service.
 
 The `detections/` sidecars contain local object and pose detections sampled from

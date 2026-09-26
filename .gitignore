@@ -36,6 +36,4 @@ VEDA_GOOSE_BENCHMARK/
 
 VEDA_HARD_BENCHMARK/
 
-# Local/private demo camera footage. Keep the folder README, not the media.
-veda/web/staticcams/*.mp4
 veda/models/vision/*.onnx
